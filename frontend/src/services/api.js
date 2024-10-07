@@ -538,6 +538,31 @@ export const fetchConversionRateData = async () => {
   }
 };
 
+export const fetchInventoryLevels = async () => {
+  try {
+    const response = await axiosInstance.get('/inventory/levels/', {
+      headers: getAuthHeader(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching inventory levels:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const fetchCashFlow = async (startDate, endDate) => {
+  try {
+    const response = await axiosInstance.get('/finance/cash-flow/', {
+      headers: getAuthHeader(),
+      params: { start_date: startDate, end_date: endDate },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching cash flow:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
 // Function to create an invoice
 export const createInvoice = async (invoiceData) => {
   try {

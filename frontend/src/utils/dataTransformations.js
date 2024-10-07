@@ -15,10 +15,17 @@ export const transformLineChartData = (data, xKey, yKey) => {
   }
 
   const labels = data.map(item => {
-    const date = parseISO(item[xKey]);
-    return isValid(date) ? format(date, 'MMM dd, yyyy') : 'Invalid Date';
+    if (typeof item[xKey] === 'string') {
+      const date = parseISO(item[xKey]);
+      return isValid(date) ? format(date, 'MMM dd, yyyy') : item[xKey];
+    }
+    return item[xKey];
   });
-  const values = data.map(item => item[yKey]);
+
+  const values = data.map(item => {
+    const value = parseFloat(item[yKey]);
+    return isNaN(value) ? null : value;
+  });
 
 
   return {
@@ -120,6 +127,25 @@ export const calculateTotal = (data, key) => {
   return data.reduce((sum, item) => sum + parseFloat(item[key] || 0), 0);
 };
 
+export const calculateGrowthRate = (oldValue, newValue) => {
+  if (oldValue === 0) return newValue > 0 ? Infinity : 0;
+  return ((newValue - oldValue) / oldValue) * 100;
+};
+
+export const validateSearchInput = (value, category) => {
+  switch (category) {
+    case 'id':
+      return /^\d+$/.test(value);
+    case 'amount':
+      return /^\d+(\.\d{1,2})?$/.test(value);
+    case 'customer':
+    case 'product':
+      return /^[a-zA-Z0-9\s]+$/.test(value);
+    default:
+      return true;
+  }
+};
+
 /**
  * Groups data by a specific key and calculates the sum of another key
  * @param {Array} data - Array of objects
@@ -149,14 +175,22 @@ export const calculatePercentageChange = (oldValue, newValue) => {
   return ((newValue - oldValue) / oldValue) * 100;
 };
 
+export const calculateAverageSales = (salesData) => {
+  if (!salesData || salesData.length === 0) {
+    return 0;
+  }
+  const sum = salesData.reduce((acc, value) => acc + value, 0);
+  return sum / salesData.length;
+};
+
 /**
  * Formats a number as currency
  * @param {number} value - The value to format
  * @param {string} currency - The currency code (default: 'USD')
  * @returns {string} Formatted currency string
  */
-export const formatCurrency = (value, currency = 'USD') => {
-  return new Intl.NumberFormat('en-US', {
+export const formatCurrency = (value, currency = 'USD', locale = 'en-US') => {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currency,
   }).format(value);
@@ -171,6 +205,11 @@ export const formatCurrency = (value, currency = 'USD') => {
  */
 export const transformChartData = (data, type, options = {}) => {
   const { xKey = 'x', yKey = 'y', labelKey, valueKey } = options;
+
+  if (!Array.isArray(data) || data.length === 0) {
+    console.warn(`Invalid or empty data passed to transformChartData for ${type} chart`);
+    return { labels: [], datasets: [] };
+  }
 
   switch (type) {
     case 'line':

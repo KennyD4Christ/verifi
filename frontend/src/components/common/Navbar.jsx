@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../../context/AuthContext';
 
@@ -7,9 +7,9 @@ const NavbarContainer = styled.nav`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
-  background-color: #1034a6;
-  color: white;
+  padding: 1rem 2rem;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 `;
 
 const NavLinks = styled.div`
@@ -18,81 +18,98 @@ const NavLinks = styled.div`
 `;
 
 const NavLink = styled(Link)`
-  color: white;
+  color: #4a5568;
   text-decoration: none;
-  margin: 0 10px;
+  margin: 0 1rem;
+  font-weight: 500;
 
   &:hover {
-    text-decoration: underline;
+    color: #2b6cb0;
   }
 `;
 
-const ProfileMenu = styled.div`
-  position: relative;
-  display: inline-block;
+const AuthButtons = styled.div`
+  display: flex;
+  align-items: center;
 `;
 
-const ProfileButton = styled.button`
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  font-size: 16px;
-`;
-
-const DropdownContent = styled.div`
-  display: none;
-  position: absolute;
-  background-color: white;
-  color: black;
-  min-width: 160px;
-  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-  z-index: 1;
-
-  ${ProfileMenu}:hover & {
-    display: block;
-  }
-`;
-
-const DropdownItem = styled.a`
-  color: black;
-  padding: 12px 16px;
+const AuthButton = styled(Link)`
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
   text-decoration: none;
-  display: block;
 
-  &:hover {
-    background-color: #f1f1f1;
+  &:first-child {
+    color: #4a5568;
+    margin-right: 1rem;
+
+    &:hover {
+      background-color: #edf2f7;
+    }
+  }
+
+  &:last-child {
+    background-color: #2b6cb0;
+    color: white;
+
+    &:hover {
+      background-color: #2c5282;
+    }
   }
 `;
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const location = useLocation();
+  const { isAuthenticated, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
+  };
+
+  const renderAuthLinks = () => {
+    if (isAuthenticated()) {
+      return (
+        <>
+          <NavLink to="/dashboard">Dashboard</NavLink>
+          <NavLink to="/transactions">Transactions</NavLink>
+          <NavLink to="/stock-levels">Stock Levels</NavLink>
+          <NavLink to="/user-roles">User Roles</NavLink>
+          <NavLink to="/reports">Reports</NavLink>
+          <NavLink to="/products">Products</NavLink>
+          <NavLink to="/customers">Customers</NavLink>
+          <NavLink to="/orders">Orders</NavLink>
+          <NavLink to="/invoices">Invoices</NavLink>
+          <AuthButton as="button" onClick={handleLogout}>Logout</AuthButton>
+        </>
+      );
+    } else if (location.pathname !== '/login' && location.pathname !== '/register') {
+      return (
+        <AuthButtons>
+          <AuthButton to="/login">Log In</AuthButton>
+          <AuthButton to="/register">Sign Up</AuthButton>
+        </AuthButtons>
+      );
+    }
+    return null;
   };
 
   return (
     <NavbarContainer>
       <NavLinks>
-        <NavLink to="/">Dashboard</NavLink>
-	<NavLink to="/transactions">Transactions</NavLink>
-	<NavLink to="/invoices">Invoices</NavLink>
-	<NavLink to="/products">Products</NavLink>
-	<NavLink to="/stock-levels">Stock Levels</NavLink>
-	<NavLink to="/orders">Orders</NavLink>
-	<NavLink to="/customers">Customers</NavLink>
-	<NavLink to="/user-roles">User Roles</NavLink>
-	<NavLink to="/reports">Reports</NavLink>
+        <NavLink to="/">
+          <img src="/image%201.avif" alt="Finstock Logo" style={{ height: '2rem' }} />
+        </NavLink>
+        {!isAuthenticated() && (
+          <>
+            <NavLink to="/about">About</NavLink>
+            <NavLink to="/pricing">Pricing</NavLink>
+            <NavLink to="/contact">Contact</NavLink>
+          </>
+        )}
       </NavLinks>
-      <ProfileMenu>
-	<ProfileButton>User Profile</ProfileButton>
-	<DropdownContent>
-	  <DropdownItem href="#" onClick={handleLogout}>Logout</DropdownItem>
-	</DropdownContent>
-      </ProfileMenu>
+      {renderAuthLinks()}
     </NavbarContainer>
   );
 };

@@ -5,16 +5,18 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { 
-  FaHome, 
-  FaExchangeAlt, 
-  FaFileInvoiceDollar, 
-  FaBox, 
-  FaLayerGroup, 
-  FaShoppingCart, 
-  FaUsers, 
-  FaUserShield, 
-  FaChartBar 
+import {
+  FaHome,
+  FaExchangeAlt,
+  FaFileInvoiceDollar,
+  FaBox,
+  FaLayerGroup,
+  FaShoppingCart,
+  FaUsers,
+  FaUserShield,
+  FaChartBar,
+  FaChevronLeft,
+  FaChevronRight
 } from 'react-icons/fa';
 
 // Default Theme
@@ -32,13 +34,15 @@ const defaultTheme = {
 // Sidebar Container
 const SidebarContainer = styled.div`
   width: ${(props) => (props.collapsed ? '80px' : '200px')};
-  transition: width 0.3s;
+  transition: all 0.3s;
   color: ${(props) => props.theme.textColor};
   background-color: ${(props) => props.theme.backgroundColor};
   height: 100vh;
   position: fixed;
   display: flex;
   flex-direction: column;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
 `;
 
 // Sidebar Header
@@ -56,6 +60,12 @@ const SidebarToggle = styled.button`
   border: none;
   color: ${(props) => props.theme.textColor};
   cursor: pointer;
+  font-size: 1.2rem;
+  transition: transform 0.3s;
+  
+  &:hover {
+    transform: scale(1.1);
+  }
 `;
 
 // Sortable Item Component
@@ -108,7 +118,7 @@ const SidebarLink = styled(Link)`
 `;
 
 // Sidebar Component
-const Sidebar = ({ theme }) => {
+const Sidebar = ({ theme, collapse, onToggle }) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [menuItems, setMenuItems] = useState([
@@ -154,8 +164,8 @@ const Sidebar = ({ theme }) => {
       <SidebarContainer collapsed={collapsed}>
         <SidebarHeader>
           <h3>{collapsed ? 'M' : 'Menu'}</h3>
-          <SidebarToggle onClick={toggleSidebar}>
-            {collapsed ? '>' : '<'}
+          <SidebarToggle onClick={onToggle}>
+            {collapsed ? <FaChevronRight /> : <FaChevronLeft />}
           </SidebarToggle>
         </SidebarHeader>
         <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -163,8 +173,7 @@ const Sidebar = ({ theme }) => {
             {visibleMenuItems.map((item, index) => (
               <SortableItem
                 key={item.id}
-                collapsed={collapsed.toString()}
-                active={location.pathname === item.path}
+                id={item.id}
               >
                 <SidebarLink
                   to={item.path}
@@ -175,7 +184,7 @@ const Sidebar = ({ theme }) => {
                   onKeyDown={(e) => handleKeyDown(e, index)}
                 >
                   <item.icon />
-                  {!collapsed && item.label}
+                  {!collapsed && <span>{item.label}</span>}
                 </SidebarLink>
               </SortableItem>
             ))}
