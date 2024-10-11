@@ -486,11 +486,29 @@ export const updateProductStock = async (productId, newStock) => {
   }
 };
 
+// Helper function to format date for API requests
+const formatDate = (date) => {
+  if (!date) return '';
+  if (typeof date === 'string') {
+    // If it's already a string, assume it's in the correct format
+    return date;
+  }
+  // Format as YYYY-MM-DD
+  return date.toISOString().split('T')[0];
+};
+
 // Function to fetch Top product
-export const fetchTopProducts = async () => {
+export const fetchTopProducts = async (startDate, endDate) => {
   try {
+    const params = {
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+    };
+
+    console.log('Fetching top products with params:', params);
     const response = await axiosInstance.get('/products/top/', {
       headers: getAuthHeader(),
+      params,
     });
     return response.data;
   } catch (error) {
@@ -500,10 +518,17 @@ export const fetchTopProducts = async () => {
 };
 
 // Function to fetch recent transaction
-export const fetchRecentTransactions = async () => {
+export const fetchRecentTransactions = async (startDate, endDate) => {
   try {
+    const params = {
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+    };
+
+    console.log('Fetching recent transactions with params:', params);
     const response = await axiosInstance.get('/transactions/recent/', {
       headers: getAuthHeader(),
+      params,
     });
     return response.data;
   } catch (error) {
@@ -826,14 +851,21 @@ export const exportTransactionsToCSV = async (params = {}) => {
   }
 };
 
-// Function to fetch summary data
-export const fetchSummaryData = async () => {
+// Function to fetch summary data with date range
+export const fetchSummaryData = async (startDate, endDate) => {
   try {
+    const params = {
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+    };
+
+    console.log('Fetching summary data with params:', params);
+
     const [orders, products, customers, transactions] = await Promise.all([
-      axiosInstance.get('/core/orders/'),
-      axiosInstance.get('/products/'),
-      axiosInstance.get('/core/customers/'),
-      axiosInstance.get('/transactions/transactions/')
+      axiosInstance.get('/core/orders/', { params }),
+      axiosInstance.get('/products/', { params }),
+      axiosInstance.get('/core/customers/', { params }),
+      axiosInstance.get('/transactions/transactions/', { params })
     ]);
     const safeArrayOp = (data, op) => {
       if (Array.isArray(data)) {
@@ -845,8 +877,15 @@ export const fetchSummaryData = async () => {
       return op === 'length' ? 0 : [];
     };
 
+    const orderData = Array.isArray(orders.data) ? orders.data : (orders.data.results || []);
+    const totalRevenue = orderData.reduce((sum, order) => sum + (parseFloat(order.total_price) || 0), 0);
+    const totalOrders = safeArrayOp(orders.data, 'length');
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
     return {
-      totalOrders: safeArrayOp(orders.data, 'length'),
+      totalRevenue,
+      averageOrderValue,
+      totalOrders,
       totalProducts: safeArrayOp(products.data, 'length'),
       totalCustomers: safeArrayOp(customers.data, 'length'),
       recentTransactions: safeArrayOp(transactions.data, 'slice')
@@ -857,36 +896,35 @@ export const fetchSummaryData = async () => {
   }
 };
 
-// Function to fetch sales data
-export const fetchSalesData = async () => {
+// Function to fetch sales data with date range
+export const fetchSalesData = async (startDate, endDate) => {
   try {
-    const response = await axiosInstance.get('/core/orders/');
+    const params = {
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+    };
+
+    console.log('Fetching orders with params:', params);
+    const response = await axiosInstance.get('/core/orders/', {params});
+
+    const processOrders = (orders) => orders.map(order => ({
+      id: order.id,
+      date: order.order_date,
+      amount: order.total_price,
+      customer: order.customer,
+      status: order.status,
+      isPaid: order.is_paid,
+    }));
+
     // Ensure the response data is an array
     if (Array.isArray(response.data)) {
       // Transform the data to match the expected structure
-      return response.data.map(order => ({
-        id: order.id,
-        date: order.order_date,
-        amount: order.total_price, // Assuming the API calculates this
-        customer: order.customer,
-        status: order.status,
-        isPaid: order.is_paid,
-        // Add any other fields you need for your dashboard
-      }));
+      return processOrders(response.data);
     } else if (typeof response.data === 'object' && response.data.results) {
-      // If the API returns paginated data
-      return response.data.results.map(order => ({
-        id: order.id,
-        date: order.order_date,
-        amount: order.total_price,
-        customer: order.customer,
-        status: order.status,
-        isPaid: order.is_paid,
-        // Add any other fields you need for your dashboard
-      }));
+      return processOrders(response.data.results);
     } else {
       console.error('Unexpected data structure received:', response.data);
-      return []; // Return an empty array to prevent errors
+      return [];
     }
   } catch (error) {
     console.error('Error fetching sales data:', error.response?.data || error.message);

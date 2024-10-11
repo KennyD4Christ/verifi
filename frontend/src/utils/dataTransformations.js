@@ -1,4 +1,5 @@
 import { format, isValid, parseISO } from 'date-fns';
+import { useCallback } from 'react';
 
 /**
  * Transforms data for a line chart
@@ -176,11 +177,9 @@ export const calculatePercentageChange = (oldValue, newValue) => {
 };
 
 export const calculateAverageSales = (salesData) => {
-  if (!salesData || salesData.length === 0) {
-    return 0;
-  }
-  const sum = salesData.reduce((acc, value) => acc + value, 0);
-  return sum / salesData.length;
+  if (!salesData.length) return 0;
+  const total = salesData.reduce((sum, sale) => sum + sale.amount, 0);
+  return total / salesData.length;
 };
 
 /**
@@ -203,23 +202,56 @@ export const formatCurrency = (value, currency = 'USD', locale = 'en-US') => {
  * @param {Object} options - Additional options (e.g., keys for x and y axes)
  * @returns {Object} Transformed data for Chart.js
  */
-export const transformChartData = (data, type, options = {}) => {
-  const { xKey = 'x', yKey = 'y', labelKey, valueKey } = options;
+export const transformChartData = (data, chartType, { xKey, yKey }) => {
+  console.log('Data:', data);
+  console.log('Chart Type:', chartType);
+  console.log('xKey:', xKey, 'yKey:', yKey);
 
   if (!Array.isArray(data) || data.length === 0) {
-    console.warn(`Invalid or empty data passed to transformChartData for ${type} chart`);
+    console.warn('No data available for chart');
     return { labels: [], datasets: [] };
   }
 
-  switch (type) {
+  const labels = data.map(item => {
+    if (xKey === 'date' && item[xKey]) {
+      return new Date(item[xKey]);
+    }
+    return item[xKey] || '';
+  });
+  console.log('Labels:', labels);
+
+  const values = data.map(item => item[yKey] || 0);
+  console.log('Values:', values);
+
+  switch (chartType) {
     case 'line':
-      return transformLineChartData(data, xKey, yKey);
     case 'bar':
-      return transformBarChartData(data, xKey, yKey);
-    case 'pie':
-      return transformPieChartData(data, labelKey || xKey, valueKey || yKey);
+      return {
+        labels,
+        datasets: [{
+          label: yKey.charAt(0).toUpperCase() + yKey.slice(1),
+          data: values,
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }]
+      };
+    case 'doughnut':
+      return {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: [
+            'rgba(255, 99, 132, 0.6)',
+            'rgba(54, 162, 235, 0.6)',
+            'rgba(255, 206, 86, 0.6)',
+            'rgba(75, 192, 192, 0.6)',
+            'rgba(153, 102, 255, 0.6)',
+          ],
+        }]
+      };
     default:
-      console.warn(`Unsupported chart type: ${type}`);
+      console.warn('Unsupported chart type');
       return { labels: [], datasets: [] };
   }
 };

@@ -4,13 +4,27 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useOrders } from '../context/OrderContext';
 import { Alert, Spin, Select, DatePicker, Input, Button } from 'antd';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, registerables } from 'chart.js';
+import moment from 'moment-timezone';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import annotationPlugin from 'chartjs-plugin-annotation';
+import { enUS } from 'date-fns/locale';
 import { FixedSizeList as List } from 'react-window';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { debounce } from 'lodash';
 import {
+  Chart as ChartJS,
+  TimeScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import {
+  fetchCustomers,
   fetchSummaryData,
   fetchSalesData,
   fetchTopProducts,
@@ -21,15 +35,29 @@ import {
   fetchCashFlow,
 } from '../services/api';
 import { subscribeToUpdates } from '../services/websocket';
-import { 
-  transformChartData, 
-  calculateGrowthRate, 
+import {
+  calculateGrowthRate,
   formatCurrency,
   validateSearchInput,
   calculateAverageSales,
+  transformChartData,
 } from '../utils/dataTransformations';
 
-ChartJS.register(...registerables, zoomPlugin, annotationPlugin);
+import 'chartjs-adapter-date-fns';
+
+ChartJS.register(
+  TimeScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  zoomPlugin,
+  annotationPlugin
+);
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -45,6 +73,25 @@ const darkTheme = {
   textColor: '#FFFFFF',
   cardBackground: '#2D2D2D',
 };
+
+const DateRangePickerContainer = styled.div`
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const MetricDateRangePicker = styled(DateRangePickerContainer)`
+  background-color: #87CEEB;
+  padding: 10px;
+  border-radius: 8px;
+`;
+
+const ChartDateRangePicker = styled(DateRangePickerContainer)`
+  background-color: #87CEEB;
+  padding: 10px;
+  border-radius: 8px;
+`;
 
 const DashboardContainer = styled.div`
   display: flex;
@@ -65,6 +112,18 @@ const Grid = styled.div`
     grid-template-columns: 1fr;
   }
 `;
+
+const LoadingIndicatorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  background-color: ${props => props.theme.backgroundColor};
+  color: ${props => props.theme.textColor};
+  min-height: 100vh;
+  justify-content: center;
+  align-items: center;
+`;
+
 
 const Card = styled.div`
   background-color: ${props => props.theme.cardBackground};
@@ -117,7 +176,7 @@ const ThemeToggle = styled.button`
 `;
 
 const SearchInput = styled.input`
-  width: 100%;
+  width: 30%;
   padding: 10px;
   margin-bottom: 20px;
   border: 1px solid #ddd;
@@ -126,8 +185,10 @@ const SearchInput = styled.input`
 
 const AdvancedSearchContainer = styled.div`
   display: flex;
-  gap: 10px;
+  padding: 10px;
+  gap: 30px;
   margin-bottom: 20px;
+  background-color: #87CEEB;
 `;
 
 const StyledSelect = styled(Select)`
@@ -157,20 +218,34 @@ const Dashboard = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [widgetOrder, setWidgetOrder] = useState(['revenue', 'orders', 'customers', 'aov']);
   const [filter, setFilter] = useState('');
+  const [chartDateRange, setChartDateRange] = useState([null, null]);
+  const [metricDateRange, setMetricDateRange] = useState([null, null]);
+  const [metricData, setMetricData] = useState({});
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
-    const fetchDashboardData = useCallback(async () => {
+  const formatDateForAPI = (date) => {
+    return moment(date).format('YYYY-MM-DD');
+  };
+
+  const fetchDashboardData = useCallback(async (startDate, endDate) => {
+    console.log('fetchDashboardData called with:', { startDate, endDate });
     setLoading(true);
     setError(null);
     try {
+      const formattedStartDate = formatDateForAPI(startDate);
+      const formattedEndDate = formatDateForAPI(endDate);
+      console.log('Formatted dates:', { formattedStartDate, formattedEndDate });
+
       const [summary, sales, products, transactions, preferences] = await Promise.all([
-        fetchSummaryData(),
-        fetchSalesData(),
-        fetchTopProducts(),
-        fetchRecentTransactions(),
+        fetchSummaryData(startDate, endDate),
+        fetchSalesData(startDate, endDate),
+        fetchTopProducts(startDate, endDate),
+        fetchRecentTransactions(startDate, endDate),
         fetchUserPreferences(),
       ]);
+
+      console.log('Fetched data:', { summary, sales, products, transactions, preferences });
 
       setSummaryData(summary);
       setSalesData(Array.isArray(sales) ? sales : []);
@@ -228,6 +303,76 @@ const Dashboard = () => {
     await updateUserPreferences(newPreferences);
   };
 
+  const fetchMetricData = useCallback(async (startDate, endDate) => {
+    console.log('fetchMetricData called with:', { startDate, endDate });
+    setLoading(true);
+    setError(null);
+    try {
+      // Format dates to YYYY-MM-DD
+      const formattedStartDate = formatDateForAPI(startDate);
+      const formattedEndDate = formatDateForAPI(endDate);
+      console.log('Formatted dates for metrics:', { formattedStartDate, formattedEndDate });
+
+      const [summary, orderData, productData, customerData, transactionData] = await Promise.all([
+        fetchSummaryData(formattedStartDate, formattedEndDate),
+        fetchOrders(formattedStartDate, formattedEndDate),
+	fetchTopProducts(formattedStartDate, formattedEndDate),
+        fetchCustomers(formattedStartDate, formattedEndDate),
+        fetchRecentTransactions(formattedStartDate, formattedEndDate)
+      ]);
+
+      console.log('Fetched metric data:', { summary, orderData, productData, customerData, transactionData });
+
+      setMetricData(summary);
+      
+    } catch (err) {
+      setError(`Error fetching data: ${err.message}`);
+      console.error('Error details:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    console.log('useEffect for orders update triggered', { ordersLength: orders?.length });
+    if (orders && orders.length > 0) {
+      const mappedSalesData = orders.map(order => ({
+        date: order.order_date,
+        amount: order.total_price
+      }));
+      console.log('Mapped sales data:', mappedSalesData);
+      setSalesData(mappedSalesData);
+    }
+  }, [orders]);
+
+  useEffect(() => {
+    console.log('useEffect for chartDateRange triggered', { chartDateRange });
+    if (chartDateRange[0] && chartDateRange[1]) {
+      fetchDashboardData(chartDateRange[0], chartDateRange[1]);
+    }
+  }, [chartDateRange, fetchDashboardData]);
+
+  useEffect(() => {
+    console.log('useEffect for metricDateRange triggered', { metricDateRange });
+    if (metricDateRange[0] && metricDateRange[1]) {
+      fetchMetricData(metricDateRange[0], metricDateRange[1]);
+    }
+  }, [metricDateRange, fetchMetricData]);
+
+  const handleChartDateRangeChange = (dates) => {
+    console.log('handleChartDateRangeChange called with:', dates);
+    setChartDateRange(dates);
+  };
+
+  const handleMetricDateRangeChange = (dates) => {
+    console.log('handleMetricDateRangeChange called with:', dates);
+    if (dates && dates.length === 2) {
+      setMetricDateRange(dates.map(date => date.toDate()));
+    } else {
+      setMetricDateRange([null, null]);
+    }
+  };
+
   // When passing data to transformChartData, ensure it's an array
   const chartData = useMemo(() => {
     if (salesData.length === 0) {
@@ -271,52 +416,6 @@ const Dashboard = () => {
     }
   }, 300);
 
-  const chartOptions = useMemo(() => ({
-    responsive: true,
-    plugins: {
-      legend: { position: 'top' },
-      title: { display: true, text: `${selectedMetric.toUpperCase()} Chart` },
-      tooltip: { 
-        mode: 'index', 
-        intersect: false,
-        callbacks: {
-          label: (context) => `${context.dataset.label}: ${formatCurrency(context.raw)}`,
-        },
-      },
-      zoom: {
-        zoom: {
-          wheel: { enabled: true },
-          pinch: { enabled: true },
-          mode: 'xy',
-        },
-        pan: { enabled: true },
-      },
-      annotation: {
-        annotations: {
-          line1: {
-            type: 'line',
-            yMin: calculateAverageSales(salesData),
-            yMax: calculateAverageSales(salesData),
-            borderColor: 'rgb(255, 99, 132)',
-            borderWidth: 2,
-            label: {
-              content: 'Avg. Sales',
-              enabled: true,
-            },
-          },
-        },
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          callback: (value) => formatCurrency(value),
-        },
-      },
-    },
-  }), [selectedMetric, salesData]);
-
   const filteredTransactions = useMemo(() =>
     recentTransactions.filter(t => {
       const searchValue = filter.toLowerCase();
@@ -353,9 +452,9 @@ const Dashboard = () => {
     >
       {({ index, style }) => (
         <div style={style}>
-          ID: {transactions[index].id} - 
-          Customer: {transactions[index].customerName} - 
-          Product: {transactions[index].productName} - 
+          ID: {transactions[index].id} -
+          Customer: {transactions[index].customerName} -
+          Product: {transactions[index].productName} -
           Amount: {formatCurrency(transactions[index].amount)}
         </div>
       )}
@@ -377,7 +476,91 @@ const Dashboard = () => {
     // You can also trigger a re-fetch or refresh the component state
   };
 
-  const renderChart = () => {
+  const getChartOptions = useCallback((type, metric) => {
+    const baseOptions = {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: `${metric.toUpperCase()} Chart` },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: (context) => `${context.label}: ${formatCurrency(context.raw)}`,
+          },
+        },
+        zoom: {
+          zoom: {
+            wheel: { enabled: true },
+            pinch: { enabled: true },
+            mode: 'xy',
+          },
+          pan: { enabled: true },
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: (value) => formatCurrency(value),
+          },
+        },
+      },
+    };
+
+    switch (type) {
+      case 'line':
+        return {
+          ...baseOptions,
+          scales: {
+            ...baseOptions.scales,
+            x: {
+            type: 'time',
+            time: {
+              unit: 'day',
+              displayFormats: {
+                day: 'MMM d'
+              }
+            },
+            adapters: {
+              date: {
+                locale: enUS,
+              },
+            },
+          },
+        },
+      };
+      case 'bar':
+        return {
+          ...baseOptions,
+          scales: {
+            ...baseOptions.scales,
+            x: { type: 'category' },
+          },
+        };
+      case 'doughnut':
+        return {
+          ...baseOptions,
+          plugins: {
+            ...baseOptions.plugins,
+            legend: { position: 'right' },
+          },
+	  cutout: '50%',
+        };
+      default:
+        return baseOptions;
+    }
+  }, []);
+
+  const LoadingIndicator = () => {
+    return (
+      <div className="loading-indicator">
+        Loading...
+      </div>
+    );
+  };
+
+  const renderChart = useCallback(() => {
     let data;
     let chartConfig;
 
@@ -386,61 +569,61 @@ const Dashboard = () => {
       return { labels: [], datasets: [] };
     };
 
+    const aggregateRevenueData = (salesData) => {
+      const aggregated = salesData.reduce((acc, sale) => {
+        // Aggregate by month for this example. Adjust as needed.
+        const month = new Date(sale.date).toLocaleString('default', { month: 'long' });
+        acc[month] = (acc[month] || 0) + sale.amount;
+        return acc;
+      }, {});
+      return Object.entries(aggregated).map(([label, value]) => ({ label, value }));
+    };
+
     try {
       switch (selectedMetric) {
         case 'revenue':
-          data = transformChartData(salesData, chartType, { xKey: 'date', yKey: 'amount' });
-          chartConfig = {
-            scales: {
-              x: { type: 'time', time: { unit: 'day' } },
-              y: { beginAtZero: true, title: { display: true, text: 'Revenue' } }
-            }
-          };
+          if (chartType === 'doughnut') {
+            const aggregatedData = aggregateRevenueData(salesData);
+            data = transformChartData(aggregatedData, chartType, { xKey: 'label', yKey: 'value' });
+          } else {
+            data = transformChartData(salesData, chartType, { xKey: 'date', yKey: 'amount' });
+          }
+          chartConfig = getChartOptions(chartType, 'revenue');
           break;
         case 'inventory':
           data = transformChartData(inventoryLevels, 'bar', { xKey: 'product', yKey: 'quantity' });
-          chartConfig = {
-            scales: {
-              y: { beginAtZero: true, title: { display: true, text: 'Quantity' } }
-            }
-          };
+          chartConfig = getChartOptions('bar', 'inventory');
           break;
         case 'cashFlow':
           data = transformChartData(cashFlow, 'line', { xKey: 'date', yKey: 'balance' });
-          chartConfig = {
-            scales: {
-              x: { type: 'time', time: { unit: 'day' } },
-              y: { title: { display: true, text: 'Balance' } }
-            }
-          };
+          chartConfig = getChartOptions('line', 'cashFlow');
           break;
         default:
           data = { labels: [], datasets: [] };
-          chartConfig = {};
+          chartConfig = getChartOptions(chartType, selectedMetric);
       }
 
       if (!data.labels.length) {
         console.warn(`No data available for ${selectedMetric}`);
+        return <Alert message={`No data available for ${selectedMetric}`} type="warning" />;
       }
 
     } catch (error) {
-      data = handleTransformError(selectedMetric, error);
-      chartConfig = {};
+      console.error(`Error transforming ${selectedMetric} data:`, error);
+      return <Alert message={`Error loading ${selectedMetric} chart`} type="error" />;
     }
 
     switch (chartType) {
       case 'line':
-        return <Line options={chartOptions} data={data} />;
+        return <Line options={chartConfig} data={data} />;
       case 'bar':
-        return <Bar options={chartOptions} data={data} />;
+        return <Bar options={chartConfig} data={data} />;
       case 'doughnut':
-        return <Doughnut options={chartOptions} data={data} />;
+        return <Doughnut options={chartConfig} data={data} />;
       default:
-        return null;
+        return <Alert message={`Unsupported chart type: ${chartType}`} type="error" />;
     }
-  };
-
-  // ... [Previous return statement with the following modifications]
+  }, [selectedMetric, chartType, salesData, inventoryLevels, cashFlow, getChartOptions, transformChartData]);
 
   return (
     <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
@@ -483,6 +666,39 @@ const Dashboard = () => {
             </ToggleButton>
           </PreferencesPanel>
 
+          <MetricDateRangePicker>
+            <h3>Metric Date Range</h3>
+            <DatePicker.RangePicker
+	      onChange={handleMetricDateRangeChange}
+	      value={metricDateRange.map(date => date ? moment(date) : null)}
+	    />
+          </MetricDateRangePicker>
+
+	  {loading && <LoadingIndicator />}
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+
+	  <Card>
+            <h3>Metric Summary</h3>
+            {loading ? (
+              <p>Loading metric data...</p>
+            ) : (
+              <>
+                {userPreferences.showRevenue && (
+                  <p>Revenue: {formatCurrency(metricData.totalRevenue || 0)}</p>
+                )}
+                {userPreferences.showOrders && (
+                  <p>Orders: {metricData.totalOrders || 0}</p>
+                )}
+                {userPreferences.showCustomers && (
+                  <p>Customers: {metricData.totalCustomers || 0}</p>
+                )}
+                {userPreferences.showAOV && (
+                  <p>Average Order Value: {formatCurrency(metricData.averageOrderValue || 0)}</p>
+                )}
+              </>
+            )}
+          </Card>
+
           <DragDropContext onDragEnd={onDragEnd}>
             <Droppable droppableId="widgets">
               {(provided) => (
@@ -498,7 +714,7 @@ const Dashboard = () => {
                           {widgetId === 'revenue' && userPreferences.showRevenue && (
                             <>
                               <h3>Total Revenue</h3>
-                              <p>${summaryData.totalRevenue}</p>
+                              <p>{formatCurrency(summaryData.totalRevenue || 0)}</p>
                             </>
                           )}
                           {widgetId === 'orders' && userPreferences.showOrders && (
@@ -516,7 +732,7 @@ const Dashboard = () => {
                           {widgetId === 'aov' && userPreferences.showAOV && (
                             <>
                               <h3>Average Order Value</h3>
-                              <p>${summaryData.averageOrderValue}</p>
+                              <p>{formatCurrency(summaryData.averageOrderValue || 0)}</p>
                             </>
                           )}
                         </Card>
@@ -529,13 +745,17 @@ const Dashboard = () => {
             </Droppable>
           </DragDropContext>
 
+          <ChartDateRangePicker>
+            <h3>Chart Date Range</h3>
+            <RangePicker onChange={handleChartDateRangeChange} />
+          </ChartDateRangePicker>
+
           <AdvancedSearchContainer>
+	    <h3>Data Range</h3>
             <RangePicker onChange={handleDateRangeChange} />
             <StyledSelect defaultValue="id" onChange={handleSearchCategoryChange}>
               <Option value="id">ID</Option>
               <Option value="amount">Amount</Option>
-              <Option value="customer">Customer</Option>
-              <Option value="product">Product</Option>
             </StyledSelect>
             <Input
               placeholder="Search transactions..."
@@ -562,16 +782,16 @@ const Dashboard = () => {
           <Card>
             <h3>Sales Trend</h3>
             <Line
-              options={chartOptions}
-              data={transformChartData(salesData, 'line')}
+              options={getChartOptions('line', 'sales')}
+              data={transformChartData(salesData, 'line', { xKey: 'date', yKey: 'amount' })}
             />
           </Card>
 
           <Card>
             <h3>Top Products</h3>
             <Bar
-              options={chartOptions}
-              data={transformChartData(topProducts, 'bar')}
+              options={getChartOptions('bar', 'topProducts')}
+              data={transformChartData(topProducts, 'bar', { xKey: 'product', yKey: 'sales' })}
             />
           </Card>
 
