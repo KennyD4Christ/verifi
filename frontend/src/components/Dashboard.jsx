@@ -33,6 +33,8 @@ import {
   updateUserPreferences,
   fetchInventoryLevels,
   fetchCashFlow,
+  fetchNetProfitData,
+  fetchConversionRateData,
 } from '../services/api';
 import { subscribeToUpdates } from '../services/websocket';
 import {
@@ -195,6 +197,18 @@ const StyledSelect = styled(Select)`
   min-width: 120px;
 `;
 
+const SafeMetricDisplay = ({ value, formatter = (v) => v, defaultValue = 'N/A' }) => {
+  if (value === undefined || value === null || isNaN(value)) {
+    return defaultValue;
+  }
+  try {
+    return formatter(value);
+  } catch (error) {
+    console.error('Error formatting metric:', error);
+    return defaultValue;
+  }
+};
+
 const Dashboard = () => {
   const [inventoryLevels, setInventoryLevels] = useState([]);
   const [cashFlow, setCashFlow] = useState([]);
@@ -221,6 +235,8 @@ const Dashboard = () => {
   const [chartDateRange, setChartDateRange] = useState([null, null]);
   const [metricDateRange, setMetricDateRange] = useState([null, null]);
   const [metricData, setMetricData] = useState({});
+  const [netProfit, setNetProfit] = useState(null);
+  const [conversionRate, setConversionRate] = useState(null);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -237,20 +253,24 @@ const Dashboard = () => {
       const formattedEndDate = formatDateForAPI(endDate);
       console.log('Formatted dates:', { formattedStartDate, formattedEndDate });
 
-      const [summary, sales, products, transactions, preferences] = await Promise.all([
+      const [summary, sales, products, transactions, preferences, netProfitData, conversionRateData] = await Promise.all([
         fetchSummaryData(startDate, endDate),
         fetchSalesData(startDate, endDate),
         fetchTopProducts(startDate, endDate),
         fetchRecentTransactions(startDate, endDate),
+	fetchNetProfitData(formattedStartDate, formattedEndDate),
+        fetchConversionRateData(formattedStartDate, formattedEndDate),
         fetchUserPreferences(),
       ]);
 
-      console.log('Fetched data:', { summary, sales, products, transactions, preferences });
+      console.log('Fetched data:', { summary, sales, products, transactions, preferences, netProfitData, conversionRateData });
 
       setSummaryData(summary);
       setSalesData(Array.isArray(sales) ? sales : []);
       setTopProducts(products);
       setRecentTransactions(transactions);
+      setNetProfit(netProfitData);
+      setConversionRate(conversionRateData);
       setUserPreferences(preferences);
     } catch (err) {
       setError(err.message);
@@ -313,18 +333,20 @@ const Dashboard = () => {
       const formattedEndDate = formatDateForAPI(endDate);
       console.log('Formatted dates for metrics:', { formattedStartDate, formattedEndDate });
 
-      const [summary, orderData, productData, customerData, transactionData] = await Promise.all([
+      const [summary, orderData, productData, customerData, transactionData, netProfitData] = await Promise.all([
         fetchSummaryData(formattedStartDate, formattedEndDate),
         fetchOrders(formattedStartDate, formattedEndDate),
-	fetchTopProducts(formattedStartDate, formattedEndDate),
+        fetchTopProducts(formattedStartDate, formattedEndDate),
         fetchCustomers(formattedStartDate, formattedEndDate),
-        fetchRecentTransactions(formattedStartDate, formattedEndDate)
+        fetchRecentTransactions(formattedStartDate, formattedEndDate),
+	fetchNetProfitData(formattedStartDate, formattedEndDate),
       ]);
 
-      console.log('Fetched metric data:', { summary, orderData, productData, customerData, transactionData });
+      console.log('Fetched metric data:', { summary, orderData, productData, customerData, transactionData, netProfitData, });
 
       setMetricData(summary);
-      
+      setNetProfit(netProfitData);
+
     } catch (err) {
       setError(`Error fetching data: ${err.message}`);
       console.error('Error details:', err);
@@ -545,7 +567,7 @@ const Dashboard = () => {
             ...baseOptions.plugins,
             legend: { position: 'right' },
           },
-	  cutout: '50%',
+          cutout: '50%',
         };
       default:
         return baseOptions;
@@ -669,15 +691,15 @@ const Dashboard = () => {
           <MetricDateRangePicker>
             <h3>Metric Date Range</h3>
             <DatePicker.RangePicker
-	      onChange={handleMetricDateRangeChange}
-	      value={metricDateRange.map(date => date ? moment(date) : null)}
-	    />
+              onChange={handleMetricDateRangeChange}
+              value={metricDateRange.map(date => date ? moment(date) : null)}
+            />
           </MetricDateRangePicker>
 
-	  {loading && <LoadingIndicator />}
+          {loading && <LoadingIndicator />}
           {error && <ErrorMessage>{error}</ErrorMessage>}
 
-	  <Card>
+          <Card>
             <h3>Metric Summary</h3>
             {loading ? (
               <p>Loading metric data...</p>
@@ -694,6 +716,9 @@ const Dashboard = () => {
                 )}
                 {userPreferences.showAOV && (
                   <p>Average Order Value: {formatCurrency(metricData.averageOrderValue || 0)}</p>
+	        )}
+	        {netProfit && (
+                  <p>Net Profit: {formatCurrency(netProfit.net_profit || 0)}</p>
                 )}
               </>
             )}
@@ -714,25 +739,50 @@ const Dashboard = () => {
                           {widgetId === 'revenue' && userPreferences.showRevenue && (
                             <>
                               <h3>Total Revenue</h3>
-                              <p>{formatCurrency(summaryData.totalRevenue || 0)}</p>
+                              <p>
+                                <SafeMetricDisplay 
+                                  value={summaryData?.totalRevenue} 
+                                  formatter={formatCurrency} 
+                                />
+                              </p>
                             </>
                           )}
                           {widgetId === 'orders' && userPreferences.showOrders && (
                             <>
                               <h3>Total Orders</h3>
-                              <p>{summaryData.totalOrders}</p>
+                              <p>
+                                <SafeMetricDisplay value={summaryData?.totalOrders} />
+                              </p>
                             </>
                           )}
                           {widgetId === 'customers' && userPreferences.showCustomers && (
                             <>
                               <h3>Total Customers</h3>
-                              <p>{summaryData.totalCustomers}</p>
+                              <p>
+                                <SafeMetricDisplay value={summaryData?.totalCustomers} />
+                              </p>
                             </>
                           )}
                           {widgetId === 'aov' && userPreferences.showAOV && (
                             <>
                               <h3>Average Order Value</h3>
-                              <p>{formatCurrency(summaryData.averageOrderValue || 0)}</p>
+                              <p>
+                                <SafeMetricDisplay 
+                                  value={summaryData?.averageOrderValue} 
+                                  formatter={formatCurrency} 
+                                />
+                              </p>
+                            </>
+                          )}
+                          {widgetId === 'netProfit' && userPreferences.showNetProfit && (
+                            <>
+                              <h3>Net Profit</h3>
+                              <p>
+                                <SafeMetricDisplay 
+                                  value={netProfit?.net_profit} 
+                                  formatter={formatCurrency} 
+                                />
+                              </p>
                             </>
                           )}
                         </Card>
@@ -751,7 +801,7 @@ const Dashboard = () => {
           </ChartDateRangePicker>
 
           <AdvancedSearchContainer>
-	    <h3>Data Range</h3>
+            <h3>Data Range</h3>
             <RangePicker onChange={handleDateRangeChange} />
             <StyledSelect defaultValue="id" onChange={handleSearchCategoryChange}>
               <Option value="id">ID</Option>

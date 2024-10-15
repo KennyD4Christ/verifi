@@ -538,10 +538,17 @@ export const fetchRecentTransactions = async (startDate, endDate) => {
 };
 
 // Function to fetch net profit data
-export const fetchNetProfitData = async () => {
+export const fetchNetProfitData = async (startDate, endDate) => {
   try {
+
+    const params = {
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+    };
+    console.log('Fetching net profit data with params:', params);
     const response = await axiosInstance.get('/analytics/net-profit/', {
       headers: getAuthHeader(),
+      params,
     });
     return response.data;
   } catch (error) {
@@ -551,22 +558,35 @@ export const fetchNetProfitData = async () => {
 };
 
 // Function to fetch conversion rate data
-export const fetchConversionRateData = async () => {
+export const fetchConversionRateData = async (startDate, endDate) => {
   try {
+
+    const params = {
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+    };
+    console.log('Fetching conversion rate data with params:', params);
     const response = await axiosInstance.get('/analytics/conversion-rate/', {
       headers: getAuthHeader(),
+      params,
     });
     return response.data;
   } catch (error) {
     console.error('Error fetching conversion rate data:', error.response?.data || error.message);
     throw error;
   }
-};
+}
 
-export const fetchInventoryLevels = async () => {
+export const fetchInventoryLevels = async (startDate, endDate) => {
   try {
+    const params = {
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+    };
+    console.log('Fetching inventory levels with params:', params);
     const response = await axiosInstance.get('/inventory/levels/', {
       headers: getAuthHeader(),
+      params,
     });
     return response.data;
   } catch (error) {
