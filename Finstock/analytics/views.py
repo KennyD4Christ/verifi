@@ -158,12 +158,12 @@ class NetProfitDataView(APIView):
 
             revenue = Transaction.objects.filter(
                 date__range=[start_date, end_date],
-                transaction_type='sale'
+                transaction_type='income'
             ).aggregate(total_revenue=Sum('amount'))['total_revenue'] or 0
 
             cogs = Transaction.objects.filter(
                 date__range=[start_date, end_date],
-                transaction_type='purchase'
+                transaction_type='cost_of_services'
             ).aggregate(total_cogs=Sum('amount'))['total_cogs'] or 0
 
             operating_expenses = Transaction.objects.filter(

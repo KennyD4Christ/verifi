@@ -12,6 +12,7 @@ class Transaction(TimeStampedModel):
     TRANSACTION_TYPES = (
         ('income', 'Income'),
         ('expense', 'Expense'),
+        ('cost_of_services', 'Cost of Services'),
     )
 
     PAYMENT_METHODS = (
@@ -35,6 +36,7 @@ class Transaction(TimeStampedModel):
         ('office_supplies', 'Office Supplies'),
         ('utilities', 'Utilities'),
         ('other', 'Other'),
+        ('cost_of_services', 'Cost of Services'),
     )
 
     order = models.ForeignKey(
@@ -50,7 +52,7 @@ class Transaction(TimeStampedModel):
         on_delete=models.SET_NULL, blank=True, null=True
     )
     transaction_type = models.CharField(
-        max_length=10, choices=TRANSACTION_TYPES
+        max_length=20, choices=TRANSACTION_TYPES
     )
     category = models.CharField(
         max_length=50, choices=CATEGORY_CHOICES, blank=True, null=True
