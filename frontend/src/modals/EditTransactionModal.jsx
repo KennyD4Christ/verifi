@@ -10,7 +10,6 @@ const EditTransactionModal = ({ show, handleClose, refreshTransactions, transact
     date: '',
     type: '',
     status: '',
-    // Add other fields as necessary
   });
 
   useEffect(() => {
@@ -21,7 +20,6 @@ const EditTransactionModal = ({ show, handleClose, refreshTransactions, transact
         date: transaction.date,
         transaction_type: transaction.transaction_type,
         status: transaction.status,
-        // Set other fields as necessary
       });
     }
   }, [transaction]);
@@ -90,6 +88,7 @@ const EditTransactionModal = ({ show, handleClose, refreshTransactions, transact
             >
               <option value="expense">Expense</option>
               <option value="income">Income</option>
+	      <option value="cost_of_services">Cost of Services</option>
             </Form.Control>
           </Form.Group>
           <Form.Group controlId="status">

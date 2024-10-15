@@ -98,6 +98,7 @@ const AddTransactionModal = ({ show, handleClose, handleAddTransaction }) => {
             >
               <option value="expense">Expense</option>
               <option value="income">Income</option>
+	      <option value="cost_of_services">Cost of Services</option>
             </Form.Control>
           </Form.Group>
           <Form.Group controlId="status">
@@ -130,6 +131,7 @@ const AddTransactionModal = ({ show, handleClose, handleAddTransaction }) => {
               <option value="marketing_expenses">Marketing Expenses</option>
               <option value="office_supplies">Office Supplies</option>
               <option value="utilities">Utilities</option>
+	      <option value="cost_of_services">Cost of Services</option>
               <option value="other">Other</option>
             </Form.Control>
           </Form.Group>

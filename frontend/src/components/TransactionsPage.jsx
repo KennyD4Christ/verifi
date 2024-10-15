@@ -328,6 +328,7 @@ const TransactionsPage = () => {
         <option value="">All Types</option>
         <option value="income">Income</option>
         <option value="expense">Expense</option>
+	<option value="cost_of_services">Cost of Services</option>
       </FilterSelect>
       <FilterInput
         type="date"
@@ -340,6 +341,7 @@ const TransactionsPage = () => {
         <option value="marketing_expenses">Marketing Expenses</option>
         <option value="office_supplies">Office Supplies</option>
         <option value="utilities">Utilities</option>
+	<option value="cost_of_services">Cost of Services</option>
         <option value="other">Other</option>
       </FilterSelect>
       <Button variant="primary" onClick={() => setShowCreateModal(true)}>
