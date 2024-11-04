@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrders } from '../context/OrderContext';
-import { fetchProducts, fetchCustomers } from '../services/api';
+import { fetchProducts, fetchCustomers, fetchOrders } from '../services/api';
 import CreateOrderModal from '../modals/CreateOrderModal';
 import OrderDetailsModal from '../modals/OrderDetailsModal';
 import { format } from 'date-fns';
@@ -102,6 +102,7 @@ const OrdersPage = () => {
   const fetchOrdersWithParams = useCallback(() => {
     const params = {
       page: currentPage,
+      page_size: 10,
       search: searchTerm,
       status: statusFilter,
       ordering: `${sortDirection === 'descend' ? '-' : ''}${sortField}`,
@@ -345,19 +346,23 @@ const OrdersPage = () => {
       <Table
         dataSource={orders}
         columns={columns}
-        rowSelection={rowSelection}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: (selectedRowKeys) => setSelectedRowKeys(selectedRowKeys),
+        }}
         onChange={handleTableChange}
         pagination={false}
         loading={loading}
-        rowKey={record => record.id}
+        rowKey={(record) => record.id}
       />
 
       <Pagination
         current={currentPage}
         total={totalOrders}
-        pageSize={ordersPerPage}
-        onChange={setCurrentPage}
+        pageSize={10}
+        onChange={(page) => setCurrentPage(page)}
         style={{ marginTop: '16px', textAlign: 'right' }}
+	showSizeChanger={false}
       />
 
       <CreateOrderModal

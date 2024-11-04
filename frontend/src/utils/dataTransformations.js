@@ -195,6 +195,19 @@ export const formatCurrency = (value, currency = 'USD', locale = 'en-US') => {
   }).format(value);
 };
 
+const stringToColor = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  let color = '#';
+  for (let i = 0; i < 3; i++) {
+    const value = (hash >> (i * 8)) & 0xFF;
+    color += ('00' + value.toString(16)).substr(-2);
+  }
+  return color;
+};
+
 /**
  * Main function to transform data based on chart type
  * @param {Array} data - The data to transform
@@ -202,26 +215,59 @@ export const formatCurrency = (value, currency = 'USD', locale = 'en-US') => {
  * @param {Object} options - Additional options (e.g., keys for x and y axes)
  * @returns {Object} Transformed data for Chart.js
  */
-export const transformChartData = (data, chartType, { xKey, yKey }) => {
-  console.log('Data:', data);
-  console.log('Chart Type:', chartType);
-  console.log('xKey:', xKey, 'yKey:', yKey);
+export const transformChartData = (data, chartType, { xKey, yKey, colorKey }) => {
+  console.log('transformChartData input:', { data, chartType, xKey, yKey, colorKey });
 
+  // Validate input data
   if (!Array.isArray(data) || data.length === 0) {
     console.warn('No data available for chart');
-    return { labels: [], datasets: [] };
+    return {
+      labels: [],
+      datasets: [{
+        label: yKey.charAt(0).toUpperCase() + yKey.slice(1),
+        data: [],
+        backgroundColor: [],
+        borderColor: []
+      }]
+    };
   }
 
-  const labels = data.map(item => {
-    if (xKey === 'date' && item[xKey]) {
-      return new Date(item[xKey]);
-    }
-    return item[xKey] || '';
-  });
-  console.log('Labels:', labels);
+  // Filter out invalid data points first
+  const validData = data.filter(item => 
+    item && typeof item === 'object' &&
+    item[xKey] !== undefined &&
+    item[yKey] !== undefined
+  );
 
-  const values = data.map(item => item[yKey] || 0);
-  console.log('Values:', values);
+  if (validData.length === 0) {
+    console.warn('No valid data points after filtering');
+    return {
+      labels: [],
+      datasets: [{
+        label: yKey.charAt(0).toUpperCase() + yKey.slice(1),
+        data: [],
+        backgroundColor: [],
+        borderColor: []
+      }]
+    };
+  }
+
+  const labels = validData.map(item => {
+    if (xKey === 'date' && item[xKey]) {
+      const date = typeof item[xKey] === 'string' ? parseISO(item[xKey]) : new Date(item[xKey]);
+      return isValid(date) ? format(date, 'yyyy-MM-dd') : null;
+    }
+    return String(item[xKey] || '');
+  }).filter(Boolean);
+
+  const values = validData.map(item => {
+    const value = Number(item[yKey]);
+    return isNaN(value) ? 0 : value;
+  });
+
+  const colors = colorKey
+    ? validData.map(item => stringToColor(String(item[colorKey] || '')))
+    : labels.map(label => stringToColor(label));
 
   switch (chartType) {
     case 'line':
@@ -231,27 +277,29 @@ export const transformChartData = (data, chartType, { xKey, yKey }) => {
         datasets: [{
           label: yKey.charAt(0).toUpperCase() + yKey.slice(1),
           data: values,
-          backgroundColor: 'rgba(75, 192, 192, 0.6)',
-          borderColor: 'rgba(75, 192, 192, 1)',
+          backgroundColor: colors,
+          borderColor: colors,
           borderWidth: 1
         }]
       };
-    case 'doughnut':
+    case 'pie':
       return {
         labels,
         datasets: [{
           data: values,
-          backgroundColor: [
-            'rgba(255, 99, 132, 0.6)',
-            'rgba(54, 162, 235, 0.6)',
-            'rgba(255, 206, 86, 0.6)',
-            'rgba(75, 192, 192, 0.6)',
-            'rgba(153, 102, 255, 0.6)',
-          ],
+          backgroundColor: colors,
         }]
       };
     default:
-      console.warn('Unsupported chart type');
-      return { labels: [], datasets: [] };
+      console.warn('Unsupported chart type:', chartType);
+      return {
+        labels: [],
+        datasets: [{
+          label: yKey.charAt(0).toUpperCase() + yKey.slice(1),
+          data: [],
+          backgroundColor: [],
+          borderColor: []
+        }]
+      };
   }
 };

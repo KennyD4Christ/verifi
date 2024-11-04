@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { DashboardDateProvider } from '../context/DashboardDateContext';
 
 const ProtectedRoute = () => {
   const { loading, isAuthenticated } = useAuth();
@@ -14,8 +15,11 @@ const ProtectedRoute = () => {
     return <Navigate to="/login" replace />;
   }
 
-  console.log('Authenticated, rendering protected route');
-  return <Outlet />;
+  return (
+    <DashboardDateProvider>
+      <Outlet />
+    </DashboardDateProvider>
+  );
 };
 
 export default ProtectedRoute;

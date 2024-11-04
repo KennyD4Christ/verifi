@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import styled from 'styled-components';
 import { Button, Modal, ButtonGroup, Form } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
@@ -81,6 +81,12 @@ const PaginationButton = styled.button`
   }
 `;
 
+const PaginationInfo = styled.div`
+  margin: 0 15px;
+  font-size: 14px;
+  color: #555;
+`;
+
 const ExportButton = styled.button`
   padding: 10px;
   border: 1px solid #ddd;
@@ -105,7 +111,7 @@ const ActionButton = styled.button`
 `;
 
 const TransactionsPage = () => {
-  const { transactions, pagination, fetchTransactions, bulkDelete, addTransaction, loading, error, setError, exportCsv,
+  const { fetchTransactions, bulkDelete, addTransaction, exportCsv,
   exportPdf } = useContext(TransactionContext);
   const { isAuthenticated, isInitialized, authChecked, user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
@@ -122,43 +128,67 @@ const TransactionsPage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [currentTransaction, setCurrentTransaction] = useState(null);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    count: 0,
+    totalPages: 0,
+    currentPage: 1,
+  });
 
-  useEffect(() => {
+  const fetchTransactionsData = useCallback(async (page = 1) => {
     if (authChecked && isInitialized && isAuthenticated()) {
-      fetchTransactions({
-        page: currentPage,
-        page_size: transactionsPerPage,
-        search: searchTerm,
-        status: statusFilter,
-        transaction_type: transactionTypeFilter,
-        date: dateFilter,
-        category: categoryFilter,
-      }).catch(error => {
-        console.error('Error fetching transactions:', error);
-        setError('Failed to fetch transactions. Please check your filters and try again.');
-      });
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetchTransactions({
+          page: page,
+          page_size: transactionsPerPage,
+          search: searchTerm,
+          status: statusFilter,
+          transaction_type: transactionTypeFilter,
+          date: dateFilter,
+          category: categoryFilter,
+          ordering: '-date,-id',
+        });
+
+        if (response && response.results) {
+          setTransactions(response.results);
+          setFilteredTransactions(response.results);
+          setPagination({
+            count: response.count,
+            totalPages: Math.ceil(response.count / transactionsPerPage),
+            currentPage: page,
+          });
+        } else {
+          setError('Failed to fetch transactions. Please try again.');
+          setTransactions([]);
+	  setFilteredTransactions([]);
+          setPagination({ count: 0, totalPages: 0, currentPage: 1 });
+        }
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+        setError('An error occurred while fetching transactions.');
+        setTransactions([]);
+	setFilteredTransactions([]);
+        setPagination({ count: 0, totalPages: 0, currentPage: 1 });
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [authChecked, isInitialized, isAuthenticated, fetchTransactions, currentPage, searchTerm, statusFilter, transactionTypeFilter, dateFilter, categoryFilter]);
+  }, [fetchTransactions, authChecked, isInitialized, isAuthenticated, transactionsPerPage, searchTerm, statusFilter, transactionTypeFilter, dateFilter, categoryFilter]);
 
   useEffect(() => {
-    if (transactions) {
-      const filtered = transactions.filter(transaction => {
-        return (
-          (searchTerm === '' ||
-           (transaction.amount && transaction.amount.toString().includes(searchTerm)) ||
-           (transaction.customer && transaction.customer.toString().includes(searchTerm)) ||
-	   (transaction.order && transaction.order.toString().includes(searchTerm)) ||
-           (transaction.invoice && transaction.invoice.toString().includes(searchTerm))
-          ) &&
-          (statusFilter === '' || transaction.status === statusFilter) &&
-          (transactionTypeFilter === '' || transaction.transaction_type === transactionTypeFilter) &&
-          (dateFilter === '' || transaction.date === dateFilter) &&
-          (categoryFilter === '' || transaction.category === categoryFilter)
-        );
-      });
-      setFilteredTransactions(filtered);
-    }
-  }, [transactions, searchTerm, statusFilter, transactionTypeFilter, dateFilter, categoryFilter]);
+  if (transactions.length > 0) {
+    setFilteredTransactions(transactions);
+  }
+}, [transactions]);
+
+
+  useEffect(() => {
+    fetchTransactionsData(currentPage);
+  }, [fetchTransactionsData, currentPage, searchTerm, statusFilter, transactionTypeFilter, dateFilter, categoryFilter]);
 
 
   const indexOfLastTransaction = currentPage * transactionsPerPage;
@@ -192,27 +222,31 @@ const TransactionsPage = () => {
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
-    setCurrentPage(1); // Reset to first page when filter changes
+    fetchTransactionsData(1);
   };
 
   const handleStatusFilterChange = (event) => {
     setStatusFilter(event.target.value);
-    setCurrentPage(1); // Reset to first page when filter changes
+    fetchTransactionsData(1);
   };
 
   const handleTransactionTypeFilterChange = (event) => {
     setTransactionTypeFilter(event.target.value);
-    setCurrentPage(1); // Reset to first page when filter changes
+    fetchTransactionsData(1);
+  };
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
   };
 
   const handleDateFilterChange = (event) => {
     setDateFilter(event.target.value);
-    setCurrentPage(1); // Reset to first page when filter changes
+    fetchTransactionsData(1);
   };
 
   const handleCategoryFilterChange = (event) => {
     setCategoryFilter(event.target.value);
-    setCurrentPage(1); // Reset to first page when filter changes
+    fetchTransactionsData(1);
   };
 
   const handleCheckboxChange = (transactionId) => {
@@ -408,8 +442,8 @@ const TransactionsPage = () => {
               <tr>
                 <td colSpan="9">Error: {error}</td>
               </tr>
-            ) : currentTransactions.length > 0 ? (
-              currentTransactions.map(transaction => (
+            ) : filteredTransactions.length > 0 ? (
+              filteredTransactions.map(transaction => (
                 <tr key={transaction.id}>
                   <Td>
                     <input
@@ -439,15 +473,15 @@ const TransactionsPage = () => {
           </tbody>
         </StyledTable>
 
-        {filteredTransactions.length > 0 && (
+        {pagination.totalPages > 1 && (
           <Pagination>
-            {Array.from({ length: Math.ceil(filteredTransactions.length / transactionsPerPage) }, (_, index) => (
+            {[...Array(pagination.totalPages).keys()].map(number => (
               <PaginationButton
-                key={index + 1}
-                onClick={() => paginate(index + 1)}
-                disabled={currentPage === index + 1}
+                key={number + 1}
+                onClick={() => handlePageChange(number + 1)}
+                disabled={pagination.currentPage === number + 1}
               >
-                {index + 1}
+                {number + 1}
               </PaginationButton>
             ))}
           </Pagination>

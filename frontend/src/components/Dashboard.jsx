@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
+import { useDashboardDate } from '../context/DashboardDateContext';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useOrders } from '../context/OrderContext';
 import { Alert, Spin, Select, DatePicker, Input, Button } from 'antd';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { Line, Bar, Pie } from 'react-chartjs-2';
+import { format, parseISO, isValid, subDays } from 'date-fns';
 import moment from 'moment-timezone';
+import { dateUtils } from '../utils/dateUtils';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { enUS } from 'date-fns/locale';
@@ -83,7 +86,7 @@ const DateRangePickerContainer = styled.div`
   align-items: center;
 `;
 
-const MetricDateRangePicker = styled(DateRangePickerContainer)`
+const DateRangePicker = styled(DateRangePickerContainer)`
   background-color: #87CEEB;
   padding: 10px;
   border-radius: 8px;
@@ -212,7 +215,7 @@ const SafeMetricDisplay = ({ value, formatter = (v) => v, defaultValue = 'N/A' }
 const Dashboard = () => {
   const [inventoryLevels, setInventoryLevels] = useState([]);
   const [cashFlow, setCashFlow] = useState([]);
-  const [dateRange, setDateRange] = useState([null, null]);
+  const { dateRange, updateDateRange } = useDashboardDate();
   const [searchCategory, setSearchCategory] = useState('id');
   const [chartType, setChartType] = useState('line');
   const [selectedMetric, setSelectedMetric] = useState('revenue');
@@ -223,65 +226,100 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { orders, fetchOrders } = useOrders();
+  const [widgetOrder, setWidgetOrder] = useState(['revenue', 'orders', 'customers', 'aov', 'netProfit', 'conversionRate']);
   const [userPreferences, setUserPreferences] = useState({
     showRevenue: true,
     showOrders: true,
     showCustomers: true,
     showAOV: true,
+    showNetProfit: true,
+    showConversionRate: true,
   });
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [widgetOrder, setWidgetOrder] = useState(['revenue', 'orders', 'customers', 'aov']);
   const [filter, setFilter] = useState('');
-  const [chartDateRange, setChartDateRange] = useState([null, null]);
-  const [metricDateRange, setMetricDateRange] = useState([null, null]);
   const [metricData, setMetricData] = useState({});
   const [netProfit, setNetProfit] = useState(null);
   const [conversionRate, setConversionRate] = useState(null);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
-  const formatDateForAPI = (date) => {
-    return moment(date).format('YYYY-MM-DD');
-  };
-
   const fetchDashboardData = useCallback(async (startDate, endDate) => {
-    console.log('fetchDashboardData called with:', { startDate, endDate });
+    if (!dateRange[0] || !dateRange[1]) {
+      console.log('Date range not set, skipping data fetch');
+      const defaultRange = dateUtils.getPresetDateRange('30days');
+      updateDateRange([defaultRange.startDate, defaultRange.endDate]);
+      return;
+    }
+
+    console.log('fetchDashboardData triggered with dateRange:', dateRange);
     setLoading(true);
     setError(null);
-    try {
-      const formattedStartDate = formatDateForAPI(startDate);
-      const formattedEndDate = formatDateForAPI(endDate);
-      console.log('Formatted dates:', { formattedStartDate, formattedEndDate });
 
-      const [summary, sales, products, transactions, preferences, netProfitData, conversionRateData] = await Promise.all([
-        fetchSummaryData(startDate, endDate),
-        fetchSalesData(startDate, endDate),
-        fetchTopProducts(startDate, endDate),
-        fetchRecentTransactions(startDate, endDate),
-	fetchNetProfitData(formattedStartDate, formattedEndDate),
+    try {
+      // Process date range using our utility
+      const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(
+        dateRange[0],
+        dateRange[1]
+      );
+
+      console.log('Processed dates for API:', {
+        formattedStartDate,
+        formattedEndDate
+      });
+
+      // Fetch all data in parallel with proper error handling
+      const [
+        summary,
+        sales,
+        products,
+        transactions,
+        netProfitData,
+        conversionRateData,
+        preferences,
+        inventory,
+        cashFlowData
+      ] = await Promise.all([
+        fetchSummaryData(formattedStartDate, formattedEndDate),
+        fetchSalesData(formattedStartDate, formattedEndDate),
+        fetchTopProducts(formattedStartDate, formattedEndDate),
+        fetchRecentTransactions(formattedStartDate, formattedEndDate),
+        fetchNetProfitData(formattedStartDate, formattedEndDate),
         fetchConversionRateData(formattedStartDate, formattedEndDate),
         fetchUserPreferences(),
+        fetchInventoryLevels(formattedStartDate, formattedEndDate),
+        fetchCashFlow(formattedStartDate, formattedEndDate)
       ]);
 
-      console.log('Fetched data:', { summary, sales, products, transactions, preferences, netProfitData, conversionRateData });
+      // Update all states with proper null checks
+      if (summary) setSummaryData(summary);
+      if (Array.isArray(sales)) setSalesData(sales);
+      if (Array.isArray(products)) setTopProducts(products);
+      if (Array.isArray(transactions)) setRecentTransactions(transactions);
+      if (netProfitData) setNetProfit(netProfitData);
+      if (conversionRateData) setConversionRate(conversionRateData);
+      if (preferences) setUserPreferences(preferences);
+      if (Array.isArray(inventory)) setInventoryLevels(inventory);
+      if (Array.isArray(cashFlowData)) setCashFlow(cashFlowData);
 
-      setSummaryData(summary);
-      setSalesData(Array.isArray(sales) ? sales : []);
-      setTopProducts(products);
-      setRecentTransactions(transactions);
-      setNetProfit(netProfitData);
-      setConversionRate(conversionRateData);
-      setUserPreferences(preferences);
+      // Update metric data state
+      setMetricData({
+        ...summary,
+        netProfit: netProfitData?.value || 0,
+        conversionRate: conversionRateData?.value || 0
+      });
+
     } catch (err) {
+      console.error('Error in fetchDashboardData:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateRange, updateDateRange]);
 
+  // Effect to trigger data fetch when date range changes
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   useEffect(() => {
     if (orders && orders.length > 0) {
@@ -324,84 +362,30 @@ const Dashboard = () => {
   };
 
   const fetchMetricData = useCallback(async (startDate, endDate) => {
-    console.log('fetchMetricData called with:', { startDate, endDate });
+    console.log('fetchMetricData input:', { startDate, endDate });
     setLoading(true);
     setError(null);
+
     try {
-      // Format dates to YYYY-MM-DD
-      const formattedStartDate = formatDateForAPI(startDate);
-      const formattedEndDate = formatDateForAPI(endDate);
-      console.log('Formatted dates for metrics:', { formattedStartDate, formattedEndDate });
-
-      const [summary, orderData, productData, customerData, transactionData, netProfitData] = await Promise.all([
-        fetchSummaryData(formattedStartDate, formattedEndDate),
-        fetchOrders(formattedStartDate, formattedEndDate),
-        fetchTopProducts(formattedStartDate, formattedEndDate),
-        fetchCustomers(formattedStartDate, formattedEndDate),
-        fetchRecentTransactions(formattedStartDate, formattedEndDate),
-	fetchNetProfitData(formattedStartDate, formattedEndDate),
-      ]);
-
-      console.log('Fetched metric data:', { summary, orderData, productData, customerData, transactionData, netProfitData, });
+      const [summary, orderData, productData, customerData, transactionData, netProfitData] = 
+        await Promise.all([
+          fetchSummaryData(startDate, endDate),
+          fetchOrders(startDate, endDate),
+          fetchTopProducts(startDate, endDate),
+          fetchCustomers(startDate, endDate),
+          fetchRecentTransactions(startDate, endDate),
+          fetchNetProfitData(startDate, endDate)
+        ]);
 
       setMetricData(summary);
       setNetProfit(netProfitData);
-
     } catch (err) {
+      console.error('Error in fetchMetricData:', err);
       setError(`Error fetching data: ${err.message}`);
-      console.error('Error details:', err);
     } finally {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    console.log('useEffect for orders update triggered', { ordersLength: orders?.length });
-    if (orders && orders.length > 0) {
-      const mappedSalesData = orders.map(order => ({
-        date: order.order_date,
-        amount: order.total_price
-      }));
-      console.log('Mapped sales data:', mappedSalesData);
-      setSalesData(mappedSalesData);
-    }
-  }, [orders]);
-
-  useEffect(() => {
-    console.log('useEffect for chartDateRange triggered', { chartDateRange });
-    if (chartDateRange[0] && chartDateRange[1]) {
-      fetchDashboardData(chartDateRange[0], chartDateRange[1]);
-    }
-  }, [chartDateRange, fetchDashboardData]);
-
-  useEffect(() => {
-    console.log('useEffect for metricDateRange triggered', { metricDateRange });
-    if (metricDateRange[0] && metricDateRange[1]) {
-      fetchMetricData(metricDateRange[0], metricDateRange[1]);
-    }
-  }, [metricDateRange, fetchMetricData]);
-
-  const handleChartDateRangeChange = (dates) => {
-    console.log('handleChartDateRangeChange called with:', dates);
-    setChartDateRange(dates);
-  };
-
-  const handleMetricDateRangeChange = (dates) => {
-    console.log('handleMetricDateRangeChange called with:', dates);
-    if (dates && dates.length === 2) {
-      setMetricDateRange(dates.map(date => date.toDate()));
-    } else {
-      setMetricDateRange([null, null]);
-    }
-  };
-
-  // When passing data to transformChartData, ensure it's an array
-  const chartData = useMemo(() => {
-    if (salesData.length === 0) {
-      return { labels: [], datasets: [] };
-    }
-    return transformChartData(salesData, 'line', { xKey: 'date', yKey: 'amount' });
-  }, [salesData]);
 
   useEffect(() => {
     const fetchAdditionalData = async () => {
@@ -420,11 +404,40 @@ const Dashboard = () => {
     fetchAdditionalData();
   }, []);
 
-  const handleDateRangeChange = (dates) => {
-    setDateRange(dates);
-    // Trigger data refresh with new date range
-    fetchDashboardData(dates[0], dates[1]);
-  };
+  const handleDateRangeChange = useCallback((dates, dateStrings) => {
+    console.log('Date Range Picker Change:', {
+      dates,
+      dateStrings
+    });
+
+    if (!dates) {
+      console.log('Date picker cleared');
+      updateDateRange(null);
+      return;
+    }
+
+    if (dates.length === 2) {
+      const [start, end] = dateStrings;
+      console.log('Selected date range:', { start, end });
+      
+      if (start && end) {
+        const startDate = moment(start);
+        const endDate = moment(end);
+        updateDateRange([startDate, endDate]);
+      }
+    }
+  }, [updateDateRange]);
+
+  useEffect(() => {
+    console.log('Current date range:', {
+      range: dateRange,
+      formatted: dateRange.map(d => d?.format('YYYY-MM-DD'))
+    });
+  }, [dateRange]);
+
+  const currentDateRange = useMemo(() => {
+    return dateRange.map(date => moment(date));
+  }, [dateRange]);
 
   const handleSearchCategoryChange = (value) => {
     setSearchCategory(value);
@@ -537,21 +550,21 @@ const Dashboard = () => {
           scales: {
             ...baseOptions.scales,
             x: {
-            type: 'time',
-            time: {
-              unit: 'day',
-              displayFormats: {
-                day: 'MMM d'
-              }
-            },
-            adapters: {
-              date: {
-                locale: enUS,
+              type: 'time',
+              time: {
+                unit: 'day',
+                displayFormats: {
+                  day: 'MMM d'
+                }
+              },
+              adapters: {
+                date: {
+                  locale: enUS,
+                },
               },
             },
           },
-        },
-      };
+        };
       case 'bar':
         return {
           ...baseOptions,
@@ -560,14 +573,13 @@ const Dashboard = () => {
             x: { type: 'category' },
           },
         };
-      case 'doughnut':
+      case 'pie':
         return {
           ...baseOptions,
           plugins: {
             ...baseOptions.plugins,
             legend: { position: 'right' },
           },
-          cutout: '50%',
         };
       default:
         return baseOptions;
@@ -582,43 +594,367 @@ const Dashboard = () => {
     );
   };
 
+  // Memoized date values for different components
+  const formattedDates = useMemo(() => {
+    if (!dateRange[0] || !dateRange[1]) return null;
+    return dateUtils.processDateRange(dateRange[0], dateRange[1]);
+  }, [dateRange]);
+
+  const aggregateRevenueData = useMemo(() => {
+    if (!Array.isArray(salesData) || salesData.length === 0) {
+      console.log('No sales data available for revenue calculation');
+      return [];
+    }
+
+    try {
+      const { startDate, endDate } = formattedDates || dateUtils.getDateRangeParams(30);
+
+      const aggregated = salesData.reduce((acc, sale) => {
+        // Validate sale object
+        if (!sale || typeof sale !== 'object') {
+          console.warn('Invalid sale object encountered');
+          return acc;
+        }
+
+        const saleDate = moment(sale.date);
+        if (!saleDate.isValid()) {
+          console.warn(`Invalid date in sale object: ${sale.date}`);
+          return acc;
+        }
+
+        // Parse amount with fallback
+        const amount = parseFloat(sale.amount) || 0;
+        if (amount === 0) {
+          console.warn(`Invalid amount in sale object: ${sale.amount}`);
+        }
+
+        // Format date consistently
+        const formattedDate = dateUtils.formatDateForAPI(saleDate);
+      
+        // Check if date is within range
+        if (saleDate.isBetween(startDate, endDate, 'day', '[]')) {
+          acc[formattedDate] = (acc[formattedDate] || 0) + amount;
+        }
+
+        return acc;
+      }, {});
+
+      return Object.entries(aggregated)
+        .map(([date, amount]) => ({
+          date,
+          amount: Number(amount.toFixed(2))
+        }))
+        .sort((a, b) => moment(a.date).valueOf() - moment(b.date).valueOf());
+    } catch (error) {
+      console.error('Error in revenue aggregation:', error);
+      return [];
+    }
+  }, [salesData, formattedDates]);
+
+  const formatTopProductsData = useMemo(() => {
+    console.log('Raw top products data:', topProducts);
+
+    if (!Array.isArray(topProducts) || topProducts.length === 0) {
+      console.warn('No top products data available');
+      return [];
+    }
+
+    return topProducts.map(product => {
+      // Add detailed logging for each product
+      console.log('Processing product:', {
+        name: product.name,
+        sales: product.total_sales,
+        revenue: product.total_revenue
+      });
+
+      return {
+        name: product.name || 'Unnamed Product',
+        sku: product.sku || 'N/A',
+        sales: parseInt(product.total_sales) || 0,
+        revenue: parseFloat(product.total_revenue) || 0,
+        // Add debugging information
+        _debug: {
+          rawSales: product.total_sales,
+          rawRevenue: product.total_revenue
+        }
+      };
+    });
+  }, [topProducts]);
+
+  const formatInventoryData = useMemo(() => {
+    console.log('Raw inventory data:', inventoryLevels);
+
+    if (!Array.isArray(inventoryLevels) || inventoryLevels.length === 0) {
+      console.warn('No inventory data available');
+      return [];
+    }
+
+    const formattedData = inventoryLevels
+      .map(item => {
+        if (!item.name || item.stock === undefined) {
+          console.warn('Invalid inventory item:', item);
+          return null;
+        }
+
+        return {
+          product: item.name,
+          quantity: parseInt(item.stock) || 0,
+          sku: item.sku || '',
+          price: parseFloat(item.price) || 0,
+          id: item.id
+        };
+      })
+      .filter(item => item !== null);
+
+    console.log('Formatted inventory data:', formattedData);
+    return formattedData;
+  }, [inventoryLevels]);
+
+  const formatCashFlowData = useMemo(() => {
+    console.log('Raw cash flow data:', cashFlow);
+
+    if (!Array.isArray(cashFlow) || cashFlow.length === 0) {
+      console.warn('No cash flow data available');
+      return [];
+    }
+
+    const { startDate, endDate } = formattedDates || dateUtils.getDateRangeParams(30);
+
+    return cashFlow
+      .map(item => ({
+        date: dateUtils.formatDateForAPI(item.date || item.trunc_date || item.created_at),
+        balance: parseFloat(item.balance || item.amount || 0),
+        cumulative_balance: parseFloat(item.cumulative_balance || item.total || 0)
+      }))
+      .filter(item => {
+        if (!startDate || !endDate || !item.date) return true;
+        const itemDate = moment(item.date);
+        return itemDate.isBetween(startDate, endDate, 'day', '[]');
+      })
+      .sort((a, b) => moment(a.date).valueOf() - moment(b.date).valueOf());
+  }, [cashFlow, formattedDates]);
+
   const renderChart = useCallback(() => {
     let data;
     let chartConfig;
 
-    const handleTransformError = (metricName, error) => {
-      console.error(`Error transforming ${metricName} data:`, error);
-      return { labels: [], datasets: [] };
+    const getRandomColor = () => {
+      return `hsl(${Math.random() * 360}, 70%, 50%)`;
     };
 
-    const aggregateRevenueData = (salesData) => {
-      const aggregated = salesData.reduce((acc, sale) => {
-        // Aggregate by month for this example. Adjust as needed.
-        const month = new Date(sale.date).toLocaleString('default', { month: 'long' });
-        acc[month] = (acc[month] || 0) + sale.amount;
-        return acc;
-      }, {});
-      return Object.entries(aggregated).map(([label, value]) => ({ label, value }));
-    };
+    const createEmptyChartData = () => ({
+      labels: [],
+      datasets: [{
+        label: selectedMetric.charAt(0).toUpperCase() + selectedMetric.slice(1),
+        data: [],
+        backgroundColor: [],
+        borderColor: []
+      }]
+    });
 
     try {
       switch (selectedMetric) {
         case 'revenue':
-          if (chartType === 'doughnut') {
-            const aggregatedData = aggregateRevenueData(salesData);
-            data = transformChartData(aggregatedData, chartType, { xKey: 'label', yKey: 'value' });
+          if (!aggregateRevenueData || aggregateRevenueData.length === 0) {
+            data = createEmptyChartData();
           } else {
-            data = transformChartData(salesData, chartType, { xKey: 'date', yKey: 'amount' });
+            data = transformChartData(aggregateRevenueData, chartType, {
+              xKey: 'date',
+              yKey: 'amount',
+              colorKey: 'date'
+            });
+
+            if (data?.datasets?.[0]) {
+              data.datasets[0].backgroundColor = data.labels.map(() => getRandomColor());
+              data.datasets[0].borderColor = data.datasets[0].backgroundColor;
+            }
           }
-          chartConfig = getChartOptions(chartType, 'revenue');
+          chartConfig = getChartOptions(chartType, 'Revenue');
           break;
         case 'inventory':
-          data = transformChartData(inventoryLevels, 'bar', { xKey: 'product', yKey: 'quantity' });
-          chartConfig = getChartOptions('bar', 'inventory');
+          const inventoryData = formatInventoryData;
+
+          if (inventoryData.length === 0) {
+            throw new Error('No valid inventory data available');
+          }
+
+          if (chartType === 'pie') {
+            data = {
+              labels: inventoryData.map(item => `${item.product} (${item.sku})`),
+              datasets: [{
+                data: inventoryData.map(item => item.quantity),
+                backgroundColor: inventoryData.map(() => getRandomColor()),
+                borderColor: inventoryData.map(() => getRandomColor()),
+                borderWidth: 1
+              }]
+            };
+          } else if (chartType === 'bar') {
+            data = {
+              labels: inventoryData.map(item => item.product),
+              datasets: [{
+                label: 'Current Stock Level',
+                data: inventoryData.map(item => item.quantity),
+                backgroundColor: getRandomColor(),
+                borderColor: getRandomColor(),
+                borderWidth: 1
+              }]
+            };
+          } else { // line chart - show as bar since we don't have time series data
+            data = {
+              labels: inventoryData.map(item => item.product),
+              datasets: [{
+                label: 'Current Stock Level',
+                data: inventoryData.map(item => item.quantity),
+                backgroundColor: getRandomColor(),
+                borderColor: getRandomColor(),
+                borderWidth: 2,
+                tension: 0.1
+              }]
+            };
+          }
+
+          chartConfig = {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'top',
+              },
+              title: {
+                display: true,
+                text: 'Inventory Levels'
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const item = inventoryData[context.dataIndex];
+                    return `Stock: ${item.quantity} units | SKU: ${item.sku}`;
+                  }
+                }
+              }
+            },
+            scales: chartType !== 'pie' ? {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Stock Level'
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: 'Products'
+                }
+              }
+            } : undefined
+          };
           break;
         case 'cashFlow':
-          data = transformChartData(cashFlow, 'line', { xKey: 'date', yKey: 'balance' });
-          chartConfig = getChartOptions('line', 'cashFlow');
+          data = transformChartData(
+            formatCashFlowData,
+            chartType,
+            {
+              xKey: 'date',
+              yKey: chartType === 'line' ? 'cumulative_balance' : 'balance',
+              colorKey: 'date'
+            }
+          );
+          chartConfig = getChartOptions(chartType, 'Cash Flow');
+          break;
+        case 'topProducts':
+          const productsData = formatTopProductsData;
+
+          if (productsData.length === 0) {
+            throw new Error('No top products data available');
+          }
+
+          if (chartType === 'pie') {
+            data = {
+              labels: productsData.map(item => item.name),
+              datasets: [{
+                data: productsData.map(item => item.sales),
+                backgroundColor: productsData.map(() => getRandomColor()),
+                borderColor: productsData.map(() => getRandomColor()),
+                borderWidth: 1
+              }]
+            };
+          } else {
+            // For bar or line chart
+            data = {
+              labels: productsData.map(item => item.name),
+              datasets: [{
+                label: 'Total Sales',
+                data: productsData.map(item => item.sales),
+                backgroundColor: getRandomColor(),
+                borderColor: getRandomColor(),
+                borderWidth: 1
+              }, {
+                label: 'Revenue',
+                data: productsData.map(item => item.revenue),
+                backgroundColor: getRandomColor(),
+                borderColor: getRandomColor(),
+                borderWidth: 1,
+                yAxisID: 'revenue'
+              }]
+            };
+          }
+
+          chartConfig = {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'top',
+              },
+              title: {
+                display: true,
+                text: 'Top Products'
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const item = productsData[context.dataIndex];
+                    const metric = context.dataset.label;
+                    const value = context.raw;
+
+                    if (metric === 'Revenue') {
+                      return `${metric}: $${value.toLocaleString()}`;
+                    }
+                    return `${metric}: ${value.toLocaleString()} units`;
+                  }
+                }
+              }
+            },
+            scales: chartType !== 'pie' ? {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Units Sold'
+                }
+              },
+              revenue: {
+                beginAtZero: true,
+                position: 'right',
+                title: {
+                  display: true,
+                  text: 'Revenue ($)'
+                },
+                grid: {
+                  drawOnChartArea: false
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: 'Products'
+                }
+              }
+            } : undefined
+          };
+          break;
+        case 'conversionRate':
+          data = transformChartData(conversionRate, chartType, { xKey: 'date', yKey: 'conversion_rate', colorKey: 'date' });
+          chartConfig = getChartOptions(chartType, 'Conversion Rate')
           break;
         default:
           data = { labels: [], datasets: [] };
@@ -630,9 +966,17 @@ const Dashboard = () => {
         return <Alert message={`No data available for ${selectedMetric}`} type="warning" />;
       }
 
+      if (chartType !== 'pie') {
+        data.labels.sort((a, b) => new Date(a) - new Date(b));
+        const sortedData = data.labels.map(label =>
+          data.datasets[0].data[data.labels.indexOf(label)]
+        );
+        data.datasets[0].data = sortedData;
+      }
+
     } catch (error) {
       console.error(`Error transforming ${selectedMetric} data:`, error);
-      return <Alert message={`Error loading ${selectedMetric} chart`} type="error" />;
+      return { data: createEmptyChartData(), config: getChartOptions(chartType, 'Revenue') };
     }
 
     switch (chartType) {
@@ -640,12 +984,20 @@ const Dashboard = () => {
         return <Line options={chartConfig} data={data} />;
       case 'bar':
         return <Bar options={chartConfig} data={data} />;
-      case 'doughnut':
-        return <Doughnut options={chartConfig} data={data} />;
+      case 'pie':
+        return <Pie options={chartConfig} data={data} />;
       default:
         return <Alert message={`Unsupported chart type: ${chartType}`} type="error" />;
     }
-  }, [selectedMetric, chartType, salesData, inventoryLevels, cashFlow, getChartOptions, transformChartData]);
+  }, [selectedMetric, chartType, aggregateRevenueData, formatInventoryData, formatTopProductsData, formatCashFlowData, conversionRate, getChartOptions]);
+
+  // Format dates for DatePicker value prop
+  const formattedDateRange = useMemo(() => {
+    return [
+      dateRange[0] ? moment(dateRange[0]) : null,
+      dateRange[1] ? moment(dateRange[1]) : null
+    ];
+  }, [dateRange]);
 
   return (
     <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
@@ -686,15 +1038,33 @@ const Dashboard = () => {
             >
               AOV
             </ToggleButton>
+            <ToggleButton
+              active={userPreferences.showNetProfit}
+              onClick={() => togglePreference('showNetProfit')}
+              aria-label="Toggle net profit widget visibility"
+            >
+              Net Profit
+            </ToggleButton>
+            <ToggleButton
+              active={userPreferences.showConversionRate}
+              onClick={() => togglePreference('showConversionRate')}
+              aria-label="Toggle conversion rate widget visibility"
+            >
+              Conversion Rate
+            </ToggleButton>
           </PreferencesPanel>
 
-          <MetricDateRangePicker>
-            <h3>Metric Date Range</h3>
+          <DateRangePicker>
+            <h3>Date Range</h3>
             <DatePicker.RangePicker
-              onChange={handleMetricDateRangeChange}
-              value={metricDateRange.map(date => date ? moment(date) : null)}
-            />
-          </MetricDateRangePicker>
+              value={currentDateRange}
+              onChange={handleDateRangeChange}
+              format="YYYY-MM-DD"
+              picker="date"
+              showTime={false}
+              allowClear={true}
+	    />
+          </DateRangePicker>
 
           {loading && <LoadingIndicator />}
           {error && <ErrorMessage>{error}</ErrorMessage>}
@@ -716,8 +1086,8 @@ const Dashboard = () => {
                 )}
                 {userPreferences.showAOV && (
                   <p>Average Order Value: {formatCurrency(metricData.averageOrderValue || 0)}</p>
-	        )}
-	        {netProfit && (
+                )}
+                {netProfit && (
                   <p>Net Profit: {formatCurrency(netProfit.net_profit || 0)}</p>
                 )}
               </>
@@ -740,9 +1110,9 @@ const Dashboard = () => {
                             <>
                               <h3>Total Revenue</h3>
                               <p>
-                                <SafeMetricDisplay 
-                                  value={summaryData?.totalRevenue} 
-                                  formatter={formatCurrency} 
+                                <SafeMetricDisplay
+                                  value={summaryData?.totalRevenue}
+                                  formatter={formatCurrency}
                                 />
                               </p>
                             </>
@@ -767,9 +1137,9 @@ const Dashboard = () => {
                             <>
                               <h3>Average Order Value</h3>
                               <p>
-                                <SafeMetricDisplay 
-                                  value={summaryData?.averageOrderValue} 
-                                  formatter={formatCurrency} 
+                                <SafeMetricDisplay
+                                  value={summaryData?.averageOrderValue}
+                                  formatter={formatCurrency}
                                 />
                               </p>
                             </>
@@ -778,9 +1148,20 @@ const Dashboard = () => {
                             <>
                               <h3>Net Profit</h3>
                               <p>
-                                <SafeMetricDisplay 
-                                  value={netProfit?.net_profit} 
-                                  formatter={formatCurrency} 
+                                <SafeMetricDisplay
+                                  value={netProfit?.net_profit}
+                                  formatter={formatCurrency}
+                                />
+                              </p>
+                            </>
+                          )}
+                          {widgetId === 'conversionRate' && userPreferences.showConversionRate && (
+                            <>
+                              <h3>Conversion Rate</h3>
+                              <p>
+                                <SafeMetricDisplay
+                                  value={conversionRate?.conversion_rate}
+                                  formatter={(value) => `${value.toFixed(2)}%`}
                                 />
                               </p>
                             </>
@@ -795,14 +1176,7 @@ const Dashboard = () => {
             </Droppable>
           </DragDropContext>
 
-          <ChartDateRangePicker>
-            <h3>Chart Date Range</h3>
-            <RangePicker onChange={handleChartDateRangeChange} />
-          </ChartDateRangePicker>
-
           <AdvancedSearchContainer>
-            <h3>Data Range</h3>
-            <RangePicker onChange={handleDateRangeChange} />
             <StyledSelect defaultValue="id" onChange={handleSearchCategoryChange}>
               <Option value="id">ID</Option>
               <Option value="amount">Amount</Option>
@@ -820,28 +1194,35 @@ const Dashboard = () => {
               <Option value="revenue">Revenue</Option>
               <Option value="inventory">Inventory Levels</Option>
               <Option value="cashFlow">Cash Flow</Option>
+              <Option value="conversionRate">Conversion Rate</Option>
+              <Option value="topProducts">Top Products</Option>
             </StyledSelect>
             <StyledSelect defaultValue="line" onChange={(value) => setChartType(value)}>
               <Option value="line">Line Chart</Option>
               <Option value="bar">Bar Chart</Option>
-              <Option value="doughnut">Doughnut Chart</Option>
+              <Option value="pie">Pie Chart</Option>
             </StyledSelect>
             {renderChart()}
+          </Card>
+
+          <Card>
+            <h3>Conversion Rate Details</h3>
+            {loading ? (
+              <p>Loading conversion rate data...</p>
+            ) : (
+              <>
+                <p>Total Visitors: {conversionRate?.total_visitors || 'N/A'}</p>
+                <p>Conversions: {conversionRate?.conversions || 'N/A'}</p>
+                <p>Conversion Rate: {conversionRate?.conversion_rate ? `${conversionRate.conversion_rate.toFixed(2)}%` : 'N/A'}</p>
+              </>
+            )}
           </Card>
 
           <Card>
             <h3>Sales Trend</h3>
             <Line
               options={getChartOptions('line', 'sales')}
-              data={transformChartData(salesData, 'line', { xKey: 'date', yKey: 'amount' })}
-            />
-          </Card>
-
-          <Card>
-            <h3>Top Products</h3>
-            <Bar
-              options={getChartOptions('bar', 'topProducts')}
-              data={transformChartData(topProducts, 'bar', { xKey: 'product', yKey: 'sales' })}
+              data={transformChartData(salesData, 'line', { xKey: 'date', yKey: 'amount', colorKey: 'date' })}
             />
           </Card>
 

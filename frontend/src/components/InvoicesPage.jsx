@@ -53,6 +53,7 @@ const Pagination = styled.div`
 `;
 
 const PaginationButton = styled.button`
+  background-color: #ffffff;
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -193,7 +194,7 @@ const InvoicesPage = () => {
           setInvoices([]);
         }
 
-        setLoading(false);
+	setLoading(false);
       } catch (error) {
         console.error('Error in fetchInvoicesData:', error);
         setError('Failed to fetch invoices. Please try again.');

@@ -206,7 +206,7 @@ const LandingPage = () => {
           </div>
           <div className="mt-12 border-t border-gray-700 pt-8">
             <p className="text-base text-gray-400 xl:text-center">
-              &copy; 2024 Finstock. All rights reserved.
+              &copy; 2024 Verifi. All rights reserved.
             </p>
           </div>
         </div>

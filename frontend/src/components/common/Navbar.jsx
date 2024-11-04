@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../../context/AuthContext';
+import VerifiLogo from './VerifiLogo';
 
 const NavbarContainer = styled.nav`
   display: flex;
@@ -98,9 +99,13 @@ const Navbar = () => {
   return (
     <NavbarContainer>
       <NavLinks>
-        <NavLink to="/">
-          <img src="/image%201.avif" alt="Finstock Logo" style={{ height: '2rem' }} />
-        </NavLink>
+        <Link to="/">
+          <VerifiLogo 
+            src="/Logo 10.png" 
+            alt="Verifi Logo" 
+            className="mr-4" // Margin to separate logo from other nav items
+          />
+        </Link>
         {!isAuthenticated() && (
           <>
             <NavLink to="/about">About</NavLink>

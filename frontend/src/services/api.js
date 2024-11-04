@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { isTokenPresent, getAuthHeader } from '../utils/auth';
+import { dateUtils } from '../utils/dateUtils';
+import moment from 'moment-timezone';
 
 const BASE_URL = 'http://localhost:8000/api'
 
@@ -16,7 +18,7 @@ const handleUnauthorized = () => {
   window.location.href = '/login';
 };
 
-// Request interceptor to add Authorization header if authenticated
+// Request interceptor to add Authorization header if authenticated and also handle moment objects
 axiosInstance.interceptors.request.use(
   config => {
     if (isTokenPresent()) {
@@ -25,6 +27,28 @@ axiosInstance.interceptors.request.use(
 	config.headers.Authorization = authHeader;
       }
     }
+
+    if (config.params) {
+      config.params = Object.fromEntries(
+        Object.entries(config.params)
+          .map(([key, value]) => {
+            // Skip moment internal properties
+            if (key.startsWith('_')) {
+              return false;
+            }
+            
+            // Handle moment objects
+            if (moment.isMoment(value)) {
+              return [key, value.format('YYYY-MM-DD')];
+            }
+            
+            // Keep other values as is
+            return [key, value];
+          })
+          .filter(Boolean)
+      );
+    }
+
     return config;
   },
   error => Promise.reject(error)
@@ -80,14 +104,26 @@ export const createOrder = async (orderData) => {
 };
 
 // Function to fetch orders
-export const fetchOrders = async () => {
+export const fetchOrders = async (params = {}) => {
   try {
+    const processedParams = { ...params };
+    
+    // Process dates if they exist
+    if (processedParams.start_date || processedParams.end_date) {
+      const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(
+        processedParams.start_date,
+        processedParams.end_date
+      );
+      processedParams.start_date = formattedStartDate;
+      processedParams.end_date = formattedEndDate;
+    }
+
     const response = await axiosInstance.get('/core/orders/', {
       params: {
+        ...processedParams,
         include_items: true
       }
     });
-    console.log('API Response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching orders:', error.response?.data || error.message);
@@ -486,26 +522,20 @@ export const updateProductStock = async (productId, newStock) => {
   }
 };
 
-// Helper function to format date for API requests
-const formatDate = (date) => {
-  if (!date) return '';
-  if (typeof date === 'string') {
-    // If it's already a string, assume it's in the correct format
-    return date;
-  }
-  // Format as YYYY-MM-DD
-  return date.toISOString().split('T')[0];
-};
-
 // Function to fetch Top product
 export const fetchTopProducts = async (startDate, endDate) => {
   try {
+    console.log('fetchTopProducts input dates:', { startDate, endDate });
+
+    // Process the date range properly
+    const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(startDate, endDate);
+    
     const params = {
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate),
+      start_date: formattedStartDate,
+      end_date: formattedEndDate
     };
 
-    console.log('Fetching top products with params:', params);
+    console.log('API request params:', params);
     const response = await axiosInstance.get('/products/top/', {
       headers: getAuthHeader(),
       params,
@@ -520,12 +550,18 @@ export const fetchTopProducts = async (startDate, endDate) => {
 // Function to fetch recent transaction
 export const fetchRecentTransactions = async (startDate, endDate) => {
   try {
+    console.log('fetchRecentTransactions input dates:', { startDate, endDate });
+
+    // Process the date range properly
+    const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(startDate, endDate);
+    
     const params = {
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate),
+      start_date: formattedStartDate,
+      end_date: formattedEndDate
     };
 
-    console.log('Fetching recent transactions with params:', params);
+    console.log('API request params:', params);
+
     const response = await axiosInstance.get('/transactions/recent/', {
       headers: getAuthHeader(),
       params,
@@ -540,12 +576,18 @@ export const fetchRecentTransactions = async (startDate, endDate) => {
 // Function to fetch net profit data
 export const fetchNetProfitData = async (startDate, endDate) => {
   try {
+    console.log('fetchNetProfitData input dates:', { startDate, endDate });
+
+    // Process the date range properly
+    const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(startDate, endDate);
 
     const params = {
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate),
+      start_date: formattedStartDate,
+      end_date: formattedEndDate
     };
-    console.log('Fetching net profit data with params:', params);
+
+    console.log('API request params:', params);
+    
     const response = await axiosInstance.get('/analytics/net-profit/', {
       headers: getAuthHeader(),
       params,
@@ -557,15 +599,21 @@ export const fetchNetProfitData = async (startDate, endDate) => {
   }
 };
 
-// Function to fetch conversion rate data
+// function to fetch ConversionRate Data
 export const fetchConversionRateData = async (startDate, endDate) => {
   try {
+    console.log('fetched Conversion Rate input dates:', { startDate, endDate });
 
+    // Process the date range properly
+    const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(startDate, endDate);
+    
     const params = {
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate),
+      start_date: formattedStartDate,
+      end_date: formattedEndDate
     };
-    console.log('Fetching conversion rate data with params:', params);
+
+    console.log('API request params:', params);
+    
     const response = await axiosInstance.get('/analytics/conversion-rate/', {
       headers: getAuthHeader(),
       params,
@@ -575,36 +623,61 @@ export const fetchConversionRateData = async (startDate, endDate) => {
     console.error('Error fetching conversion rate data:', error.response?.data || error.message);
     throw error;
   }
-}
+};
 
 export const fetchInventoryLevels = async (startDate, endDate) => {
   try {
+    console.log('fetched Inventory Levels input dates:', { startDate, endDate });
+
+    // Process the date range properly
+    const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(startDate, endDate);
+    
     const params = {
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate),
+      start_date: formattedStartDate,
+      end_date: formattedEndDate
     };
-    console.log('Fetching inventory levels with params:', params);
+
+    console.log('API request params:', params);
+
     const response = await axiosInstance.get('/inventory/levels/', {
       headers: getAuthHeader(),
       params,
     });
+
+    console.log('Inventory API response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error fetching inventory levels:', error.response?.data || error.message);
-    throw error;
+    console.error('Error fetching inventory levels:', error);
+    console.error('Error details:', error.response?.data);
+    return [];
   }
 };
 
 export const fetchCashFlow = async (startDate, endDate) => {
   try {
+    console.log('Fetched Cash Flow input dates:', { startDate, endDate });
+
+    // Process the date range properly
+    const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(startDate, endDate);
+    
+    const params = {
+      start_date: formattedStartDate,
+      end_date: formattedEndDate
+    };
+
+    console.log('API request params:', params);
+
     const response = await axiosInstance.get('/finance/cash-flow/', {
       headers: getAuthHeader(),
-      params: { start_date: startDate, end_date: endDate },
+      params,
     });
+
+    console.log('Cash flow API response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error fetching cash flow:', error.response?.data || error.message);
-    throw error;
+    console.error('Error fetching cash flow:', error);
+    console.error('Error details:', error.response?.data);
+    return [];
   }
 };
 
@@ -874,12 +947,17 @@ export const exportTransactionsToCSV = async (params = {}) => {
 // Function to fetch summary data with date range
 export const fetchSummaryData = async (startDate, endDate) => {
   try {
+    console.log('fetchSummaryData input dates:', { startDate, endDate });
+
+    // Process the date range properly
+    const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(startDate, endDate);
+    
     const params = {
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate),
+      start_date: formattedStartDate,
+      end_date: formattedEndDate
     };
 
-    console.log('Fetching summary data with params:', params);
+    console.log('API request params:', params);
 
     const [orders, products, customers, transactions] = await Promise.all([
       axiosInstance.get('/core/orders/', { params }),
@@ -919,12 +997,17 @@ export const fetchSummaryData = async (startDate, endDate) => {
 // Function to fetch sales data with date range
 export const fetchSalesData = async (startDate, endDate) => {
   try {
+    console.log('SalesData input dates:', { startDate, endDate });
+
+    // Process the date range properly
+    const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(startDate, endDate);
+    
     const params = {
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate),
+      start_date: formattedStartDate,
+      end_date: formattedEndDate
     };
 
-    console.log('Fetching orders with params:', params);
+    console.log('API request params:', params);
     const response = await axiosInstance.get('/core/orders/', {params});
 
     const processOrders = (orders) => orders.map(order => ({

@@ -1,6 +1,13 @@
 {
-  "name": "Finstock",
-  "short_name": "Finstock",
+  "name": "Verifi",
+  "short_name": "Verify",
+  "icons": [
+    {
+      "src": "Logo 10.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ],
   "description": "Accounting and Inventory Management System",
   "start_url": "/",
   "display": "standalone",

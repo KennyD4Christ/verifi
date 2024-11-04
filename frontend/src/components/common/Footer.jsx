@@ -50,7 +50,7 @@ const Footer = () => (
   <FooterContainer>
     <FooterContent>
       <FooterSection>
-        <FooterTitle>Finstock</FooterTitle>
+        <FooterTitle>Verifi</FooterTitle>
         <p>Streamlining your business with powerful accounting and inventory management.</p>
       </FooterSection>
       <FooterSection>
@@ -73,7 +73,7 @@ const Footer = () => (
       </FooterSection>
     </FooterContent>
     <Copyright>
-      <p>&copy; {new Date().getFullYear()} Finstock. All rights reserved.</p>
+      <p>&copy; {new Date().getFullYear()} Verifi. All rights reserved.</p>
     </Copyright>
   </FooterContainer>
 );

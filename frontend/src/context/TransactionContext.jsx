@@ -133,16 +133,20 @@ const TransactionProvider = ({ children }) => {
       const response = await fetchTransactionsAPI(params);
       console.log('Transactions fetched:', response);
       
-      setTransactions(response.results || []);
-      setPagination({
+      const newTransactions = response.results || [];
+      const newPagination = {
         count: response.count,
         next: response.next,
         previous: response.previous,
-      });
-    
+      };
+      setTransactions(newTransactions);
+      setPagination(newPagination);
       if (response.error) {
         setError(response.error);
       }
+      console.log('Updated transactions:', newTransactions);
+      console.log('Updated pagination:', newPagination);
+      return { results: newTransactions, ...newPagination };
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
       setError('Failed to fetch transactions. Please try again.');
@@ -152,6 +156,7 @@ const TransactionProvider = ({ children }) => {
         next: null,
         previous: null,
       });
+      return null;
     } finally {
       setLoading(false);
     }
