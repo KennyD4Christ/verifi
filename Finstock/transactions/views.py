@@ -24,7 +24,7 @@ from users.permissions import CanViewResource, CanManageResource, SuperuserOrRea
 
 
 class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 10
+    page_size = 20
     page_size_query_param = 'page_size'
     max_page_size = 100
 
@@ -33,7 +33,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
     """
     API endpoint for managing transactions
     """
-    queryset = Transaction.objects.all()
+    queryset = Transaction.objects.all().order_by('-date', '-id')
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
@@ -42,7 +42,8 @@ class TransactionViewSet(viewsets.ModelViewSet):
     ]
     filterset_fields = ['status', 'transaction_type', 'date', 'category', 'order']
     search_fields = ['order__id', 'invoice__id', 'customer__id', 'amount']
-    ordering_fields = ['date', 'amount']
+    ordering_fields = ['date', 'amount', 'id']
+    ordering = ['-date', '-id']
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

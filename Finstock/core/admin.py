@@ -65,6 +65,7 @@ class CustomerAdmin(admin.ModelAdmin):
     )
     readonly_fields = ('id',)
 
+
 @admin.register(Visit)
 class VisitAdmin(admin.ModelAdmin):
     list_display = ('user', 'session_id', 'visited_url', 'timestamp', 'ip_address', 'device_type', 'operating_system')

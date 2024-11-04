@@ -329,6 +329,7 @@ class Visit(models.Model):
         help_text="URL of the page that referred the visitor."
     )
     visited_url = models.URLField(
+        max_length=2000,
         help_text="URL that was visited."
     )
 

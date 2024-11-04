@@ -7,6 +7,19 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description']
         ref_name = 'CategorySerializer'
 
+class TopProductSerializer(serializers.ModelSerializer):
+    total_sales = serializers.IntegerField(read_only=True)
+    total_revenue = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'sku', 'price', 'total_sales', 'total_revenue']
+    
+    def get_total_revenue(self, obj):
+        if obj.total_sales and obj.price:
+            return float(obj.price) * obj.total_sales
+        return 0
+
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage

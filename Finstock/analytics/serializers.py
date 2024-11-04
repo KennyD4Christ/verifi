@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from products.models import Product
 from transactions.models import Transaction
+from stock_adjustments.serializers import StockAdjustmentSerializer
 
 class ProductSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'price', 'sales', 'category']
+        fields = ['id', 'name', 'description', 'price', 'sales', 'category', 'stock', 'sku']
 
 
 class TransactionSerializer(serializers.ModelSerializer):

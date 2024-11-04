@@ -2,15 +2,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils.timezone import make_aware, utc, now
-from django.db.models import Q
 from core.models import Visit
 from django.utils.dateparse import parse_date
 from products.models import Product
 from transactions.models import Transaction
-from products.serializers import ProductSerializer
+from products.serializers import ProductSerializer, TopProductSerializer
 from transactions.serializers import TransactionSerializer
+from django.db.models import Sum, Case, When, F, DecimalField, Q
+from django.db.models.functions import TruncDate, Coalesce
 from rest_framework import status
-from django.db.models import Sum
 from django_filters import rest_framework as filters
 from datetime import datetime, timedelta, time
 import logging
@@ -48,20 +48,44 @@ class TopProductsView(APIView):
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
 
+            logger.debug(f"Received date params - start_date: {start_date}, end_date: {end_date}")
+
             queryset = Product.objects.all()
             if start_date:
-                start_date = make_aware(datetime.combine(parse_date(start_date), datetime.min.time()), timezone=utc)
-                queryset = queryset.filter(order_items__order__order_date__gte=start_date)
+                parsed_start = parse_date(start_date)
+                start_datetime = make_aware(datetime.combine(parsed_start, datetime.min.time()), timezone=utc)
+                logger.debug(f"Parsed start_date: {parsed_start}, start_datetime: {start_datetime}")
+                queryset = queryset.filter(order_items__order__order_date__gte=start_datetime)
             if end_date:
-                end_date = make_aware(datetime.combine(parse_date(end_date), datetime.max.time()), timezone=utc)
-                queryset = queryset.filter(order_items__order__order_date__lte=end_date)
+                parsed_end = parse_date(end_date)
+                end_datetime = make_aware(datetime.combine(parsed_end, datetime.max.time()), timezone=utc)
+                logger.debug(f"Parsed end_date: {parsed_end}, end_datetime: {end_datetime}")
+                queryset = queryset.filter(order_items__order__order_date__lte=end_datetime)
+
+            logger.debug(f"Generated query: {str(queryset.query)}")
+
+            results = list(queryset)
+            logger.debug(f"Query returned {len(results)} results")
 
             top_products = queryset.annotate(
-                total_sales=Sum('order_items__quantity')
+                total_sales=Coalesce(
+                    Sum('order_items__quantity'),
+                    0
+                ),
+                total_revenue=Coalesce(
+                    Sum(
+                        F('order_items__quantity') * F('order_items__unit_price'),  # Use unit_price from order_items
+                        output_field=DecimalField(max_digits=10, decimal_places=2)
+                    ),
+                    0,
+                    output_field=DecimalField(max_digits=10, decimal_places=2)
+                )
+            ).filter(
+                Q(total_sales__gt=0) | Q(total_revenue__gt=0)  # Include products with either sales or revenue
             ).order_by('-total_sales')[:10]
 
             logger.debug(f"Found {top_products.count()} top products")
-            serializer = ProductSerializer(top_products, many=True)
+            serializer = TopProductSerializer(top_products, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Error in TopProductsView: {str(e)}")
@@ -73,16 +97,28 @@ class RecentTransactionsView(APIView):
     filterset_class = DateRangeFilter
 
     def get(self, request, *args, **kwargs):
+        logger.debug("RecentTransactionsView accessed")
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
+        logger.debug(f"Raw date params received - start_date: {start_date}, end_date: {end_date}")
+
         queryset = Transaction.objects.all()
         if start_date:
-            start_date = make_aware(datetime.combine(parse_date(start_date), datetime.min.time()), timezone=utc)
-            queryset = queryset.filter(date__gte=start_date)
+            parsed_start = parse_date(start_date)
+            start_datetime = make_aware(datetime.combine(parsed_start, datetime.min.time()), timezone=utc)
+            logger.debug(f"Parsed start_date: {parsed_start}, start_datetime: {start_datetime}")
+            queryset = queryset.filter(date__gte=start_datetime)
         if end_date:
-            end_date = make_aware(datetime.combine(parse_date(end_date), datetime.max.time()), timezone=utc)
-            queryset = queryset.filter(date__lte=end_date)
+            parsed_end = parse_date(end_date)
+            end_datetime = make_aware(datetime.combine(parsed_end, datetime.max.time()), timezone=utc)
+            logger.debug(f"Parsed end_date: {parsed_end}, end_datetime: {end_datetime}")
+            queryset = queryset.filter(date__lte=end_datetime)
+
+        logger.debug(f"Generated query: {str(queryset.query)}")
+
+        results = list(queryset)
+        logger.debug(f"Query returned {len(results)} results")
 
         recent_transactions = queryset.order_by('-date')[:10]
         serializer = TransactionSerializer(recent_transactions, many=True)
@@ -93,6 +129,7 @@ class ConversionRateDataView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
+        logger.debug("ConversionRateDataView accessed")
         try:
             start_date_str = request.query_params.get('start_date')
             end_date_str = request.query_params.get('end_date')
@@ -103,10 +140,9 @@ class ConversionRateDataView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Parse dates and validate format
             try:
-                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                start_date = make_aware(datetime.strptime(start_date_str, '%Y-%m-%d'))
+                end_date = make_aware(datetime.strptime(end_date_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59))
             except ValueError:
                 return Response(
                     {"error": "start_date and end_date must be in YYYY-MM-DD format."},
@@ -119,19 +155,19 @@ class ConversionRateDataView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Count the number of visits within the date range
             total_visitors = Visit.objects.filter(
-                timestamp__date__range=[start_date, end_date]
-            ).count() or 1  # To avoid division by zero
-
-            # Count the number of transactions (sales) within the date range
-            conversions = Transaction.objects.filter(
-                date__range=[start_date, end_date],
-                transaction_type='sale'
+                timestamp__range=[start_date, end_date]
             ).count()
 
-            # Calculate the conversion rate
-            conversion_rate = (conversions / total_visitors) * 100
+            conversions = Transaction.objects.filter(
+                date__range=[start_date, end_date],
+                status='completed'
+            ).count()
+
+            if total_visitors > 0:
+                conversion_rate = (conversions / total_visitors) * 100
+            else:
+                conversion_rate = 0
 
             conversion_rate_data = {
                 'total_visitors': total_visitors,
@@ -153,8 +189,33 @@ class NetProfitDataView(APIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            start_date = request.query_params.get('start_date')
-            end_date = request.query_params.get('end_date')
+            logger.debug("NetProfitDataView accessed")
+            start_date_str = request.query_params.get('start_date')
+            end_date_str = request.query_params.get('end_date')
+
+            logger.debug(f"Raw date params received - start_date: {start_date_str}, end_date: {end_date_str}")
+
+            # Validate required parameters
+            if not start_date_str or not end_date_str:
+                return Response(
+                    {"error": "start_date and end_date parameters are required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            try:
+                start_date = make_aware(datetime.strptime(start_date_str, '%Y-%m-%d'))
+                end_date = make_aware(datetime.strptime(end_date_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59))
+            except ValueError:
+                return Response(
+                    {"error": "start_date and end_date must be in YYYY-MM-DD format."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if start_date > end_date:
+                return Response(
+                    {"error": "start_date cannot be after end_date."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             revenue = Transaction.objects.filter(
                 date__range=[start_date, end_date],
@@ -183,7 +244,10 @@ class NetProfitDataView(APIView):
             return Response(net_profit_data, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Error in NetProfitDataView: {str(e)}")
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": "An error occurred while processing your request."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class InventoryLevelsView(APIView):
@@ -195,13 +259,19 @@ class InventoryLevelsView(APIView):
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
 
+            logger.debug(f"Raw date params received - start_date: {start_date}, end_date: {end_date}")
+
             queryset = Product.objects.all()
             if start_date:
-                start_date = make_aware(datetime.combine(parse_date(start_date), datetime.min.time()), timezone=utc)
-                queryset = queryset.filter(stock_adjustments__adjustment_date__gte=start_date)
+                parsed_start = parse_date(start_date)
+                start_datetime = make_aware(datetime.combine(parsed_start, datetime.min.time()), timezone=utc)
+                logger.debug(f"Parsed start_date: {parsed_start}, start_datetime: {start_datetime}")
+                queryset = queryset.filter(stock_adjustments__adjustment_date__gte=start_datetime)
             if end_date:
-                end_date = make_aware(datetime.combine(parse_date(end_date), datetime.max.time()), timezone=utc)
-                queryset = queryset.filter(stock_adjustments__adjustment_date__lte=end_date)
+                parsed_end = parse_date(end_date)
+                end_datetime = make_aware(datetime.combine(parsed_end, datetime.max.time()), timezone=utc)
+                logger.debug(f"Parsed end_date: {parsed_end}, end_datetime: {end_datetime}")
+                queryset = queryset.filter(stock_adjustments__adjustment_date__lte=end_datetime)
 
             # Use distinct to ensure no duplicates due to multiple stock adjustments
             inventory_items = queryset.distinct()
@@ -211,6 +281,7 @@ class InventoryLevelsView(APIView):
             logger.error(f"Error in InventoryLevelsView: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class CashFlowView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -219,6 +290,8 @@ class CashFlowView(APIView):
         try:
             start_date_param = request.query_params.get('start_date')
             end_date_param = request.query_params.get('end_date')
+
+            logger.debug(f"Raw date params received - start_date: {start_date_param}, end_date: {end_date_param}")
 
             # Use current month as default if no dates are provided
             if not start_date_param:
@@ -236,9 +309,21 @@ class CashFlowView(APIView):
 
             cash_flow = Transaction.objects.filter(
                 date__range=[start_datetime, end_datetime]
-            ).values('date').annotate(
-                balance=Sum('amount')
-            ).order_by('date')
+            ).annotate(
+                trunc_date=TruncDate('date')
+            ).values('trunc_date').annotate(
+                balance=Sum(Case(
+                    When(transaction_type='income', then=F('amount')),
+                    When(transaction_type__in=['expense', 'cost_of_services'], then=-F('amount')),
+                    output_field=DecimalField()
+                ))
+            ).order_by('trunc_date')
+
+            # Calculate cumulative balance
+            cumulative_balance = 0
+            for entry in cash_flow:
+                cumulative_balance += entry['balance']
+                entry['cumulative_balance'] = cumulative_balance
 
             return Response(list(cash_flow), status=status.HTTP_200_OK)
         except Exception as e:
