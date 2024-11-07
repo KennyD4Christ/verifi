@@ -12,10 +12,13 @@ import csv
 from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import io
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -133,61 +136,136 @@ class TransactionViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def export_pdf(self, request):
         """
-        Exports all filtered transactions to a PDF report
+        Exports all filtered transactions to a PDF report with proper formatting
         """
+        # Get filtered transactions
         transactions = self.filter_queryset(self.get_queryset())
+    
+        # Create buffer and PDF document in landscape orientation
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(letter),
+            rightMargin=30,
+            leftMargin=30,
+            topMargin=30,
+            bottomMargin=30
+        )
+    
+        # Initialize elements list for PDF content
         elements = []
-
-        # Add title
+    
+        # Create custom styles
         styles = getSampleStyleSheet()
-        elements.append(Paragraph("Transactions Report", styles['Title']))
-
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Title'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=TA_CENTER
+        )
+    
+        # Add title with date
+        title_text = (f"Transactions Report<br/>"
+                     f"<font size=12>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</font>")
+        elements.append(Paragraph(title_text, title_style))
+        elements.append(Spacer(1, 20))
+    
+        # Define column widths as proportions of the page width
+        page_width = landscape(letter)[0] - 60  # Total width minus margins
+        col_widths = [
+            page_width * 0.05,  # ID (5%)
+            page_width * 0.10,  # Order (10%)
+            page_width * 0.10,  # Invoice (10%)
+            page_width * 0.12,  # Customer (12%)
+            page_width * 0.10,  # Type (10%)
+            page_width * 0.12,  # Category (12%)
+            page_width * 0.11,  # Amount (11%)
+            page_width * 0.10,  # Date (10%)
+            page_width * 0.10,  # Payment Method (10%)
+            page_width * 0.10   # Status (10%)
+        ]
+    
         # Prepare data for table
-        data = [['ID', 'Order', 'Invoice', 'Customer', 'Type', 'Category', 'Amount', 'Date', 'Payment Method', 'Status']]
+        headers = ['ID', 'Order', 'Invoice', 'Customer', 'Type', 'Category', 
+                  'Amount', 'Date', 'Payment Method', 'Status']
+    
+        # Create header rows with wrapped text
+        header_rows = [[Paragraph(header, styles['Heading2']) for header in headers]]
+    
+        # Prepare data rows with wrapped text
+        data_rows = []
         for transaction in transactions:
-            data.append([
-                str(transaction.id),
-                str(transaction.order),
-                str(transaction.invoice),
-                str(transaction.customer),
-                transaction.transaction_type,
-                transaction.category,
-                f"${transaction.amount:.2f}",
-                transaction.date.strftime("%Y-%m-%d"),
-                transaction.payment_method,
-                transaction.status
-            ])
-
-        # Create table
-        table = Table(data)
+            row = [
+                Paragraph(str(transaction.id), styles['Normal']),
+                Paragraph(str(transaction.order or ''), styles['Normal']),
+                Paragraph(str(transaction.invoice or ''), styles['Normal']),
+                Paragraph(str(transaction.customer or ''), styles['Normal']),
+                Paragraph(transaction.get_transaction_type_display(), styles['Normal']),
+                Paragraph(transaction.get_category_display() if transaction.category else '', styles['Normal']),
+                Paragraph(f"${transaction.amount:.2f}", styles['Normal']),
+                Paragraph(transaction.date.strftime("%Y-%m-%d"), styles['Normal']),
+                Paragraph(transaction.get_payment_method_display(), styles['Normal']),
+                Paragraph(transaction.get_status_display(), styles['Normal'])
+            ]
+            data_rows.append(row)
+    
+        # Combine headers and data
+        data = header_rows + data_rows
+    
+        # Create table with defined column widths
+        table = Table(data, colWidths=col_widths, repeatRows=1)
+    
+        # Apply table styles
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            # Header styles
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
+        
+            # Data row styles
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
             ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 12),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
             ('TOPPADDING', (0, 1), (-1, -1), 6),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        
+            # Grid styles
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        
+            # Alternate row colors
+            *[('BACKGROUND', (0, i), (-1, i), colors.HexColor('#F8F9FA'))
+              for i in range(2, len(data), 2)],
         ]))
-
-        elements.append(table)
-
-        # Build PDF
-        doc.build(elements)
-        buffer.seek(0)
     
-        response = HttpResponse(buffer, content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="transactions_report.pdf"'
-        return response
+        # Add table to elements
+        elements.append(table)
+    
+        # Build PDF
+        try:
+            doc.build(elements)
+            buffer.seek(0)
+        
+            # Prepare response
+            response = HttpResponse(buffer, content_type='application/pdf')
+            filename = f"transactions_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+            return response
+        
+        except Exception as e:
+            logger.error(f"Error generating PDF: {str(e)}")
+            return Response(
+                {"error": "Failed to generate PDF report"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=False, methods=['post'])
     def bulk_update_status(self, request):

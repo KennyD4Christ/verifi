@@ -14,6 +14,10 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
+from datetime import datetime
+from reportlab.lib.fonts import addMapping
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from products.models import Product
 from products.serializers import ProductSerializer
 from decimal import Decimal
@@ -23,6 +27,7 @@ from users.permissions import CanViewResource, CanManageResource, SuperuserOrRea
 from core.models import Customer, CompanyInfo
 import logging
 import io
+import os
 import json
 
 
@@ -176,7 +181,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], permission_classes=[CanViewResource])
     def generate_pdf(self, request, pk=None):
         """
-        Generates a detailed PDF of the invoice.
+        Generates a professional PDF invoice with enhanced styling and layout.
         """
         try:
             invoice = self.get_object()
@@ -191,70 +196,127 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         p = canvas.Canvas(buffer, pagesize=letter)
         width, height = letter
 
-        # Header with background color
-        p.setFillColor(colors.Color(0.180, 0.235, 0.345))  # Darker Egyptian Blue
-        p.rect(0, height - 2*inch, width, 2*inch, fill=1)
-        p.setFillColor(colors.white)
 
-        # Company Information
+        # Helper function for drawing text
+        def draw_text(text, x, y, font="Helvetica", size=10, color=colors.black):
+            p.setFont(font, size)
+            p.setFillColor(color)
+            p.drawString(x, y, text)
+
+        # Modern header with gradient-like effect
+        p.setFillColor(colors.Color(0.180, 0.235, 0.345))  # Primary blue
+        p.rect(0, height - 2.5*inch, width, 2.5*inch, fill=1)
+        p.setFillColor(colors.Color(0.150, 0.205, 0.315))  # Slightly darker blue
+        p.rect(0, height - 2.5*inch, width, 0.5*inch, fill=1)
+
+        logo_path = os.path.expanduser('~/verifi/Finstock/static/Logo 10.png')
+
+        # Company Logo
+        p.drawImage(logo_path, 0.5*inch, height - 1.75*inch, width=1.5*inch, height=1*inch)
+
+        # Company Information with improved layout
         company_info = CompanyInfo.objects.first()
         if company_info:
-            p.setFont("Helvetica-Bold", 18)
-            p.drawString(0.5*inch, height - 0.75*inch, company_info.name)
-            p.setFont("Helvetica", 10)
-            p.drawString(0.5*inch, height - 1*inch, company_info.address)
-            p.drawString(0.5*inch, height - 1.25*inch, company_info.phone)
+            draw_text(company_info.name, 0.5*inch, height - 0.75*inch, "Helvetica-Bold", 24, colors.white)
+            draw_text(company_info.address, 0.5*inch, height - 1.25*inch, "Helvetica", 11, colors.white)
+            draw_text(f"Tel: {company_info.phone}", 0.5*inch, height - 1.5*inch, "Helvetica", 11, colors.white)
+            if hasattr(company_info, 'website'):
+                draw_text(f"Web: {company_info.website}", 0.5*inch, height - 1.75*inch, "Helvetica", 11, colors.white)
         else:
             logger.warning("No CompanyInfo found. Using default values.")
-            p.setFont("Helvetica-Bold", 18)
-            p.drawString(0.5*inch, height - 0.75*inch, "Company Name Not Set")
-            p.setFont("Helvetica", 10)
-            p.drawString(0.5*inch, height - 1*inch, "Address Not Set")
-            p.drawString(0.5*inch, height - 1.25*inch, "Phone Not Set")
+            draw_text("Company Name Not Set", 0.5*inch, height - 0.75*inch, "Helvetica-Bold", 24, colors.white)
 
-        # Invoice Information
-        p.setFillColor(colors.black)
-        p.setFont("Helvetica-Bold", 12)
-        p.drawString(0.5*inch, height - 2.5*inch, f"Invoice #{invoice.invoice_number}")
-        p.setFont("Helvetica", 10)
-        p.drawString(0.5*inch, height - 2.75*inch, f"Issue Date: {invoice.issue_date}")
-        p.drawString(0.5*inch, height - 3*inch, f"Due Date: {invoice.due_date}")
+        # Professional Invoice Title
+        draw_text("INVOICE", width - 2*inch, height - 0.75*inch, "Helvetica-Bold", 28, colors.white)
 
-        # Customer Information
+        # Invoice Details Box
+        p.setFillColor(colors.Color(0.95, 0.95, 0.95))  # Light gray background
+        p.rect(0.5*inch, height - 3.75*inch, 3*inch, 1*inch, fill=1)
+    
+        draw_text("Invoice Number:", 0.75*inch, height - 3*inch, "Helvetica-Bold", 10)
+        draw_text(f"#{invoice.invoice_number}", 1.75*inch, height - 3*inch)
+    
+        draw_text("Issue Date:", 0.75*inch, height - 3.25*inch, "Helvetica-Bold", 10)
+        draw_text(invoice.issue_date.strftime("%B %d, %Y"), 1.75*inch, height - 3.25*inch)
+    
+        draw_text("Due Date:", 0.75*inch, height - 3.5*inch, "Helvetica-Bold", 10)
+        draw_text(invoice.due_date.strftime("%B %d, %Y"), 1.75*inch, height - 3.5*inch)
+
+        # Customer Information Box
         if invoice.customer:
-            p.drawString(0.5*inch, height - 3.5*inch, "Bill To:")
-            p.drawString(0.5*inch, height - 3.75*inch, invoice.customer.name)
+            p.setFillColor(colors.Color(0.95, 0.95, 0.95))
+            p.rect(width - 3.5*inch, height - 3.75*inch, 3*inch, 1*inch, fill=1)
+        
+            draw_text("Bill To:", width - 3.25*inch, height - 3*inch, "Helvetica-Bold", 10)
+            draw_text(invoice.customer.name, width - 3.25*inch, height - 3.25*inch)
             if invoice.customer.billing_address:
-                p.drawString(0.5*inch, height - 4*inch, str(invoice.customer.billing_address))
-            p.drawString(0.5*inch, height - 4.25*inch, invoice.customer.phone)
-            p.drawString(0.5*inch, height - 4.5*inch, invoice.customer.email)
+                address_lines = str(invoice.customer.billing_address).split('\n')
+                for i, line in enumerate(address_lines):
+                    draw_text(line, width - 3.25*inch, height - (3.5 + i*0.25)*inch)
+            draw_text(invoice.customer.phone, width - 3.25*inch, height - 3.5*inch)
 
-        # Invoice Items
+        # Items Table with improved styling
         data = [["Description", "Quantity", "Unit Price", "Total"]]
         for item in invoice.items.all():
             data.append([
                 item.description,
                 str(item.quantity),
-                f"${item.unit_price:.2f}",
-                f"${item.total_price:.2f}"
+                f"${item.unit_price:,.2f}",
+                f"${item.total_price:,.2f}"
             ])
-    
-        table = Table(data, colWidths=[4*inch, 1*inch, 1.25*inch, 1.25*inch])
+
+        # Add empty rows if needed to maintain consistent spacing
+        while len(data) < 5:
+            data.append(["", "", "", ""])
+
+        table = Table(data, colWidths=[4*inch, 1.25*inch, 1.25*inch, 1.25*inch])
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            # Header styling
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.180, 0.235, 0.345)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            # Content styling
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         table.wrapOn(p, width, height)
-        table.drawOn(p, 0.5*inch, height - 6.5*inch)
+        table.drawOn(p, 0.5*inch, height - 7*inch)
 
-        # Total
-        p.drawString(5.5*inch, height - 7*inch, f"Total: ${invoice.total_amount:.2f}")
+        # Totals section with subtle styling
+        p.setFillColor(colors.Color(0.95, 0.95, 0.95))
+        p.rect(width - 3*inch, height - 8*inch, 2.5*inch, 1*inch, fill=1)
+    
+        y_position = height - 7.5*inch
+        draw_text("Subtotal:", width - 2.75*inch, y_position, "Helvetica-Bold", 10)
+        draw_text(f"${invoice.total_amount:,.2f}", width - 1.25*inch, y_position, "Helvetica", 10)
+    
+        if hasattr(invoice, 'tax_amount'):
+            y_position -= 0.25*inch
+            draw_text("Tax:", width - 2.75*inch, y_position, "Helvetica-Bold", 10)
+            draw_text(f"${invoice.tax_amount:,.2f}", width - 1.25*inch, y_position, "Helvetica", 10)
+    
+        y_position -= 0.25*inch
+        p.setFillColor(colors.Color(0.180, 0.235, 0.345))
+        draw_text("Total:", width - 2.75*inch, y_position, "Helvetica-Bold", 12)
+        draw_text(f"${invoice.total_amount:,.2f}", width - 1.25*inch, y_position, "Helvetica-Bold", 12)
+
+        # Footer with payment terms and notes
+        p.setFillColor(colors.grey)
+        p.rect(0, 1*inch, width, 0.05*inch, fill=1)  # Separator line
+    
+        draw_text("Payment Terms", 0.5*inch, 0.75*inch, "Helvetica-Bold", 10, colors.black)
+        draw_text("Please pay within 30 days. Make checks payable to your company name or pay online at your-website.com",
+                  0.5*inch, 0.5*inch, "Helvetica", 9, colors.grey)
+    
+        draw_text(f"Invoice generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                  0.5*inch, 0.25*inch, "Helvetica", 8, colors.grey)
 
         p.showPage()
         p.save()

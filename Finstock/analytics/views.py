@@ -8,7 +8,7 @@ from products.models import Product
 from transactions.models import Transaction
 from products.serializers import ProductSerializer, TopProductSerializer
 from transactions.serializers import TransactionSerializer
-from django.db.models import Sum, Case, When, F, DecimalField, Q
+from django.db.models import Sum, Case, When, F, DecimalField, Q, IntegerField
 from django.db.models.functions import TruncDate, Coalesce
 from rest_framework import status
 from django_filters import rest_framework as filters
@@ -47,46 +47,77 @@ class TopProductsView(APIView):
         try:
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
-
             logger.debug(f"Received date params - start_date: {start_date}, end_date: {end_date}")
-
-            queryset = Product.objects.all()
+            
+            # Initialize base queryset
+            queryset = Product.objects.filter(is_active=True)
+            
+            # Build date range filter
+            date_filters = Q()
             if start_date:
                 parsed_start = parse_date(start_date)
                 start_datetime = make_aware(datetime.combine(parsed_start, datetime.min.time()), timezone=utc)
-                logger.debug(f"Parsed start_date: {parsed_start}, start_datetime: {start_datetime}")
-                queryset = queryset.filter(order_items__order__order_date__gte=start_datetime)
+                date_filters &= Q(order_items__order__order_date__gte=start_datetime)
+                logger.debug(f"Start datetime filter: {start_datetime}")
+            
             if end_date:
                 parsed_end = parse_date(end_date)
                 end_datetime = make_aware(datetime.combine(parsed_end, datetime.max.time()), timezone=utc)
-                logger.debug(f"Parsed end_date: {parsed_end}, end_datetime: {end_datetime}")
-                queryset = queryset.filter(order_items__order__order_date__lte=end_datetime)
+                date_filters &= Q(order_items__order__order_date__lte=end_datetime)
+                logger.debug(f"End datetime filter: {end_datetime}")
 
-            logger.debug(f"Generated query: {str(queryset.query)}")
-
-            results = list(queryset)
-            logger.debug(f"Query returned {len(results)} results")
-
+            # Add order status filter to only count completed orders
+            date_filters &= Q(order_items__order__status__in=['delivered', 'shipped'])
+            
+            # Apply annotations with proper filtering and grouping
             top_products = queryset.annotate(
                 total_sales=Coalesce(
-                    Sum('order_items__quantity'),
-                    0
+                    Sum(
+                        Case(
+                            When(
+                                order_items__order__status__in=['delivered', 'shipped'],
+                                then='order_items__quantity'
+                            ),
+                            default=0,
+                            output_field=IntegerField(),
+                        ),
+                        filter=date_filters
+                    ),
+                    0,
+                    output_field=IntegerField()
                 ),
                 total_revenue=Coalesce(
                     Sum(
-                        F('order_items__quantity') * F('order_items__unit_price'),  # Use unit_price from order_items
-                        output_field=DecimalField(max_digits=10, decimal_places=2)
+                        Case(
+                            When(
+                                order_items__order__status__in=['delivered', 'shipped'],
+                                then=F('order_items__quantity') * F('order_items__unit_price')
+                            ),
+                            default=0,
+                            output_field=DecimalField(max_digits=10, decimal_places=2)
+                        ),
+                        filter=date_filters
                     ),
                     0,
                     output_field=DecimalField(max_digits=10, decimal_places=2)
                 )
             ).filter(
-                Q(total_sales__gt=0) | Q(total_revenue__gt=0)  # Include products with either sales or revenue
+                Q(total_sales__gt=0) | Q(total_revenue__gt=0)
             ).order_by('-total_sales')[:10]
-
+            
+            # Debug the generated query
+            logger.debug(f"SQL Query: {top_products.query}")
             logger.debug(f"Found {top_products.count()} top products")
+            
+            # Verify calculations for each product
+            for product in top_products:
+                logger.debug(f"Product {product.id} - {product.name}:")
+                logger.debug(f"Total Sales: {product.total_sales}")
+                logger.debug(f"Total Revenue: {product.total_revenue}")
+            
             serializer = TopProductSerializer(top_products, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
+            
         except Exception as e:
             logger.error(f"Error in TopProductsView: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
