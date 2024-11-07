@@ -5,11 +5,16 @@ import { useInvoices } from '../context/InvoiceContext';
 import styled from 'styled-components';
 import EditInvoiceModal from '../modals/EditInvoiceModal';
 import { generateInvoicePDF, markInvoiceAsPaid, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, bulkDeleteInvoices } from '../services/api';
-import { Button, Form, Alert, Spinner } from 'react-bootstrap';
+import { Button, Table, Form, Container, Row, Col, Spinner, Alert, Modal, ButtonGroup } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
-const InvoicesContainer = styled.div`
+const InvoicesContainer = styled(Container)`
   padding: 20px;
+  height: 100%;
+  min-height: calc(100vh - 60px);
+  overflow-y: visible;
+  display: flex;
+  flex-direction: column;
 `;
 
 const Heading = styled.h1`
@@ -17,16 +22,18 @@ const Heading = styled.h1`
   margin-bottom: 20px;
 `;
 
-const Table = styled.table`
+const StyledTable = styled.table`
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 20px;
+  background-color: #ffffff;
 `;
 
 const Th = styled.th`
   background-color: #f5f5f5;
   padding: 10px;
   border: 1px solid #ddd;
+  cursor: pointer;
 `;
 
 const Td = styled.td`
@@ -36,14 +43,21 @@ const Td = styled.td`
 
 const Filters = styled.div`
   margin-bottom: 20px;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: center;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
-const FilterInput = styled.input`
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+const StyledFormControl = styled(Form.Control)`
+  height: 38px;
+  &::placeholder {
+    color: #6c757d;
+  }
 `;
 
 const Pagination = styled.div`
@@ -53,7 +67,6 @@ const Pagination = styled.div`
 `;
 
 const PaginationButton = styled.button`
-  background-color: #ffffff;
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -63,7 +76,20 @@ const PaginationButton = styled.button`
   &:disabled {
     cursor: not-allowed;
     opacity: 0.5;
+    background-color: ${props => (props.disabled ? '#f0f0f0' : '#4CAF50')};
+    color: ${props => (props.disabled ? '#888' : 'white')};
+    transition: all 0.3s ease;
   }
+
+  &:hover:not(:disabled) {
+    background-color: #0645AD;
+  }
+`;
+
+const PaginationInfo = styled.div`
+  margin: 0 15px;
+  font-size: 14px;
+  color: #555;
 `;
 
 const AddInvoiceButton = styled.button`
@@ -99,24 +125,42 @@ const StatusBadge = styled.span`
   }}
 `;
 
-const ActionButton = styled.button`
-  padding: 5px 10px;
-  margin: 0 5px;
+const ActionButtonContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+`;
+
+const ActionButton = styled(Button)`
+  background-color: #0645AD;
+  color: white;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8em;
-  ${({ primary }) => primary ? 'background-color: #007bff; color: white;' : 'background-color: #6c757d; color: white;'}
+  padding: 10px 20px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+
   &:hover {
-    opacity: 0.8;
+    background-color: #f5f5f5;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    transform: none;
+    box-shadow: none;
   }
 `;
 
-const ActionButtonContainer = styled.div`
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+const AnimatedTableRow = styled.tr`
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #f0f8ff;
+    transform: scale(1.01);
+  }
 `;
+
 
 const InvoicesPage = () => {
   const { isAuthenticated } = useAuth();
@@ -129,6 +173,11 @@ const InvoicesPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [invoicesPerPage] = useState(10);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    invoicesPerPage: 10
+  });
 
   // Filtering state
   const [searchTerm, setSearchTerm] = useState('');
@@ -161,8 +210,8 @@ const InvoicesPage = () => {
       setDebugInfo(null);
       try {
         const params = {
-          page: currentPage,
-          page_size: invoicesPerPage,
+          page: pagination.currentPage,
+          page_size: pagination.invoicesPerPage,
           search: searchTerm,
           issue_date: dateFilter,
           status: statusFilter,
@@ -181,7 +230,10 @@ const InvoicesPage = () => {
 
         if (response && response.count !== undefined) {
           console.log('Total count:', response.count);
-          setTotalPages(Math.ceil(response.count / invoicesPerPage));
+          setPagination((prevState) => ({
+            ...prevState,
+            totalPages: Math.ceil(response.count / prevState.invoicesPerPage),
+          }));
         } else {
           console.log('Response does not contain count');
         }
@@ -202,7 +254,7 @@ const InvoicesPage = () => {
         setLoading(false);
       }
     }
-  }, [isAuthenticated, currentPage, invoicesPerPage, searchTerm, dateFilter, statusFilter, minAmount, maxAmount, sortField, sortDirection, fetchInvoices]);
+  }, [isAuthenticated, pagination.currentPage, pagination.invoicesPerPage, searchTerm, dateFilter, statusFilter, minAmount, maxAmount, sortField, sortDirection, fetchInvoices]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -417,7 +469,12 @@ const InvoicesPage = () => {
     }
   };
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const handlePageChange = (page) => {
+    setPagination(prev => ({
+      ...prev,
+      currentPage: page
+    }));
+  };
 
   if (!isAuthenticated) {
     return <Alert variant="warning">Please log in to view invoices.</Alert>;
@@ -430,29 +487,23 @@ const InvoicesPage = () => {
     {error && (
       <Alert variant="danger" onClose={() => setError(null)} dismissible>
         {error}
-        {debugInfo && (
-          <details>
-            <summary>Debug Information</summary>
-            <pre>{debugInfo}</pre>
-          </details>
-        )}
       </Alert>
     )}
     {success && <Alert variant="success" onClose={() => setSuccess(null)} dismissible>{success}</Alert>}
 
     <Filters>
-      <Form.Control
+      <StyledFormControl
         type="text"
         placeholder="Search invoices..."
         value={searchTerm}
         onChange={handleSearchChange}
       />
-      <Form.Control
+      <StyledFormControl
         type="date"
         value={dateFilter}
         onChange={handleDateFilterChange}
       />
-      <Form.Control
+      <StyledFormControl
         as="select"
         value={statusFilter}
         onChange={handleStatusFilterChange}
@@ -463,14 +514,14 @@ const InvoicesPage = () => {
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </option>
         ))}
-      </Form.Control>
-      <Form.Control
+      </StyledFormControl>
+      <StyledFormControl
         type="number"
         placeholder="Min Amount"
         value={minAmount}
         onChange={handleMinAmountChange}
       />
-      <Form.Control
+      <StyledFormControl
         type="number"
         placeholder="Max Amount"
         value={maxAmount}
@@ -479,45 +530,45 @@ const InvoicesPage = () => {
     </Filters>
 
     <ActionButtonContainer>
-      <Button onClick={() => handleOpenEditModal()}>Add Invoice</Button>
-      <Button onClick={handleBulkDelete} disabled={selectedInvoices.length === 0}>Delete Selected</Button>
-      <Button as={Link} to="/invoices/export/pdf">Export PDF</Button>
+      <ActionButton onClick={() => handleOpenEditModal()}>Add Invoice</ActionButton>
+      <ActionButton onClick={handleBulkDelete} disabled={selectedInvoices.length === 0}>Delete Selected</ActionButton>
+      <ActionButton as={Link} to="/invoices/export/pdf">Export PDF</ActionButton>
     </ActionButtonContainer>
 
     {loading ? (
       <Spinner animation="border" role="status" className="d-block mx-auto" />
     ) : invoices && invoices.length > 0 ? (
       <>
-        <Table responsive>
+        <StyledTable responsive>
           <thead>
             <tr>
-              <th className="text-center"><Form.Check type="checkbox" onChange={handleSelectAll} /></th>
-              <th className="text-center" onClick={() => handleSort('issue_date')}>Date {sortField === 'issue_date' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-              <th className="text-center" onClick={() => handleSort('customer__id')}>Customer ID {sortField === 'customer__id' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-              <th className="text-center" onClick={() => handleSort('invoice_number')}>Invoice Number {sortField === 'invoice_number' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-              <th className="text-right" onClick={() => handleSort('total_amount')}>Amount {sortField === 'total_amount' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-              <th className="text-center" onClick={() => handleSort('status')}>Status {sortField === 'status' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-              <th className="text-center">Actions</th>
+              <Th className="text-center"><Form.Check type="checkbox" onChange={handleSelectAll} /></Th>
+              <Th className="text-center" onClick={() => handleSort('issue_date')}>Date {sortField === 'issue_date' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
+              <Th className="text-center" onClick={() => handleSort('customer__id')}>Customer ID {sortField === 'customer__id' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
+              <Th className="text-center" onClick={() => handleSort('invoice_number')}>Invoice Number {sortField === 'invoice_number' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
+              <Th className="text-right" onClick={() => handleSort('total_amount')}>Amount {sortField === 'total_amount' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
+              <Th className="text-center" onClick={() => handleSort('status')}>Status {sortField === 'status' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
+              <Th className="text-center">Actions</Th>
             </tr>
           </thead>
           <tbody>
             {invoices.map((invoice) => (
-              <tr key={invoice.id}>
-                <td className="text-center">
+              <AnimatedTableRow key={invoice.id}>
+                <Td className="text-center">
                   <Form.Check
                     type="checkbox"
                     checked={selectedInvoices.includes(invoice.id)}
                     onChange={() => handleSelectInvoice(invoice.id)}
                   />
-                </td>
-                <td className="text-center">{invoice.issue_date || 'N/A'}</td>
-                <td className="text-center">{invoice.customer?.id || 'N/A'}</td>
-                <td className="text-center">{formatInvoiceNumber(invoice.invoice_number) || 'N/A'}</td>
-                <td className="text-right">${invoice.total_amount ? parseFloat(invoice.total_amount).toFixed(2) : '0.00'}</td>
-                <td className="text-center">
+                </Td>
+                <Td className="text-center">{invoice.issue_date || 'N/A'}</Td>
+                <Td className="text-center">{invoice.customer?.id || 'N/A'}</Td>
+                <Td className="text-center">{formatInvoiceNumber(invoice.invoice_number) || 'N/A'}</Td>
+                <Td className="text-right">${invoice.total_amount ? parseFloat(invoice.total_amount).toFixed(2) : '0.00'}</Td>
+                <Td className="text-center">
                   <StatusBadge status={invoice.status}>{invoice.status}</StatusBadge>
-                </td>
-                <td className="text-center">
+                </Td>
+                <Td className="text-center">
                   <ActionButton primary onClick={() => handleGeneratePDF(invoice.id)}>
                     PDF
                   </ActionButton>
@@ -532,23 +583,78 @@ const InvoicesPage = () => {
                   <ActionButton onClick={() => handleDeleteInvoice(invoice.id)}>
                     Delete
                   </ActionButton>
-                </td>
-              </tr>
+                </Td>
+              </AnimatedTableRow>
             ))}
           </tbody>
-        </Table>
+        </StyledTable>
 
-        <Pagination>
-          {Array.from({ length: totalPages }, (_, index) => (
+        {pagination.totalPages > 0 && (
+          <Pagination>
             <PaginationButton
-              key={index + 1}
-              onClick={() => paginate(index + 1)}
-              disabled={currentPage === index + 1}
+              onClick={() => handlePageChange(1)}
+              disabled={pagination.currentPage === 1}
             >
-              {index + 1}
+              First
             </PaginationButton>
-          ))}
-        </Pagination>
+
+            <PaginationButton
+              onClick={() => handlePageChange(pagination.currentPage - 1)}
+              disabled={pagination.currentPage === 1}
+            >
+              Previous
+            </PaginationButton>
+
+            {[...Array(pagination.totalPages).keys()]
+              .filter(number => {
+                const page = number + 1;
+                return (
+                  page === 1 ||
+                  page === pagination.totalPages ||
+                  Math.abs(page - pagination.currentPage) <= 1
+                );
+              })
+              .map(number => {
+                const page = number + 1;
+                return (
+                  <React.Fragment key={page}>
+                    {page > 1 &&
+                     Math.abs(page - [...Array(pagination.totalPages).keys()]
+                       .filter(n => {
+                         const p = n + 1;
+                         return (
+                           p === 1 ||
+                           p === pagination.totalPages ||
+                           Math.abs(p - pagination.currentPage) <= 1
+                         );
+                       })[number - 1] - 1) > 1 && (
+                      <span>...</span>
+                    )}
+                    <PaginationButton
+                      onClick={() => handlePageChange(page)}
+                      disabled={pagination.currentPage === page}
+                    >
+                      {page}
+                    </PaginationButton>
+                  </React.Fragment>
+                );
+              })}
+
+            <PaginationButton
+              onClick={() => handlePageChange(pagination.currentPage + 1)}
+              disabled={pagination.currentPage === pagination.totalPages}
+            >
+              Next
+            </PaginationButton>
+
+            <PaginationButton
+              onClick={() => handlePageChange(pagination.totalPages)}
+              disabled={pagination.currentPage === pagination.totalPages}
+            >
+              Last
+            </PaginationButton>
+          </Pagination>
+	)}
       </>
     ) : (
       <p>No invoices found.</p>

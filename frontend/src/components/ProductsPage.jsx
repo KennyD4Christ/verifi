@@ -33,6 +33,21 @@ const StyledTable = styled(Table)`
 
 const Filters = styled(Form)`
   margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: center;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const StyledFormControl = styled(Form.Control)`
+  height: 38px;
+  &::placeholder {
+    color: #6c757d;
+  }
 `;
 
 const ActionButtonContainer = styled.div`
@@ -275,13 +290,13 @@ const ProductsPage = () => {
       {success && <Alert variant="success" onClose={() => setSuccess(null)} dismissible>{success}</Alert>}
 
       <Filters>
-        <Form.Control
+        <StyledFormControl
           type="text"
           placeholder="Search products..."
           value={searchTerm}
           onChange={handleSearchChange}
         />
-        <Form.Control
+        <StyledFormControl
           as="select"
           value={categoryFilter}
           onChange={handleCategoryFilterChange}
@@ -292,20 +307,20 @@ const ProductsPage = () => {
               {category.name}
             </option>
           ))}
-        </Form.Control>
-        <Form.Control
+        </StyledFormControl>
+        <StyledFormControl
           type="number"
           placeholder="Min Price"
           value={minPrice}
           onChange={handleMinPriceChange}
         />
-        <Form.Control
+        <StyledFormControl
           type="number"
           placeholder="Max Price"
           value={maxPrice}
           onChange={handleMaxPriceChange}
         />
-        <Form.Control
+        <StyledFormControl
           as="select"
           value={isActiveFilter}
           onChange={handleIsActiveFilterChange}
@@ -313,7 +328,7 @@ const ProductsPage = () => {
           <option value="">All Status</option>
           <option value="true">Active</option>
           <option value="false">Inactive</option>
-        </Form.Control>
+        </StyledFormControl>
       </Filters>
 
       <ActionButtonContainer>

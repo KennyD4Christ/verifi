@@ -9,6 +9,11 @@ import { Link } from 'react-router-dom';
 
 const StockLevelsContainer = styled.div`
   padding: 20px;
+  height: 100%;
+  min-height: calc(100vh - 60px);
+  overflow-y: visible;
+  display: flex;
+  flex-direction: column;
 `;
 
 const Heading = styled.h1`
@@ -20,16 +25,113 @@ const StyledTable = styled.table`
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 20px;
+  background-color: #ffffff;
 `;
 
-const Filters = styled.div`
+const Filters = styled(Form)`
   margin-bottom: 20px;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: center;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const StyledFormControl = styled(Form.Control)`
+  height: 38px;
+  &::placeholder {
+    color: #6c757d;
+  }
+`;
+
+const Th = styled.th`
+  background-color: #f5f5f5;
+  padding: 10px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  
+  &:hover {
+    background-color: #e9ecef;
+  }
+`;
+
+const Td = styled.td`
+  padding: 10px;
+  border: 1px solid #ddd;
 `;
 
 const ActionButtonContainer = styled.div`
+  display: flex;
+  gap: 10px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+`;
+
+const ActionButton = styled(Button)`
+  background-color: #0645AD;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #052c65;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    transform: none;
+    box-shadow: none;
+  }
+`;
+
+const AnimatedTableRow = styled.tr`
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #f0f8ff;
+    transform: scale(1.01);
+  }
+`;
+
+const Pagination = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  gap: 5px;
+  align-items: center;
+  flex-wrap: wrap;
+`;
+
+const PaginationButton = styled.button`
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin: 0 5px;
+  cursor: pointer;
+  background-color: ${props => props.disabled ? '#f0f0f0' : '#fff'};
+  color: ${props => props.disabled ? '#888' : '#0645AD'};
+  transition: all 0.3s ease;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  &:hover:not(:disabled) {
+    background-color: #0645AD;
+    color: white;
+  }
 `;
 
 const StockLevelsPage = () => {
@@ -231,7 +333,9 @@ const StockLevelsPage = () => {
     }
   };
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   if (!isAuthenticated()) {
     return <Alert variant="warning">Please log in to view stock adjustments.</Alert>;
@@ -245,31 +349,31 @@ const StockLevelsPage = () => {
       {success && <Alert variant="success" onClose={() => setSuccess(null)} dismissible>{success}</Alert>}
 
       <Filters>
-        <Form.Control
+        <StyledFormControl
           type="text"
           placeholder="Search adjustments..."
           value={searchTerm}
           onChange={handleSearchChange}
         />
-        <Form.Control
+        <StyledFormControl
           type="text"
           placeholder="Filter by product"
           value={productFilter}
           onChange={handleProductFilterChange}
         />
-        <Form.Control
+        <StyledFormControl
           type="number"
           placeholder="Min Quantity"
           value={minQuantity}
           onChange={handleMinQuantityChange}
         />
-        <Form.Control
+        <StyledFormControl
           type="number"
           placeholder="Max Quantity"
           value={maxQuantity}
           onChange={handleMaxQuantityChange}
         />
-        <Form.Control
+        <StyledFormControl
           as="select"
           value={adjustmentTypeFilter}
           onChange={handleAdjustmentTypeFilterChange}
@@ -279,14 +383,14 @@ const StockLevelsPage = () => {
           <option value="REMOVE">Remove</option>
           <option value="RETURN">Return</option>
           <option value="DAMAGE">Damage</option>
-        </Form.Control>
+        </StyledFormControl>
       </Filters>
 
       <ActionButtonContainer>
-        <Button onClick={handleAddAdjustment}>Add Stock Adjustment</Button>
-        <Button onClick={handleBulkDelete} disabled={selectedAdjustments.length === 0}>Delete Selected</Button>
-        <Button onClick={handleExportCsv}>Export CSV</Button>
-        <Button onClick={handleExportPdf}>Export PDF</Button>
+        <ActionButton onClick={handleAddAdjustment}>Add Stock Adjustment</ActionButton>
+        <ActionButton onClick={handleBulkDelete} disabled={selectedAdjustments.length === 0}>Delete Selected</ActionButton>
+        <ActionButton onClick={handleExportCsv}>Export CSV</ActionButton>
+        <ActionButton onClick={handleExportPdf}>Export PDF</ActionButton>
       </ActionButtonContainer>
 
       {loading ? (
@@ -296,52 +400,111 @@ const StockLevelsPage = () => {
           <StyledTable striped bordered hover>
             <thead>
               <tr>
-                <th><Form.Check type="checkbox" onChange={handleSelectAll} /></th>
-            	<th onClick={() => handleSort('adjustment_date')}>Date {sortField === 'adjustment_date' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-            	<th onClick={() => handleSort('product__name')}>Product {sortField === 'product__name' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-            	<th onClick={() => handleSort('quantity')}>Adjustment Quantity {sortField === 'quantity' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-            	<th onClick={() => handleSort('adjustment_type')}>Type {sortField === 'adjustment_type' && (sortDirection === 'asc' ? '▲' : '▼')}</th>
-                <th>Current Stock</th>
-	        <th>Actions</th>
+                <Th><Form.Check type="checkbox" onChange={handleSelectAll} /></Th>
+            	<Th onClick={() => handleSort('adjustment_date')}>Date {sortField === 'adjustment_date' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
+            	<Th onClick={() => handleSort('product__name')}>Product {sortField === 'product__name' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
+            	<Th onClick={() => handleSort('quantity')}>Adjustment Quantity {sortField === 'quantity' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
+            	<Th onClick={() => handleSort('adjustment_type')}>Type {sortField === 'adjustment_type' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
+                <Th>Current Stock</Th>
+	        <Th>Actions</Th>
               </tr>
             </thead>
             <tbody>
               {stockAdjustments && stockAdjustments.length > 0 ? (
 		stockAdjustments.map((adjustment) => (
-                  <tr key={adjustment.id}>
-                    <td><Form.Check type="checkbox" checked={selectedAdjustments.includes(adjustment.id)} onChange={() => handleSelectAdjustment(adjustment.id)} /></td>
-                    <td>{adjustment.adjustment_date}</td>
-                    <td>
+                  <AnimatedTableRow key={adjustment.id}>
+                    <Td><Form.Check type="checkbox" checked={selectedAdjustments.includes(adjustment.id)} onChange={() => handleSelectAdjustment(adjustment.id)} /></Td>
+                    <Td>{adjustment.adjustment_date}</Td>
+                    <Td>
                       {adjustment.product && adjustment.product.id ? (
                         <Link to={`/products/${adjustment.product.id}`}>{adjustment.product.name}</Link>
                       ) : (
                         'N/A'
                       )}
-                    </td>
-                    <td>{adjustment.quantity}</td>
-                    <td>{adjustment.adjustment_type}</td>
-		    <td>{adjustment.product ? adjustment.product.stock : 'N/A'}</td>
-                    <td>
+                    </Td>
+                    <Td>{adjustment.quantity}</Td>
+                    <Td>{adjustment.adjustment_type}</Td>
+		    <Td>{adjustment.product ? adjustment.product.stock : 'N/A'}</Td>
+                    <Td>
                       <Button variant="warning" size="sm" onClick={() => handleEditAdjustment(adjustment)}>Edit</Button>
                       <Button variant="danger" size="sm" onClick={() => handleDeleteAdjustment(adjustment.id)}>Delete</Button>
-                    </td>
-                  </tr>
+                    </Td>
+                  </AnimatedTableRow>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6">No stock adjustments found.</td>
+                  <Td colSpan="6">No stock adjustments found.</Td>
                 </tr>
               )}
             </tbody>
           </StyledTable>
 
-          <div>
-            {Array.from({ length: totalPages }, (_, index) => (
-              <Button key={index + 1} onClick={() => paginate(index + 1)} disabled={currentPage === index + 1}>
-                {index + 1}
-              </Button>
-            ))}
-          </div>
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationButton
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+              >
+                First
+              </PaginationButton>
+
+              <PaginationButton
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </PaginationButton>
+
+              {[...Array(totalPages).keys()]
+                .filter(number => {
+                  const page = number + 1;
+                  return (
+                    page === 1 ||
+                    page === totalPages ||
+                    Math.abs(page - currentPage) <= 1
+                  );
+                })
+                .map(number => {
+                  const page = number + 1;
+                  return (
+                    <React.Fragment key={page}>
+                      {page > 1 &&
+                       Math.abs(page - [...Array(totalPages).keys()]
+                         .filter(n => {
+                           const p = n + 1;
+                           return (
+                             p === 1 ||
+                             p === totalPages ||
+                             Math.abs(p - currentPage) <= 1
+                           );
+                         })[number - 1] - 1) > 1 && (
+                        <span>...</span>
+                      )}
+                      <PaginationButton
+                        onClick={() => handlePageChange(page)}
+                        disabled={currentPage === page}
+                      >
+                        {page}
+                      </PaginationButton>
+                    </React.Fragment>
+                  );
+                })}
+
+              <PaginationButton
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </PaginationButton>
+
+              <PaginationButton
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                Last
+              </PaginationButton>
+            </Pagination>
+          )}
         </>
        )}
 

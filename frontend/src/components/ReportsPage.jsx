@@ -10,10 +10,16 @@ import {
   exportReportToExcel,
   cloneReportTemplate
 } from '../services/api';
+import { Alert, Spinner } from 'react-bootstrap';
 
 
 const ReportsContainer = styled.div`
   padding: 20px;
+  height: 100%;
+  min-height: calc(100vh - 60px);
+  overflow-y: visible;
+  display: flex;
+  flex-direction: column;
 `;
 
 const Heading = styled.h1`
@@ -21,16 +27,22 @@ const Heading = styled.h1`
   margin-bottom: 20px;
 `;
 
-const Table = styled.table`
+const StyledTable = styled.table`
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 20px;
+  background-color: #ffffff;
 `;
 
 const Th = styled.th`
   background-color: #f5f5f5;
   padding: 10px;
   border: 1px solid #ddd;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #e9ecef;
+  }
 `;
 
 const Td = styled.td`
@@ -38,19 +50,48 @@ const Td = styled.td`
   border: 1px solid #ddd;
 `;
 
-const Button = styled.button`
-  padding: 10px 20px;
-  background-color: #007bff;
+const ActionButtonContainer = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+`;
+
+const ActionButton = styled.button`
+  background-color: #0645AD;
   color: white;
   border: none;
+  padding: 10px 20px;
+  font-weight: bold;
   border-radius: 4px;
   cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #052c65;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
 
   &:disabled {
     cursor: not-allowed;
     opacity: 0.5;
   }
 `;
+
+const AnimatedTableRow = styled.tr`
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #f0f8ff;
+    transform: scale(1.01);
+  }
+`;
+
 
 const ReportsPage = () => {
   const { isAuthenticated } = useAuth();
@@ -118,49 +159,65 @@ const ReportsPage = () => {
     <ReportsContainer>
       <Heading>Reports</Heading>
 
-      <Button onClick={handleGenerateReport} disabled={isGenerating}>
-        {isGenerating ? 'Generating...' : 'Generate Report'}
-      </Button>
+      <ActionButtonContainer>
+        <ActionButton onClick={handleGenerateReport} disabled={isGenerating}>
+          {isGenerating ? 'Generating...' : 'Generate Report'}
+        </ActionButton>
+        <ActionButton
+          onClick={handleCloneTemplate}
+          disabled={!selectedTemplate}
+        >
+          Clone Template
+        </ActionButton>
+      </ActionButtonContainer>
 
       <div>
-        <select 
-          value={selectedTemplate} 
+        <select
+          value={selectedTemplate}
           onChange={(e) => setSelectedTemplate(e.target.value)}
+          className="form-control"
         >
           <option value="">Select a template</option>
           {reports.filter(r => r.is_template).map((template) => (
             <option key={template.id} value={template.id}>{template.name}</option>
           ))}
         </select>
-        <Button onClick={handleCloneTemplate} disabled={!selectedTemplate}>
-          Clone Template
-        </Button>
       </div>
 
-      <Table>
-        <thead>
-          <tr>
-            <Th>ID</Th>
-            <Th>Name</Th>
-            <Th>Created At</Th>
-            <Th>Actions</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {reports.map((report) => (
-            <tr key={report.id}>
-              <Td>{report.id}</Td>
-              <Td>{report.name}</Td>
-              <Td>{new Date(report.created_at).toLocaleString()}</Td>
-              <Td>
-                <Button onClick={() => handleDownloadReport(report.id)}>Download PDF</Button>
-                <Button onClick={() => handleExportCsv(report.id)}>Export CSV</Button>
-                <Button onClick={() => handleExportExcel(report.id)}>Export Excel</Button>
-              </Td>
+      {loading ? (
+        <Spinner animation="border" role="status" className="d-block mx-auto" />
+      ) : (
+        <StyledTable>
+          <thead>
+            <tr>
+              <Th>ID</Th>
+              <Th>Name</Th>
+              <Th>Created At</Th>
+              <Th>Actions</Th>
             </tr>
-          ))}
-        </tbody>
-      </Table>
+          </thead>
+          <tbody>
+            {reports.map((report) => (
+              <AnimatedTableRow key={report.id}>
+                <Td>{report.id}</Td>
+                <Td>{report.name}</Td>
+                <Td>{new Date(report.created_at).toLocaleString()}</Td>
+                <Td>
+                  <ActionButton onClick={() => handleDownloadReport(report.id)}>
+                    Download PDF
+                  </ActionButton>
+                  <ActionButton onClick={() => handleExportCsv(report.id)}>
+                    Export CSV
+                  </ActionButton>
+                  <ActionButton onClick={() => handleExportExcel(report.id)}>
+                    Export Excel
+                  </ActionButton>
+                </Td>
+              </AnimatedTableRow>
+            ))}
+          </tbody>
+        </StyledTable>
+      )}
     </ReportsContainer>
   );
 };
