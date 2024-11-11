@@ -6,7 +6,10 @@
     "start": "webpack serve --config webpack.config.js --mode development --env NODE_ENV=development",
     "build": "webpack --config webpack.config.js --mode production",
     "lint": "eslint . --ext .js,.jsx",
-    "lint:fix": "eslint . --ext .js,.jsx --fix"
+    "lint:fix": "eslint . --ext .js,.jsx --fix",
+    "build": "react-scripts build",
+    "start:dev": "react-scripts start",
+    "start:prod": "npm run build && serve -s build"
   },
   "dependencies": {
     "@ant-design/icons": "^5.4.0",
