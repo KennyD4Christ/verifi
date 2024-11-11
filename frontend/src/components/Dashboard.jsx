@@ -367,7 +367,7 @@ const Dashboard = () => {
     setError(null);
 
     try {
-      const [summary, orderData, productData, customerData, transactionData, netProfitData] = 
+      const [summary, orderData, productData, customerData, transactionData, netProfitData] =
         await Promise.all([
           fetchSummaryData(startDate, endDate),
           fetchOrders(startDate, endDate),
@@ -419,7 +419,7 @@ const Dashboard = () => {
     if (dates.length === 2) {
       const [start, end] = dateStrings;
       console.log('Selected date range:', { start, end });
-      
+
       if (start && end) {
         const startDate = moment(start);
         const endDate = moment(end);
@@ -630,7 +630,7 @@ const Dashboard = () => {
 
         // Format date consistently
         const formattedDate = dateUtils.formatDateForAPI(saleDate);
-      
+
         // Check if date is within range
         if (saleDate.isBetween(startDate, endDate, 'day', '[]')) {
           acc[formattedDate] = (acc[formattedDate] || 0) + amount;
@@ -1063,7 +1063,7 @@ const Dashboard = () => {
               picker="date"
               showTime={false}
               allowClear={true}
-	    />
+            />
           </DateRangePicker>
 
           {loading && <LoadingIndicator />}

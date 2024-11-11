@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BarChart2, Lock, Database, DollarSign, Clock } from 'lucide-react';
+import { ArrowRight, BarChart2, Lock, Database, DollarSign, Clock, Menu, X } from 'lucide-react';
 
 const LandingPage = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   const features = [
     {
       name: 'Powerful Analytics',
@@ -33,25 +35,37 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-100 to-blue-50">
-      <nav className="bg-white shadow-md">
+      <nav className="bg-white shadow-md relative z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex-shrink-0">
               <img className="h-8 w-auto text-blue-600" src="/logo.svg" alt="Logo" />
             </div>
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-4">
-                <Link to="/about" className="text-gray-500 hover:bg-gray-100 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">About Us</Link>
-                <Link to="/pricing" className="text-gray-500 hover:bg-gray-100 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Pricing</Link>
-                <Link to="/contact" className="text-gray-500 hover:bg-gray-100 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Contact</Link>
-              </div>
+            
+            {/* Mobile menu button */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              >
+                {isMenuOpen ? (
+                  <X className="block h-6 w-6" aria-hidden="true" />
+                ) : (
+                  <Menu className="block h-6 w-6" aria-hidden="true" />
+                )}
+              </button>
             </div>
-            <div className="flex items-center">
-              <Link to="/login" className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Login</Link>
-              <Link to="/register" className="ml-4 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                Sign up
-              </Link>
-            </div>
+	  </div>
+        </div>
+
+        {/* Mobile menu */}
+        <div className={`${isMenuOpen ? 'block' : 'hidden'} md:hidden absolute w-full bg-white shadow-lg`}>
+          <div className="px-2 pt-2 pb-3 space-y-1">
+            <Link to="/about" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">About Us</Link>
+            <Link to="/pricing" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Pricing</Link>
+            <Link to="/contact" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Contact</Link>
+            <Link to="/login" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">Login</Link>
+            <Link to="/register" className="block w-full text-center px-4 py-2 rounded-md text-base font-medium text-white bg-blue-600 hover:bg-blue-700">Sign up</Link>
           </div>
         </div>
       </nav>
@@ -59,74 +73,70 @@ const LandingPage = () => {
       <main>
         <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-800">
           <div className="absolute inset-0 bg-custom-pattern opacity-10"></div>
-          <div className="relative max-w-7xl mx-auto py-24 px-4 sm:py-32 sm:px-6 lg:px-8">
-            <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">Take Control of Your Finances</h1>
-            <p className="mt-6 max-w-3xl text-xl text-blue-100">
+          <div className="relative max-w-7xl mx-auto py-12 sm:py-24 px-4 sm:px-6 lg:px-8">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white text-center sm:text-left">
+              Take Control of Your Finances
+            </h1>
+            <p className="mt-4 sm:mt-6 max-w-3xl text-lg sm:text-xl text-blue-100 text-center sm:text-left">
               Streamline Your Business with Our Accounting & Inventory System. Save time, reduce errors, and boost profitability.
             </p>
-            <div className="mt-10 max-w-sm sm:flex sm:max-w-none">
-              <div className="space-y-4 sm:space-y-0 sm:mx-auto sm:inline-grid sm:grid-cols-2 sm:gap-5">
-                <Link to="/register" className="flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-blue-700 bg-white hover:bg-blue-50 transition duration-150 ease-in-out sm:px-8">
-                  Get Started Free
-                </Link>
-                <Link to="/demo" className="flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-500 hover:bg-blue-600 transition duration-150 ease-in-out sm:px-8">
-                  Schedule a Demo
-                </Link>
-              </div>
+            <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center sm:justify-start space-y-4 sm:space-y-0 sm:space-x-4">
+              <Link to="/register" className="w-full sm:w-auto flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-blue-700 bg-white hover:bg-blue-50 transition duration-150 ease-in-out sm:px-8">
+                Get Started Free
+              </Link>
+              <Link to="/demo" className="w-full sm:w-auto flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-500 hover:bg-blue-600 transition duration-150 ease-in-out sm:px-8">
+                Schedule a Demo
+              </Link>
             </div>
           </div>
         </div>
 
-        <div className="bg-white py-24">
+        <div className="bg-white py-12 sm:py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl mx-auto text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">All-in-one solution for your business</h2>
-              <p className="mt-4 text-xl text-gray-500">Everything you need to manage your finances and inventory, all in one powerful platform.</p>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900">All-in-one solution for your business</h2>
+              <p className="mt-4 text-base sm:text-lg md:text-xl text-gray-500">Everything you need to manage your finances and inventory, all in one powerful platform.</p>
             </div>
-            <div className="mt-20 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-12 sm:mt-20 grid grid-cols-1 gap-6 sm:gap-8 sm:grid-cols-2 lg:grid-cols-3">
               {features.map((feature) => (
-                <div key={feature.name} className="relative bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 ease-in-out border border-gray-200">
+                <div key={feature.name} className="relative bg-white p-4 sm:p-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 ease-in-out border border-gray-200">
                   <dt>
-                    <div className="absolute flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white">
-                      <feature.icon className="h-6 w-6" aria-hidden="true" />
+                    <div className="absolute flex items-center justify-center h-10 sm:h-12 w-10 sm:w-12 rounded-md bg-blue-500 text-white">
+                      <feature.icon className="h-5 sm:h-6 w-5 sm:w-6" aria-hidden="true" />
                     </div>
-                    <p className="ml-16 text-lg leading-6 font-medium text-gray-900">{feature.name}</p>
+                    <p className="ml-14 sm:ml-16 text-base sm:text-lg leading-6 font-medium text-gray-900">{feature.name}</p>
                   </dt>
-                  <dd className="mt-2 ml-16 text-base text-gray-500">{feature.description}</dd>
+                  <dd className="mt-2 ml-14 sm:ml-16 text-sm sm:text-base text-gray-500">{feature.description}</dd>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-gray-50 to-blue-50 py-24">
+        <div className="bg-gradient-to-br from-gray-50 to-blue-50 py-12 sm:py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-center">
-              <div>
-                <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+              <div className="text-center lg:text-left">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900">
                   Trusted by businesses worldwide
                 </h2>
-                <p className="mt-3 max-w-3xl text-lg text-gray-500">
+                <p className="mt-3 text-base sm:text-lg text-gray-500">
                   Join thousands of satisfied customers who have transformed their business operations with our system.
                 </p>
-                <div className="mt-8 sm:flex">
-                  <div className="rounded-md shadow">
-                    <Link to="/testimonials" className="flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition duration-150 ease-in-out">
-                      View Testimonials
-                    </Link>
-                  </div>
-                  <div className="mt-3 sm:mt-0 sm:ml-3">
-                    <Link to="/case-studies" className="flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 transition duration-150 ease-in-out">
-                      Read Case Studies
-                    </Link>
-                  </div>
+                <div className="mt-8 flex flex-col sm:flex-row justify-center lg:justify-start space-y-4 sm:space-y-0 sm:space-x-4">
+                  <Link to="/testimonials" className="w-full sm:w-auto flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    View Testimonials
+                  </Link>
+                  <Link to="/case-studies" className="w-full sm:w-auto flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
+                    Read Case Studies
+                  </Link>
                 </div>
               </div>
-              <div className="mt-8 grid grid-cols-2 gap-0.5 md:grid-cols-3 lg:mt-0 lg:grid-cols-2">
+              <div className="mt-8 grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3 lg:mt-0 lg:grid-cols-2">
                 {['client1.svg', 'client2.svg', 'client3.svg', 'client4.svg', 'client5.svg', 'client6.svg'].map((client) => (
-                  <div key={client} className="col-span-1 flex justify-center py-8 px-8 bg-white rounded-lg shadow-sm">
+                  <div key={client} className="col-span-1 flex justify-center py-4 sm:py-8 px-4 sm:px-8 bg-white rounded-lg shadow-sm">
                     <img
-                      className="max-h-12 filter grayscale hover:grayscale-0 transition duration-300"
+                      className="max-h-8 sm:max-h-12 filter grayscale hover:grayscale-0 transition duration-300"
                       src={`/clients/${client}`}
                       alt="Client"
                     />
@@ -139,11 +149,11 @@ const LandingPage = () => {
       </main>
 
       <footer className="bg-gray-800">
-        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8">
+        <div className="max-w-7xl mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:py-16 lg:px-8">
           <div className="xl:grid xl:grid-cols-3 xl:gap-8">
             <div className="space-y-8 xl:col-span-1">
-              <img className="h-10 text-white" src="/logo.svg" alt="Company name" />
-              <p className="text-gray-400 text-base">
+              <img className="h-8 sm:h-10 text-white" src="/logo.svg" alt="Company name" />
+              <p className="text-sm sm:text-base text-gray-400">
                 Making the world a better place through efficient business management.
               </p>
               <div className="flex space-x-6">
@@ -161,51 +171,51 @@ const LandingPage = () => {
                 </a>
               </div>
             </div>
-            <div className="mt-12 grid grid-cols-2 gap-8 xl:mt-0 xl:col-span-2">
-              <div className="md:grid md:grid-cols-2 md:gap-8">
+            <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-8 xl:mt-0 xl:col-span-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Solutions</h3>
-                  <ul className="mt-4 space-y-4">
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Accounting</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Inventory Management</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Reporting</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Integrations</a></li>
+                  <ul className="mt-4 space-y-3 sm:space-y-4">
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Accounting</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Inventory Management</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Reporting</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Integrations</a></li>
                   </ul>
                 </div>
-                <div className="mt-12 md:mt-0">
+                <div className="mt-8 md:mt-0">
                   <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Support</h3>
-                  <ul className="mt-4 space-y-4">
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Pricing</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Documentation</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Guides</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">API Status</a></li>
+                  <ul className="mt-4 space-y-3 sm:space-y-4">
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Pricing</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Documentation</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Guides</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">API Status</a></li>
                   </ul>
                 </div>
               </div>
-              <div className="md:grid md:grid-cols-2 md:gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Company</h3>
-                  <ul className="mt-4 space-y-4">
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">About</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Blog</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Jobs</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Press</a></li>
+                  <ul className="mt-4 space-y-3 sm:space-y-4">
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">About</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Blog</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Jobs</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Press</a></li>
                   </ul>
                 </div>
-                <div className="mt-12 md:mt-0">
+                <div className="mt-8 md:mt-0">
                   <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Legal</h3>
-                  <ul className="mt-4 space-y-4">
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Privacy</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Terms</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Cookie Policy</a></li>
-                    <li><a href="#" className="text-base text-gray-300 hover:text-white">Licensing</a></li>
+                  <ul className="mt-4 space-y-3 sm:space-y-4">
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Privacy</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Terms</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Cookie Policy</a></li>
+                    <li><a href="#" className="text-sm sm:text-base text-gray-300 hover:text-white">Licensing</a></li>
                   </ul>
                 </div>
               </div>
             </div>
           </div>
-          <div className="mt-12 border-t border-gray-700 pt-8">
-            <p className="text-base text-gray-400 xl:text-center">
+          <div className="mt-8 sm:mt-12 border-t border-gray-700 pt-8">
+            <p className="text-sm sm:text-base text-gray-400 text-center">
               &copy; 2024 Verifi. All rights reserved.
             </p>
           </div>

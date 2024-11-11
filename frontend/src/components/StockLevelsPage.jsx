@@ -11,20 +11,28 @@ const StockLevelsContainer = styled.div`
   padding: 20px;
   height: 100%;
   min-height: calc(100vh - 60px);
+  overflow-x: auto;
   overflow-y: visible;
   display: flex;
   flex-direction: column;
 `;
 
+const ContentWrapper = styled.div`
+  padding: 20px;
+  min-width: min(100%, 1200px); // Ensures minimum width while allowing expansion
+  max-width: 100%;
+`;
+
 const Heading = styled.h1`
   font-size: 2em;
   margin-bottom: 20px;
+  white-space: nowrap;
 `;
 
 const StyledTable = styled.table`
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 20px;
+  min-width: 800px;
   background-color: #ffffff;
 `;
 
@@ -40,6 +48,32 @@ const Filters = styled(Form)`
   }
 `;
 
+const TableWrapper = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 20px;
+
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+
+    &:hover {
+      background: #555;
+    }
+  }
+`;
+
 const StyledFormControl = styled(Form.Control)`
   height: 38px;
   &::placeholder {
@@ -52,6 +86,8 @@ const Th = styled.th`
   padding: 10px;
   border: 1px solid #ddd;
   cursor: pointer;
+  white-space: nowrap;
+  min-width: 100px;
   
   &:hover {
     background-color: #e9ecef;
@@ -61,6 +97,7 @@ const Th = styled.th`
 const Td = styled.td`
   padding: 10px;
   border: 1px solid #ddd;
+  white-space: nowrap;
 `;
 
 const ActionButtonContainer = styled.div`
@@ -68,9 +105,11 @@ const ActionButtonContainer = styled.div`
   gap: 10px;
   margin-bottom: 20px;
   flex-wrap: wrap;
+  min-width: min-content;
 
   @media (max-width: 768px) {
     flex-direction: column;
+    width: 100%;
   }
 `;
 
@@ -81,6 +120,7 @@ const ActionButton = styled(Button)`
   padding: 10px 20px;
   font-weight: bold;
   transition: all 0.3s ease;
+  white-space: nowrap;
 
   &:hover {
     background-color: #052c65;
@@ -101,6 +141,22 @@ const AnimatedTableRow = styled.tr`
   &:hover {
     background-color: #f0f8ff;
     transform: scale(1.01);
+  }
+`;
+
+const PaginationContainer = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 10px;
+
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
   }
 `;
 
@@ -343,6 +399,7 @@ const StockLevelsPage = () => {
 
   return (
     <StockLevelsContainer>
+      <ContentWrapper>
       <Heading>Stock Adjustments</Heading>
 
       {error && <Alert variant="danger" onClose={() => setError(null)} dismissible>{error}</Alert>}
@@ -397,6 +454,7 @@ const StockLevelsPage = () => {
         <Spinner animation="border" role="status" className="d-block mx-auto" />
       ) : (
         <>
+	  <TableWrapper>
           <StyledTable striped bordered hover>
             <thead>
               <tr>
@@ -438,8 +496,10 @@ const StockLevelsPage = () => {
               )}
             </tbody>
           </StyledTable>
+	  </TableWrapper>
 
           {totalPages > 1 && (
+	    <PaginationContainer>
             <Pagination>
               <PaginationButton
                 onClick={() => handlePageChange(1)}
@@ -504,6 +564,7 @@ const StockLevelsPage = () => {
                 Last
               </PaginationButton>
             </Pagination>
+	    </PaginationContainer>
           )}
         </>
        )}
@@ -525,6 +586,7 @@ const StockLevelsPage = () => {
           setSuccess={setSuccess}
           setError={setError}
         />
+      </ContentWrapper>
     </StockLevelsContainer>
   );
 };

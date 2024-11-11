@@ -12,18 +12,53 @@ const InvoicesContainer = styled(Container)`
   padding: 20px;
   height: 100%;
   min-height: calc(100vh - 60px);
+  overflow-x: auto;
   overflow-y: visible;
   display: flex;
   flex-direction: column;
 `;
 
+const ContentWrapper = styled.div`
+  padding: 20px;
+  min-width: min(100%, 1200px); // Ensures minimum width while allowing expansion
+  max-width: 100%;
+`;
+
 const Heading = styled.h1`
   font-size: 2em;
   margin-bottom: 20px;
+  white-space: nowrap;
+`;
+
+const TableWrapper = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 20px;
+
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+
+    &:hover {
+      background: #555;
+    }
+  }
 `;
 
 const StyledTable = styled.table`
   width: 100%;
+  min-width: 800px;
   border-collapse: collapse;
   margin-bottom: 20px;
   background-color: #ffffff;
@@ -34,11 +69,18 @@ const Th = styled.th`
   padding: 10px;
   border: 1px solid #ddd;
   cursor: pointer;
+  white-space: nowrap;
+  min-width: 100px;
+
+  &:hover {
+    background-color: #e9ecef;
+  }
 `;
 
 const Td = styled.td`
   padding: 10px;
   border: 1px solid #ddd;
+  white-space: nowrap;
 `;
 
 const Filters = styled.div`
@@ -90,6 +132,22 @@ const PaginationInfo = styled.div`
   margin: 0 15px;
   font-size: 14px;
   color: #555;
+`;
+
+const PaginationContainer = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 10px;
+
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+  }
 `;
 
 const AddInvoiceButton = styled.button`
@@ -482,6 +540,7 @@ const InvoicesPage = () => {
 
   return (
   <InvoicesContainer>
+    <ContentWrapper>
     <Heading>Invoices</Heading>
 
     {error && (
@@ -539,6 +598,7 @@ const InvoicesPage = () => {
       <Spinner animation="border" role="status" className="d-block mx-auto" />
     ) : invoices && invoices.length > 0 ? (
       <>
+	<TableWrapper>
         <StyledTable responsive>
           <thead>
             <tr>
@@ -588,8 +648,10 @@ const InvoicesPage = () => {
             ))}
           </tbody>
         </StyledTable>
+	</TableWrapper>
 
         {pagination.totalPages > 0 && (
+          <PaginationContainer>
           <Pagination>
             <PaginationButton
               onClick={() => handlePageChange(1)}
@@ -654,6 +716,7 @@ const InvoicesPage = () => {
               Last
             </PaginationButton>
           </Pagination>
+	  </PaginationContainer>
 	)}
       </>
     ) : (
@@ -666,7 +729,7 @@ const InvoicesPage = () => {
       invoice={selectedInvoice}
       onSave={handleCreateOrUpdateInvoice}
     />
-
+  </ContentWrapper>
   </InvoicesContainer>
   );
 };
