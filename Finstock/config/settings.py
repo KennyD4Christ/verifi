@@ -29,6 +29,9 @@ DEBUG = False
 
 ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS')
 
+# Allow all Fly.io subdomains for production (ensure to add this in addition to your existing logic)
+ALLOWED_HOSTS += ['.fly.dev']
+
 EMAIL_HOST = env('EMAIL_HOST')
 EMAIL_PORT = env('EMAIL_PORT', cast=int)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER')
