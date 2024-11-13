@@ -1,0 +1,24 @@
+app = "my-django-react-app-frontend"
+
+[build]
+  builder = "heroku/buildpacks:20"
+
+[processes]
+  web = "npm start"
+
+[[services]]
+  internal_port = 3000
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
