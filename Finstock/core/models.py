@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.db.models import Sum, F
 from django.db.models.functions import Coalesce
 from decimal import Decimal
+import hashlib
 import uuid
 import logging
 
@@ -305,14 +306,13 @@ class Visit(models.Model):
         related_name='visits',
         help_text="Authenticated user associated with the visit (if any)."
     )
-    session_id = models.UUIDField(
-        default=uuid.uuid4,
-        editable=False,
-        unique=True,
-        help_text="Unique identifier for the session."
+    session_id = models.CharField(
+        max_length=64,  # Reduced to a fixed-length hash
+        db_index=True,
+        help_text="Session identifier for the visit."
     )
 
-    # Visit Metadata
+    # Rest of the model remains the same
     ip_address = models.GenericIPAddressField(
         null=True,
         blank=True,
@@ -326,6 +326,7 @@ class Visit(models.Model):
     referrer_url = models.URLField(
         null=True,
         blank=True,
+        max_length=2000,  # Increased URL length
         help_text="URL of the page that referred the visitor."
     )
     visited_url = models.URLField(
@@ -365,8 +366,8 @@ class Visit(models.Model):
         indexes = [
             models.Index(fields=['timestamp']),
             models.Index(fields=['user']),
-            models.Index(fields=['session_id']),
             models.Index(fields=['ip_address']),
+            # Removed the problematic unique_together
         ]
         verbose_name = "Visit"
         verbose_name_plural = "Visits"
@@ -375,16 +376,73 @@ class Visit(models.Model):
         user_str = self.user.username if self.user else "Anonymous"
         return f"Visit by {user_str} on {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
 
-    @property
-    def is_mobile(self):
+    @classmethod
+    def create_visit(cls, request, user_agent_obj):
         """
-        Determines if the visit was made from a mobile device.
+        Class method to create a visit record with consistent logic
         """
-        return 'Mobile' in self.device_type if self.device_type else False
+        # Generate session ID
+        unique_string = (
+            f"{request.META.get('HTTP_USER_AGENT', '')}"
+            f"{request.META.get('REMOTE_ADDR', '')}"
+            f"{timezone.now().isoformat()}"
+        )
+        session_id = hashlib.sha256(unique_string.encode()).hexdigest()[:64]
 
-    @property
-    def is_desktop(self):
-        """
-        Determines if the visit was made from a desktop device.
-        """
-        return 'Desktop' in self.device_type if self.device_type else False
+        # Get user info and IP
+        user = request.user if request.user.is_authenticated else None
+        ip_address = cls.get_client_ip(request)
+
+        # Extract additional metadata
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        referrer_url = request.META.get('HTTP_REFERER', '')
+        visited_url = request.build_absolute_uri()
+        device_type = cls.get_device_type(user_agent_obj)
+        operating_system = cls.get_operating_system(user_agent_obj)
+
+        # Check for recent visit to prevent duplicates
+        recent_visit = cls.objects.filter(
+            session_id=session_id,
+            timestamp__gte=timezone.now() - timezone.timedelta(minutes=30)
+        ).first()
+
+        if recent_visit:
+            recent_visit.timestamp = timezone.now()
+            recent_visit.save()
+            return recent_visit
+
+        # Create new visit
+        return cls.objects.create(
+            user=user,
+            session_id=session_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            referrer_url=referrer_url,
+            visited_url=visited_url,
+            timestamp=timezone.now(),
+            device_type=device_type,
+            operating_system=operating_system
+        )
+
+    @staticmethod
+    def get_client_ip(request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR')
+
+    @staticmethod
+    def get_device_type(user_agent_obj):
+        if user_agent_obj.is_mobile:
+            return 'Mobile'
+        elif user_agent_obj.is_tablet:
+            return 'Tablet'
+        elif user_agent_obj.is_pc:
+            return 'Desktop'
+        elif user_agent_obj.is_bot:
+            return 'Bot'
+        return 'Other'
+
+    @staticmethod
+    def get_operating_system(user_agent_obj):
+        return user_agent_obj.os.family or 'Unknown'
