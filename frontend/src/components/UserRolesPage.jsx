@@ -27,6 +27,7 @@ const Th = styled.th`
 const Td = styled.td`
   padding: 10px;
   border: 1px solid #ddd;
+  background-color: #f5f5f5;
 `;
 
 const AddRoleForm = styled.form`

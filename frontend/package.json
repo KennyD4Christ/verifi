@@ -7,8 +7,9 @@
     "build": "webpack --config webpack.config.js --mode production",
     "lint": "eslint . --ext .js,.jsx",
     "lint:fix": "eslint . --ext .js,.jsx --fix",
-    "build": "react-scripts build",
-    "start:dev": "react-scripts start",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "dev": "react-scripts start",
     "start:prod": "npm run build && serve -s build"
   },
   "dependencies": {
@@ -54,6 +55,7 @@
     "react-select": "^5.8.0",
     "react-window": "^1.8.10",
     "recharts": "^2.12.7",
+    "serve": "^14.0.0",
     "socket.io-client": "^4.7.5",
     "styled-components": "^5.3.11",
     "styled-normalize": "^8.1.1"
