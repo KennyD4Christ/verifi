@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.http import HttpResponse
 from .models import StockAdjustment
 from .serializers import StockAdjustmentSerializer
-from users.permissions import CanViewResource, CanManageResource
+from users.permissions import CanViewResource, CanManageResource, StockAdjustmentPermission
 import logging
 import csv
 from django.views.decorators.http import require_GET
@@ -44,7 +44,7 @@ class StockAdjustmentViewSet(viewsets.ModelViewSet):
     """
     queryset = StockAdjustment.objects.all()
     serializer_class = StockAdjustmentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [StockAdjustmentPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [
         DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter

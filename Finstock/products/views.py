@@ -21,7 +21,7 @@ from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
-from users.permissions import CanViewResource, CanManageResource
+from users.permissions import CanViewResource, CanManageResource, ProductPermission
 
 
 class ProductFilter(FilterSet):
@@ -59,7 +59,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     """
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [ProductPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [
         DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter

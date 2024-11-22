@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import status  # Importing status for HTTP status codes
+from rest_framework import status
 from rest_framework.authtoken.models import Token
 from .models import CustomUser, Role, Permission
 from .models import UserPreference, Insight
@@ -151,8 +151,8 @@ class RoleViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
 
-class PermissionViewSet(viewsets.ModelViewSet):
-    queryset = Permission.objects.all()
+class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Permission.objects.filter(is_active=True)
     serializer_class = PermissionSerializer
     permission_classes = [permissions.IsAuthenticated]
 

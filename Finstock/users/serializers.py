@@ -14,7 +14,7 @@ class PermissionSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Permission
-        fields = ['id', 'name', 'description']
+        fields = ['id', 'name', 'description', 'category', 'is_active']
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -22,11 +22,33 @@ class RoleSerializer(serializers.ModelSerializer):
     Serializer for the Role model.
     """
     permissions = PermissionSerializer(many=True, read_only=True)
+    permission_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Permission.objects.all(),
+        write_only=True,
+        required=False
+    )
 
     class Meta:
         model = Role
-        fields = ['id', 'name', 'description', 'permissions']
+        fields = ['id', 'name', 'description', 'permissions', 'permission_ids']
 
+    def create(self, validated_data):
+        permission_ids = validated_data.pop('permission_ids', [])
+        role = Role.objects.create(**validated_data)
+        role.permissions.set(permission_ids)
+
+        if permission_ids:
+            role.permissions.set(permission_ids)
+
+        return role
+
+    def update(self, instance, validated_data):
+        permission_ids = validated_data.pop('permission_ids', [])
+        instance = super().update(instance, validated_data)
+        if permission_ids is not None:
+            instance.permissions.set(permission_ids)
+        return instance
 
 class UserSerializer(serializers.ModelSerializer):
     """

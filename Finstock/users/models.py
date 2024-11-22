@@ -8,9 +8,20 @@ class Permission(models.Model):
     """
     name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True)
+    category = models.CharField(
+        max_length=50, 
+        choices=[
+            ('USER', 'User Management'),
+            ('ROLE', 'Role Management'),
+            ('RESOURCE', 'Resource Access'),
+            ('SYSTEM', 'System Configuration')
+        ],
+        default='USER'
+    )
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} - {self.category}"
 
 class Role(models.Model):
     """

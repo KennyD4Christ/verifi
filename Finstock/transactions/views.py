@@ -23,7 +23,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly
+from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly, TransactionPermission
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -38,7 +38,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
     """
     queryset = Transaction.objects.all().order_by('-date', '-id')
     serializer_class = TransactionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [TransactionPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [
         DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter

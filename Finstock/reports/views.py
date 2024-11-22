@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
-from users.permissions import CanViewResource, CanManageResource
+from users.permissions import CanViewResource, CanManageResource, ReportPermission
 from .models import Report, ReportEntry, ReportFile, CalculatedField, ReportAccessLog
 from rest_framework.permissions import IsAuthenticated
 from .serializers import ReportSerializer, ReportEntrySerializer, ReportFileSerializer, CalculatedFieldSerializer, ReportAccessLogSerializer
@@ -16,7 +16,7 @@ from django.db.models import Q
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all()
     serializer_class = ReportSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [ReportPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['created_by', 'is_archived', 'is_template']
     search_fields = ['name', 'description']

@@ -23,7 +23,7 @@ from products.serializers import ProductSerializer
 from decimal import Decimal
 from .models import Invoice, InvoiceItem
 from .serializers import InvoiceSerializer, InvoiceItemSerializer
-from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly
+from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly, InvoicePermission
 from core.models import Customer, CompanyInfo
 import logging
 import io
@@ -57,7 +57,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     """
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [InvoicePermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'issue_date', 'due_date']
