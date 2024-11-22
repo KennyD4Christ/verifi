@@ -1359,6 +1359,16 @@ async function deleteProduct(productId) {
 
 export { fetchUsers, updateUser, deleteUser, updateProduct, deleteProduct };
 
+export const fetchPermissions = async () => {
+  try {
+    const response = await axiosInstance.get(`/users/permissions/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching permissions:', error);
+    throw error;
+  }
+};
+
 // Function to fetch roles
 export const fetchRoles = async () => {
   const response = await axiosInstance.get('/users/roles/');
@@ -1366,15 +1376,32 @@ export const fetchRoles = async () => {
 };
 
 // Function to create role
-export const createRole = async (role) => {
-  const response = await axiosInstance.post('/users/roles/', role);
-  return response.data;
+export const createRole = async (roleData) => {
+  try {
+    const response = await axiosInstance.post(`/users/roles/`, {
+      name: roleData.name,
+      description: roleData.description,
+      permission_ids: roleData.permissions
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error creating role:', error);
+    throw error;
+  }
 };
 
-// Function to update role
-export const updateRole = async (id, role) => {
-  const response = await axiosInstance.put(`/users/roles/${id}/`, role);
-  return response.data;
+export const updateRole = async (roleId, roleData) => {
+  try {
+    const response = await axiosInstance.patch(`/users/roles/${roleId}/`, {
+      name: roleData.name,
+      description: roleData.description,
+      permission_ids: roleData.permissions.map(p => p.id || p)
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating role:', error);
+    throw error;
+  }
 };
 
 // Function to delete role
