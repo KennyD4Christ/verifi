@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import UserViewSet, RoleViewSet, PermissionViewSet, AuthViewSet, PasswordResetRequestView, PasswordResetView, current_user, UserPreferenceView, DetailView, InsightView
 
 router = DefaultRouter()
-router.register(r'user', UserViewSet, basename='user')
+router.register(r'users', UserViewSet, basename='users')
 router.register(r'roles', RoleViewSet)
 router.register(r'permissions', PermissionViewSet)
 router.register(r'auth', AuthViewSet, basename='auth')

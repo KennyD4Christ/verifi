@@ -56,10 +56,30 @@ class CustomUser(AbstractUser):
         related_query_name='user',
     )
 
+    def get_roles(self):
+        """
+        Returns a list of role names for the user
+        """
+        return list(self.roles.values_list('name', flat=True))
+
+    def is_role(self, role_name):
+        """
+        Check if user has a specific role
+        """
+        return role_name in self.get_roles()
+
+    def has_role_permission(self, permission_name):
+        """
+        Check if user has a specific permission through any of their roles
+        """
+        return Permission.objects.filter(
+            roles__users=self,
+            name=permission_name
+        ).exists()
+
     def __str__(self):
         return self.username
 
-# New models to add:
 
 class UserPreference(models.Model):
     """

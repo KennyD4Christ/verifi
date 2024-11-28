@@ -96,6 +96,7 @@ INSTALLED_APPS = [
     'reportlab',
     'drf_yasg',
     'channels',
+    'django_extensions',
     'django_user_agents',
 ]
 

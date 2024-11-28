@@ -1,4 +1,5 @@
 from rest_framework.views import APIView
+from rest_framework import serializers
 from django.urls import reverse
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -10,17 +11,26 @@ from django.contrib.auth import authenticate, login, logout
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from django.shortcuts import get_object_or_404
 from rest_framework.authtoken.models import Token
 from .models import CustomUser, Role, Permission
 from .models import UserPreference, Insight
 from .serializers import (
     UserSerializer,
     UserRegistrationSerializer,
+    UserRoleSerializer,
     RoleSerializer,
+    RoleAssignmentSerializer,
     PermissionSerializer,
     UserPreferenceSerializer,
     InsightSerializer
 )
+from rest_framework.pagination import PageNumberPagination
+
+class UserPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 class UserPreferenceView(APIView):
@@ -116,6 +126,21 @@ class PasswordResetView(APIView):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
+    pagination_class = UserPagination
+
+    def list(self, request, *args, **kwargs):
+        # Get the queryset and apply pagination
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        # If no pagination requested, return all results
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response(serializer.data)
 
     def get_permissions(self):
         if self.action == 'register':
@@ -124,10 +149,120 @@ class UserViewSet(viewsets.ModelViewSet):
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
+
     @action(
         detail=False,
         methods=['post'],
+        serializer_class=RoleAssignmentSerializer
     )
+    def assign_roles(self, request):
+        """
+        API endpoint to assign roles to a user
+        """
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            user = serializer.validated_data['user_id']
+            roles = serializer.validated_data['role_ids']
+
+            # Clear existing roles and assign new ones
+            user.roles.clear()
+            user.roles.add(*roles)
+
+            return Response({
+                'message': 'Roles assigned successfully',
+                'user_id': user.id,
+                'assigned_roles': [role.name for role in roles]
+            }, status=status.HTTP_200_OK)
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    def get_serializer_class(self):
+        if self.action == 'update_roles':
+            return UserRoleSerializer
+        return self.serializer_class
+
+    @action(detail=True, methods=['PUT'], url_path='roles')
+    def update_roles(self, request, pk=None):
+        """
+        Update roles for a specific user
+        """
+        try:
+            # Attempt to get the user, handle potential non-existent users
+            user = self.get_object()
+
+            # Validate roles input
+            role_ids = request.data.get('roles', [])
+            if not isinstance(role_ids, list):
+                return Response(
+                    {'error': 'Roles must be provided as an array of role IDs'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Validate role IDs exist
+            try:
+                roles = Role.objects.filter(id__in=role_ids)
+                if len(roles) != len(role_ids):
+                    invalid_roles = set(role_ids) - set(roles.values_list('id', flat=True))
+                    return Response(
+                        {
+                            'error': 'Some role IDs are invalid',
+                            'invalid_roles': list(invalid_roles)
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except Exception as e:
+                return Response(
+                    {'error': 'Error validating roles'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            serializer = UserRoleSerializer(user, data={'roles': role_ids}, partial=True)
+
+            if serializer.is_valid():
+                updated_user = serializer.save()
+                return Response({
+                    'message': 'User roles updated successfully',
+                    'user': {
+                        'id': updated_user.id,
+                        'username': updated_user.username,
+                        'roles': [
+                            {
+                                'id': role.id,
+                                'name': role.name
+                            } for role in updated_user.roles.all()
+                        ]
+                    }
+                }, status=status.HTTP_200_OK)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except CustomUser.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=['GET'])
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+
     def register(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
@@ -150,11 +285,28 @@ class RoleViewSet(viewsets.ModelViewSet):
     serializer_class = RoleSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    @action(detail=True, methods=['GET'])
+    def users(self, request, pk=None):
+        """
+        Get all users with this role
+        """
+        role = self.get_object()
+        users = role.users.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
 
 class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Permission.objects.filter(is_active=True)
     serializer_class = PermissionSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        category = self.request.query_params.get('category', None)
+        if category:
+            queryset = queryset.filter(category=category)
+        return queryset
 
 
 class AuthViewSet(viewsets.ViewSet):

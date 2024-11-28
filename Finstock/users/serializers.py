@@ -6,6 +6,10 @@ from django.contrib.auth.password_validation import validate_password
 from django.core import validators
 from .models import CustomUser, Role, Permission
 from .models import UserPreference, Insight
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+import logging
+logger = logging.getLogger(__name__)
 
 
 class PermissionSerializer(serializers.ModelSerializer):
@@ -36,7 +40,6 @@ class RoleSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         permission_ids = validated_data.pop('permission_ids', [])
         role = Role.objects.create(**validated_data)
-        role.permissions.set(permission_ids)
 
         if permission_ids:
             role.permissions.set(permission_ids)
@@ -50,16 +53,124 @@ class RoleSerializer(serializers.ModelSerializer):
             instance.permissions.set(permission_ids)
         return instance
 
+
+class RoleAssignmentSerializer(serializers.Serializer):
+    """
+    Serializer for assigning roles to users
+    """
+    user_id = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.all(),
+        required=True
+    )
+    role_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Role.objects.all(),
+        many=True,
+        required=True
+    )
+
+class UserRoleSerializer(serializers.ModelSerializer):
+    """
+    Extended User Serializer to include role management with enhanced validation
+    """
+    roles = serializers.PrimaryKeyRelatedField(
+        queryset=Role.objects.all(),
+        many=True,
+        required=False
+    )
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            'id', 'username', 'email', 'first_name', 
+            'last_name', 'roles', 'is_active'
+        ]
+        read_only_fields = ['id', 'username', 'email']
+
+    def validate_roles(self, roles):
+        """
+        Additional validation for roles
+        - Ensure unique roles
+        - Optionally add any custom role assignment logic
+        """
+        # Remove duplicates while preserving order
+        unique_roles = list(dict.fromkeys(roles))
+
+        if len(unique_roles) > 5:  # Adjust as needed
+            raise serializers.ValidationError("Maximum of 5 roles allowed")
+
+        return unique_roles
+
+    def update(self, instance, validated_data):
+        """
+        Enhanced role update method with logging and validation
+        """
+        # Extract roles, defaulting to None if not provided
+        roles = validated_data.pop('roles', None)
+        
+        # Update other user fields
+        instance = super().update(instance, validated_data)
+        
+        # Set roles if provided
+        if roles is not None:
+            # Log role changes (optional, but helpful for audit trails)
+            old_roles = set(instance.roles.values_list('id', flat=True))
+            new_roles = set(role.id for role in roles)
+            
+            # Perform role update
+            instance.roles.set(roles)
+            
+            # Optional: Add logging or additional processing
+            added_roles = new_roles - old_roles
+            removed_roles = old_roles - new_roles
+            
+            # Log changes (you could integrate with your logging system)
+            if added_roles or removed_roles:
+                logger.info(f"User {instance.username} roles updated. "
+                            f"Added: {added_roles}, Removed: {removed_roles}")
+        
+        return instance
+
+    def to_representation(self, instance):
+        """
+        Customize the representation to ensure consistent role data
+        """
+        representation = super().to_representation(instance)
+        
+        # Ensure roles are represented consistently
+        representation['roles'] = [
+            role.id for role in instance.roles.all()
+        ]
+        
+        return representation
+
 class UserSerializer(serializers.ModelSerializer):
     """
     Serializer for the CustomUser model.
     """
     roles = RoleSerializer(many=True, read_only=True)
 
+    def validate_email(self, value):
+        """
+        Validate email using Django's built-in email validation
+        """
+        try:
+            validate_email(value)
+            return value
+        except ValidationError:
+            raise serializers.ValidationError("Invalid email address")
+
+    def validate_username(self, value):
+        if not value:
+            raise serializers.ValidationError("Username cannot be empty")
+        return value
+
     class Meta:
         model = CustomUser
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone_number', 'roles']
         read_only_fields = ['id']
+        extra_kwargs = {
+            'email': {'validators': [validate_email]}
+        }
 
 
 class UserPreferenceSerializer(serializers.ModelSerializer):
