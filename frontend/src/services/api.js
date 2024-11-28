@@ -1298,25 +1298,53 @@ async function createUser(userData) {
 export { createUser };
 
 // Function to fetch all users
-async function fetchUsers() {
+async function fetchUsers(page = 1) {
   try {
-    const response = await axiosInstance.get('/users/');
-    return response.data;
+    const url = `/users/users/?page=${page}`;
+    const response = await axiosInstance.get(url);
+
+    console.log('Raw API Response:', response.data);
+
+    // Comprehensive data normalization
+    let users = [];
+
+    // Case 1: Paginated response with results
+    if (response.data.results) {
+      users = response.data.results;
+    } 
+    // Case 2: Direct array response
+    else if (Array.isArray(response.data)) {
+      users = response.data;
+    } 
+    else {
+      console.error('Unexpected API response structure:', response.data);
+      users = [];
+    }
+
+    // Map users with proper fallback
+    return users.map((user, index) => ({
+      ...user,
+      username: user.username || `User-${index}`,
+      email: user.email || 'No Email',
+      displayName: user.first_name 
+        ? `${user.first_name} ${user.last_name || ''}`.trim() 
+        : user.username || `User-${index}`
+    }));
+
   } catch (error) {
     console.error('Error fetching users:', error);
     throw error;
   }
 }
 
-// Update a user
-async function updateUser(userId, userData) {
-  try {
-    const response = await axiosInstance.put(`/users/${userId}/`, userData);
-    return response.data;
-  } catch (error) {
-    console.error('Error updating user:', error);
-    throw error;
-  }
+// pagination helper function
+export function getUsersPagination(response) {
+  return {
+    count: response.data.count || 0,
+    next: response.data.next || null,
+    previous: response.data.previous || null,
+    totalPages: response.data.total_pages || Math.ceil(response.data.count / response.data.results.length)
+  };
 }
 
 // Delete a user
@@ -1329,6 +1357,96 @@ async function deleteUser(userId) {
     throw error;
   }
 }
+
+// Function to update a User
+export const updateUser = async (userId, userData) => {
+  // Validate inputs
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+
+  try {
+    const cleanUserId = userId.toString()
+      .replace(/^(user-|temp-)/, '')
+      .split('-')[0];
+
+    console.log('Updating user:', cleanUserId);
+    console.log('User data:', userData);
+
+    const response = await axiosInstance.patch(
+      `/users/users/${cleanUserId}/`,
+      userData
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('Error updating user:', error);
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      throw new Error(error.response.data.error || 'Failed to update user');
+    }
+    throw error;
+  }
+};
+
+// Function to update user roles
+export const updateUserRoles = async (userId, data) => {
+  // Validate inputs
+  if (!userId) {
+    throw new Error('Invalid user ID Cannot update roles for undefined user');
+  }
+
+  // Allow empty array for role removal
+  if (!Array.isArray(data.role_ids)) {
+    throw new Error('Invalid role IDs: Must be an array');
+  }
+
+  try {
+    const cleanUserId = userId.toString()
+      .replace(/^(user-|temp-)/, '')
+      .split('-')[0];
+
+    const formattedData = {
+      roles: data.role_ids
+        .map(id => {
+          const parsedId = typeof id === 'string' 
+            ? parseInt(id, 10) 
+            : typeof id === 'number' 
+              ? id 
+              : null;
+          return parsedId;
+        })
+        .filter(id => id !== null && !isNaN(id))
+    };
+
+    console.log('Role Update Request:', {
+      url: `/users/users/${cleanUserId}/roles/`,
+      data: formattedData
+    });
+
+    const response = await axiosInstance.put(
+      `/users/users/${cleanUserId}/roles/`,
+      formattedData
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('Comprehensive Role Update Error:', error);
+    throw error;
+  }
+};
+
+// Function for assigning roles
+export const assignUserRoles = async (userId, roleIds) => {
+  try {
+    const response = await axios.post(`/users/${userId}/assign-roles/`, {
+      role_ids: roleIds
+    });
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
 
 // Update a product
 async function updateProduct(productId, productData) {
@@ -1357,7 +1475,7 @@ async function deleteProduct(productId) {
   }
 }
 
-export { fetchUsers, updateUser, deleteUser, updateProduct, deleteProduct };
+export { fetchUsers, deleteUser, updateProduct, deleteProduct };
 
 export const fetchPermissions = async () => {
   try {

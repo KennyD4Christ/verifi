@@ -46,6 +46,13 @@ module.exports = (env, argv) => {
             'sass-loader',
           ],
         },
+	{
+          test: /\.css$/i,
+          use: [
+            isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
+            'css-loader',
+          ],
+        },
         {
           test: /\.(png|jpg|jpeg|gif|svg)$/i,
           type: 'asset/resource',

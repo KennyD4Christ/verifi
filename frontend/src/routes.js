@@ -5,6 +5,7 @@ import ProductsPage from './components/ProductsPage';
 import StockLevelsPage from './components/StockLevelsPage';
 import OrdersPage from './components/OrdersPage';
 import CustomersPage from './components/CustomersPage';
+import UserManagementLayout from './components/UserManagement/UserManagementLayout';
 import UserRolesPage from './components/UserRolesPage';
 import ReportsPage from './components/ReportsPage';
 import Login from './components/Login';
@@ -49,6 +50,10 @@ const routes = [
   {
     path: '/user-roles',
     component: UserRolesPage,
+  },
+  {
+    path: '/user-management',
+    component: UserManagementLayout,
   },
   {
     path: '/reports',

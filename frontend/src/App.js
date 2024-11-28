@@ -16,6 +16,7 @@ import Transactions from './components/TransactionsPage';
 import StockLevels from './components/StockLevelsPage';
 import Reports from './components/ReportsPage';
 import UserRoles from './components/UserRolesPage';
+import UserManagementLayout from './components/UserManagement/UserManagementLayout';
 import DetailView from './components/DetailView';
 import UserPreferences from './components/UserPreferences';
 import ProductDetails from './components/ProductDetails';
@@ -23,6 +24,8 @@ import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
 import Layout from './components/Layout';
 import GlobalStyles from './assets/styles/globalStyles';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const App = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -36,6 +39,7 @@ const App = () => {
       <Router>
         <GlobalStyles />
         <Layout>
+	<ToastContainer position="top-right" />
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
@@ -52,6 +56,7 @@ const App = () => {
             <Route path="/stock-levels" element={<StockLevels />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/user-roles" element={<UserRoles />} />
+	    <Route path="/user-management/*" element={<UserManagementLayout />} />
             <Route path="/preferences" element={<UserPreferences />} />
             <Route path="/:type/:id" element={<DetailView />} />
             <Route path="/products/:id" element={<ProductDetails />} />

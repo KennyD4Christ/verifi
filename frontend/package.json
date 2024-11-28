@@ -53,6 +53,7 @@
     "react-responsive": "^10.0.0",
     "react-router-dom": "^6.26.1",
     "react-select": "^5.8.0",
+    "react-toastify": "^10.0.6",
     "react-window": "^1.8.10",
     "recharts": "^2.12.7",
     "serve": "^14.0.0",
