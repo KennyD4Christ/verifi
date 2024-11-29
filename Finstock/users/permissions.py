@@ -105,3 +105,17 @@ class ReportPermission(BaseModelPermission):
     create_permission = 'reports.create_report'
     edit_permission = 'reports.edit_report'
     delete_permission = 'reports.delete_report'
+
+class AdminUserRolePermission(permissions.BasePermission):
+    """
+    Custom permission to only allow administrators to manage users and roles
+    """
+    def has_permission(self, request, view):
+        # Allow read-only access to all authenticated users
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return request.user.is_authenticated
+        
+        # Check if user is an administrator for write operations
+        return (request.user.is_authenticated and 
+                request.user.has_role_permission('admin.manage_users') and
+                request.user.has_role_permission('admin.manage_roles'))

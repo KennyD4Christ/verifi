@@ -14,6 +14,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from rest_framework.authtoken.models import Token
 from .models import CustomUser, Role, Permission
+from .permissions import AdminUserRolePermission
 from .models import UserPreference, Insight
 from .serializers import (
     UserSerializer,
@@ -145,6 +146,9 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == 'register':
             permission_classes = [permissions.AllowAny]
+        elif self.action in ['create', 'update', 'partial_update', 'destroy', 'assign_roles', 'update_roles']:
+            # Restrict these actions to AdminUserRolePermission.
+            permission_classes = [AdminUserRolePermission]
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
@@ -283,7 +287,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AdminUserRolePermission]
 
     @action(detail=True, methods=['GET'])
     def users(self, request, pk=None):
