@@ -30,6 +30,7 @@ class Role(models.Model):
     name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True)
     permissions = models.ManyToManyField(Permission, related_name='roles')
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
@@ -56,6 +57,15 @@ class CustomUser(AbstractUser):
         related_query_name='user',
     )
 
+    def get_permissions(self):
+        """
+        Retrieve all unique permissions across user's roles
+        """
+        return Permission.objects.filter(
+            roles__users=self,
+            is_active=True
+        ).distinct()
+
     def get_roles(self):
         """
         Returns a list of role names for the user
@@ -74,11 +84,78 @@ class CustomUser(AbstractUser):
         """
         return Permission.objects.filter(
             roles__users=self,
-            name=permission_name
+            name=permission_name,
+            is_active=True
         ).exists()
+
+    def has_module_perms(self, app_label):
+        """
+        Override to check permissions across roles
+        """
+        return self.is_active and (
+            self.is_superuser or
+            Permission.objects.filter(
+                roles__users=self,
+                name__startswith=f'{app_label}.',
+                is_active=True
+            ).exists()
+        )
+
+    def has_perm(self, perm, obj=None):
+        """
+        Robust permission checking with real-time role validation
+        """
+        # Immediately return False if user is not active
+        if not self.is_active:
+            return False
+
+        # Superuser always has full access
+        if self.is_superuser:
+            return True
+
+        # Real-time permission check based on current roles
+        current_active_permissions = Permission.objects.filter(
+            roles__users=self,  # Permissions from current roles
+            roles__is_active=True,  # Only from active roles
+            name=perm,
+            is_active=True
+        )
+
+        return current_active_permissions.exists()
 
     def __str__(self):
         return self.username
+
+class PermissionChangeLog(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    previous_roles = models.TextField()
+    new_roles = models.TextField()
+    changed_by = models.ForeignKey(CustomUser, related_name='role_changes', on_delete=models.SET_NULL, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        # Additional validation or notification logic
+        super().save(*args, **kwargs)
+
+
+class PermissionAuditLog(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    resource = models.CharField(max_length=255)
+    status = models.CharField(max_length=50)
+    
+    @classmethod
+    def log_permission_event(cls, user, action, resource, status='SUCCESS'):
+        """
+        Centralized method for logging permission-related events
+        """
+        cls.objects.create(
+            user=user,
+            action=action,
+            resource=resource,
+            status=status
+        )
 
 
 class UserPreference(models.Model):

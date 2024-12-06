@@ -4,8 +4,13 @@ from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core import validators
-from .models import CustomUser, Role, Permission
-from .models import UserPreference, Insight
+from .models import CustomUser, Role, Permission, UserPreference, Insight
+from .constants import PermissionConstants
+from products.models import Product
+from invoices.models import Invoice
+from transactions.models import Transaction
+from stock_adjustments.models import StockAdjustment
+from reports.models import Report
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 import logging
@@ -19,6 +24,14 @@ class PermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Permission
         fields = ['id', 'name', 'description', 'category', 'is_active']
+
+
+class UserPermissionsSerializer(serializers.Serializer):
+    """
+    Serializer to Return User's Permissions and Accessible Routes
+    """
+    permissions = serializers.ListField(child=serializers.CharField())
+    accessible_routes = serializers.ListField(child=serializers.CharField())
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -171,6 +184,132 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'email': {'validators': [validate_email]}
         }
+
+
+class BaseAccessControlSerializer(serializers.ModelSerializer):
+    """
+    Base serializer with additional metadata for access control
+    """
+    accessible_actions = serializers.SerializerMethodField()
+
+    def get_accessible_actions(self, obj):
+        """
+        Determine accessible actions based on user permissions
+        """
+        user = self.context['request'].user
+        actions = []
+
+        # Define permission mapping
+        action_permissions = {
+            'view': self.view_permission,
+            'create': self.create_permission,
+            'edit': self.edit_permission,
+            'delete': self.delete_permission
+        }
+
+        # Check each action's permission
+        for action, permission in action_permissions.items():
+            if user.has_perm(permission):
+                actions.append(action)
+
+        return actions
+
+    class Meta:
+        abstract = True
+
+
+class ProductSerializer(BaseAccessControlSerializer):
+    """
+    Serializer for Product with role-based access control
+    """
+    view_permission = PermissionConstants.PRODUCT_VIEW
+    create_permission = PermissionConstants.PRODUCT_CREATE
+    edit_permission = PermissionConstants.PRODUCT_EDIT
+    delete_permission = PermissionConstants.PRODUCT_DELETE
+
+    class Meta:
+        model = Product
+        fields = [
+            'id', 'name', 'description', 'price', 
+            'stock_quantity', 'is_active', 'accessible_actions'
+        ]
+        read_only_fields = ['id', 'accessible_actions']
+
+
+class InvoiceSerializer(BaseAccessControlSerializer):
+    """
+    Serializer for Invoice with role-based access control
+    """
+    view_permission = PermissionConstants.INVOICE_VIEW
+    create_permission = PermissionConstants.INVOICE_CREATE
+    edit_permission = PermissionConstants.INVOICE_EDIT
+    delete_permission = PermissionConstants.INVOICE_DELETE
+
+    class Meta:
+        model = Invoice
+        fields = [
+            'id', 'invoice_number', 'customer', 
+            'total_amount', 'status', 'created_at', 
+            'accessible_actions'
+        ]
+        read_only_fields = ['id', 'accessible_actions']
+
+
+class TransactionSerializer(BaseAccessControlSerializer):
+    """
+    Serializer for Transaction with role-based access control
+    """
+    view_permission = PermissionConstants.TRANSACTION_VIEW
+    create_permission = PermissionConstants.TRANSACTION_CREATE
+    edit_permission = PermissionConstants.TRANSACTION_EDIT
+    delete_permission = PermissionConstants.TRANSACTION_DELETE
+
+    class Meta:
+        model = Transaction
+        fields = [
+            'id', 'transaction_type', 'amount', 
+            'description', 'date', 'status', 
+            'accessible_actions'
+        ]
+        read_only_fields = ['id', 'accessible_actions']
+
+
+class StockAdjustmentSerializer(BaseAccessControlSerializer):
+    """
+    Serializer for Stock Adjustment with role-based access control
+    """
+    view_permission = PermissionConstants.STOCK_ADJUSTMENT_VIEW
+    create_permission = PermissionConstants.STOCK_ADJUSTMENT_CREATE
+    edit_permission = PermissionConstants.STOCK_ADJUSTMENT_EDIT
+    delete_permission = PermissionConstants.STOCK_ADJUSTMENT_DELETE
+
+    class Meta:
+        model = StockAdjustment
+        fields = [
+            'id', 'product', 'quantity', 
+            'adjustment_type', 'reason', 
+            'created_at', 'accessible_actions'
+        ]
+        read_only_fields = ['id', 'accessible_actions']
+
+
+class ReportSerializer(BaseAccessControlSerializer):
+    """
+    Serializer for Report with role-based access control
+    """
+    view_permission = PermissionConstants.REPORT_VIEW
+    create_permission = PermissionConstants.REPORT_CREATE
+    edit_permission = PermissionConstants.REPORT_EDIT
+    delete_permission = PermissionConstants.REPORT_DELETE
+
+    class Meta:
+        model = Report
+        fields = [
+            'id', 'report_type', 'start_date', 
+            'end_date', 'generated_by', 
+            'accessible_actions'
+        ]
+        read_only_fields = ['id', 'accessible_actions']
 
 
 class UserPreferenceSerializer(serializers.ModelSerializer):

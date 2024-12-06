@@ -13,9 +13,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from rest_framework.authtoken.models import Token
-from .models import CustomUser, Role, Permission
+from .utils import invalidate_user_sessions, recalculate_user_permissions
+from .models import CustomUser, Role, Permission, UserPreference, Insight
+from products.models import Product
+from invoices.models import Invoice
+from transactions.models import Transaction
+from stock_adjustments.models import StockAdjustment
+from reports.models import Report
 from .permissions import AdminUserRolePermission
-from .models import UserPreference, Insight
 from .serializers import (
     UserSerializer,
     UserRegistrationSerializer,
@@ -24,7 +29,12 @@ from .serializers import (
     RoleAssignmentSerializer,
     PermissionSerializer,
     UserPreferenceSerializer,
-    InsightSerializer
+    InsightSerializer,
+    ProductSerializer,
+    InvoiceSerializer,
+    TransactionSerializer,
+    StockAdjustmentSerializer,
+    ReportSerializer
 )
 from rest_framework.pagination import PageNumberPagination
 
@@ -140,6 +150,39 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # If no pagination requested, return all results
         serializer = self.get_serializer(queryset, many=True)
+
+        return Response(serializer.data)
+
+    def get_accessible_routes(self, user):
+        """
+        Dynamically Generate Accessible Routes Based on User Permissions
+        """
+        route_permission_mapping = {
+            '/invoices': 'invoices.view_invoice',
+            '/products': 'products.view_product',
+            '/stock-adjustments': 'stock_adjustments.view_adjustment',
+            '/transactions': 'transactions.view_transaction',
+            '/reports': 'reports.view_report',
+        }
+
+        return [
+            route for route, permission
+            in route_permission_mapping.items()
+            if user.has_perm(permission)
+        ]
+
+    @action(detail=False, methods=['GET'])
+    def permissions(self, request):
+        """
+        Endpoint to Retrieve User Permissions and Accessible Routes
+        """
+        permissions = list(request.user.get_all_permissions())
+        accessible_routes = self.get_accessible_routes(request.user)
+
+        serializer = UserPermissionsSerializer({
+            'permissions': permissions,
+            'accessible_routes': accessible_routes
+        })
 
         return Response(serializer.data)
 
@@ -282,6 +325,225 @@ class UserViewSet(viewsets.ModelViewSet):
     def me(self, request):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
+
+
+class BaseAccessControlViewSet(viewsets.ModelViewSet):
+    """
+    Base viewset providing comprehensive role-based access control
+    """
+    model = None
+    model_name = None
+
+    def get_queryset(self):
+        """
+        Dynamic queryset filtering based on user permissions and roles
+        """
+        if not self.model or not self.model_name:
+            raise NotImplementedError("Subclasses must define model and model_name")
+
+        # Superuser always gets full access
+        if self.request.user.is_superuser:
+            return self.model.objects.all()
+        
+        # Check base view permission
+        view_permission = f'{self.model_name}.view_{self.model_name}'
+        if not self.request.user.has_perm(view_permission):
+            return self.model.objects.none()
+        
+        # Apply role-specific filtering
+        return self.apply_role_based_filtering()
+
+    def apply_role_based_filtering(self):
+        """
+        Override in subclasses to implement role-specific data access
+        """
+        return self.model.objects.all()
+
+    def get_permissions(self):
+        """
+        Dynamic permission class assignment
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), AdminUserRolePermission()]
+        return [permissions.IsAuthenticated()]
+
+
+class ProductAccessControlViewSet(BaseAccessControlViewSet):
+    """
+    Product-specific access control with role-based filtering
+    """
+    model = Product
+    model_name = 'product'
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+    def apply_role_based_filtering(self):
+        user = self.request.user
+
+        # Sales Representative: View only active products
+        if user.is_role('Sales Representative'):
+            return self.queryset.filter(is_active=True)
+        
+        # Inventory Manager: View products in their assigned location
+        if user.is_role('Inventory Manager'):
+            return self.queryset.filter(location=user.location)
+        
+        # Accountant: Limited product view
+        if user.is_role('Accountant'):
+            return self.queryset.filter(is_billable=True)
+        
+        return self.queryset
+
+
+class InvoiceAccessControlViewSet(BaseAccessControlViewSet):
+    """
+    Invoice-specific access control with role-based filtering
+    """
+    model = Invoice
+    model_name = 'invoice'
+    queryset = Invoice.objects.all()
+    serializer_class = InvoiceSerializer
+
+    def apply_role_based_filtering(self):
+        user = self.request.user
+
+        # Sales Representative: View only their own invoices
+        if user.is_role('Sales Representative'):
+            return self.queryset.filter(created_by=user)
+        
+        # Accountant: Full invoice access with date range restrictions
+        if user.is_role('Accountant'):
+            return self.queryset.filter(
+                created_at__gte=timezone.now() - timedelta(days=90)
+            )
+        
+        # Auditor: View invoices for reporting purposes
+        if user.is_role('Auditor'):
+            return self.queryset.filter(status__in=['COMPLETED', 'PROCESSED'])
+        
+        return self.queryset
+
+
+class TransactionAccessControlViewSet(BaseAccessControlViewSet):
+    """
+    Transaction-specific access control with role-based filtering
+    """
+    model = Transaction
+    model_name = 'transaction'
+    queryset = Transaction.objects.all()
+    serializer_class = TransactionSerializer
+
+    def apply_role_based_filtering(self):
+        user = self.request.user
+
+        # Sales Representative: View sales-related transactions
+        if user.is_role('Sales Representative'):
+            return self.queryset.filter(
+                transaction_type__in=['SALE', 'REVENUE']
+            )
+        
+        # Accountant: Comprehensive financial transaction view
+        if user.is_role('Accountant'):
+            return self.queryset.filter(
+                transaction_type__in=['SALE', 'EXPENSE', 'REVENUE', 'PAYMENT']
+            )
+        
+        # Auditor: View processed and completed transactions
+        if user.is_role('Auditor'):
+            return self.queryset.filter(
+                status__in=['PROCESSED', 'COMPLETED']
+            )
+        
+        return self.queryset
+
+
+class StockAdjustmentAccessControlViewSet(BaseAccessControlViewSet):
+    """
+    Stock Adjustment-specific access control with role-based filtering
+    """
+    model = StockAdjustment
+    model_name = 'stock_adjustment'
+    queryset = StockAdjustment.objects.all()
+    serializer_class = StockAdjustmentSerializer
+
+    def apply_role_based_filtering(self):
+        user = self.request.user
+
+        # Inventory Manager: Full stock adjustment access
+        if user.is_role('Inventory Manager'):
+            return self.queryset
+        
+        # Accountant: Limited view of financial impact adjustments
+        if user.is_role('Accountant'):
+            return self.queryset.filter(adjustment_type='FINANCIAL')
+        
+        # Sales Representative: No access to stock adjustments
+        if user.is_role('Sales Representative'):
+            return self.queryset.none()
+        
+        return self.queryset
+
+
+class ReportAccessControlViewSet(BaseAccessControlViewSet):
+    """
+    Report-specific access control with role-based filtering
+    """
+    model = Report
+    model_name = 'report'
+    queryset = Report.objects.all()
+    serializer_class = ReportSerializer
+
+    def apply_role_based_filtering(self):
+        user = self.request.user
+
+        # Auditor: Full report access
+        if user.is_role('Auditor'):
+            return self.queryset
+        
+        # Administrator: Access to all reports
+        if user.is_role('Administrator'):
+            return self.queryset
+        
+        # Others: Limited or no report access
+        return self.queryset.none()
+
+
+class PermissionRefreshView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        role_id = request.data.get('role_id')
+        refresh_type = request.data.get('refresh_type', 'standard')
+
+        try:
+            # Log the permission refresh attempt
+            PermissionAuditLog.objects.create(
+                user=request.user,
+                action='Permission Refresh',
+                resource=f'Role ID: {role_id}',
+                status='Initiated'
+            )
+
+            # Perform comprehensive permission re-evaluation
+            if refresh_type == 'full':
+                # Invalidate existing user sessions
+                invalidate_user_sessions(request.user)
+
+                # Force permission recalculation
+                recalculate_user_permissions(request.user)
+
+            return Response({
+                'status': 'success',
+                'message': 'Permissions successfully refreshed'
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # Comprehensive error handling
+            return Response({
+                'status': 'error',
+                'message': 'Permission refresh failed',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class RoleViewSet(viewsets.ModelViewSet):
