@@ -8,6 +8,12 @@ class PermissionConstants:
     USER_EDIT = 'user.edit'
     USER_DELETE = 'user.delete'
 
+    # Order Permissions
+    ORDER_VIEW = 'core.view_order'
+    ORDER_CREATE = 'core.create_order'
+    ORDER_EDIT = 'core.edit_order'
+    ORDER_DELETE = 'core.delete_order'
+
     # Product Permissions
     PRODUCT_VIEW = 'products.view_product'
     PRODUCT_CREATE = 'products.create_product'

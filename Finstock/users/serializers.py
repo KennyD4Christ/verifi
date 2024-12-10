@@ -11,6 +11,7 @@ from invoices.models import Invoice
 from transactions.models import Transaction
 from stock_adjustments.models import StockAdjustment
 from reports.models import Report
+from core.models import Order
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 import logging
@@ -216,6 +217,37 @@ class BaseAccessControlSerializer(serializers.ModelSerializer):
 
     class Meta:
         abstract = True
+
+
+class OrderSerializer(BaseAccessControlSerializer):
+    """
+    Serializer for Order with role-based access control
+    
+    Defines permissions and serialization fields for Order model,
+    including accessibility actions based on user roles.
+    """
+    view_permission = PermissionConstants.ORDER_VIEW
+    create_permission = PermissionConstants.ORDER_CREATE
+    edit_permission = PermissionConstants.ORDER_EDIT
+    delete_permission = PermissionConstants.ORDER_DELETE
+
+    class Meta:
+        model = Order
+        fields = [
+            'id', 
+            'customer', 
+            'order_date', 
+            'status', 
+            'is_paid', 
+            'shipping_address', 
+            'billing_address', 
+            'special_instructions', 
+            'tracking_number', 
+            'estimated_delivery', 
+            'invoice',
+            'accessible_actions'
+        ]
+        read_only_fields = ['id', 'accessible_actions']
 
 
 class ProductSerializer(BaseAccessControlSerializer):
