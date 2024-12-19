@@ -148,6 +148,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'items', 'created', 'modified', 'status', 'total_price', 'previous_status',
             'shipping_address', 'billing_address', 'special_instructions', 'invoice'
         ]
+        read_only_fields = ['id', 'user']
 
     def to_internal_value(self, data):
         logger.debug(f"OrderSerializer to_internal_value called with data: {data}")
@@ -155,6 +156,12 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        user = self.context['request'].user
+
+        # Validate order creation permissions
+        if self.context['request'].method in ['POST', 'PUT', 'PATCH']:
+            self._validate_order_creation_permission(user)
+            self._validate_order_status_change(user, attrs)
         
         # Validate items
         items = attrs.get('items', [])
@@ -162,6 +169,26 @@ class OrderSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("At least one item is required.")
         
         return attrs
+
+    def _validate_order_creation_permission(self, user):
+        # Check if user has permission to create/edit orders
+        allowed_roles = ['Sales Representative', 'Administrator']
+
+        if not user.role.name in allowed_roles:
+            raise serializers.ValidationError({
+                'permission': 'You do not have permission to create or modify orders.'
+            })
+
+    def _validate_order_status_change(self, user, data):
+        # Implement status change restrictions based on user role
+        if 'status' in data:
+            # Only certain roles can change order status
+            status_change_roles = ['Sales Representative', 'Administrator']
+
+            if user.role.name not in status_change_roles:
+                raise serializers.ValidationError({
+                    'status': 'You are not authorized to change order status.'
+                })
 
     def get_total_price(self, obj):
         return sum(item.quantity * item.unit_price for item in obj.items.all())

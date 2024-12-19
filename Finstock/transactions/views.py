@@ -19,6 +19,9 @@ import io
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER
 from datetime import datetime
+from users.views import BaseAccessControlViewSet
+from users.models import CustomUser
+from django.db.models import Q
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,13 +35,12 @@ class StandardResultsSetPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class TransactionViewSet(viewsets.ModelViewSet):
+class TransactionViewSet(BaseAccessControlViewSet):
     """
     API endpoint for managing transactions
     """
     queryset = Transaction.objects.all().order_by('-date', '-id')
     serializer_class = TransactionSerializer
-    permission_classes = [TransactionPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [
         DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter
@@ -47,6 +49,104 @@ class TransactionViewSet(viewsets.ModelViewSet):
     search_fields = ['order__id', 'invoice__id', 'customer__id', 'amount']
     ordering_fields = ['date', 'amount', 'id']
     ordering = ['-date', '-id']
+
+    model = Transaction
+    model_name = 'transaction'
+
+    def apply_role_based_filtering(self):
+        user = self.request.user
+
+        if user.is_superuser or user.is_role('Administrator'):
+            return self.model.objects.all()
+
+        elif user.is_role('Accountant'):
+            return self.model.objects.all()  # Full access to all transactions
+
+        elif user.is_role('Sales Representative'):
+            # Can only see transactions related to their own orders or customers
+            return self.model.objects.filter(
+                Q(order__user=user) | Q(customer__user=user)
+            )
+
+        elif user.is_role('Auditor'):
+            # Read-only access to all transactions
+            return self.model.objects.all()
+
+        elif user.is_role('Inventory Manager'):
+            # Limited access, only to transactions related to their managed products
+            return self.model.objects.filter(
+                order__items__product__in=Product.objects.filter(managed_by=user)
+            ).distinct()
+
+        return self.model.objects.none()
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        user = self.request.user
+
+        if user.is_superuser or user.is_role('Administrator'):
+            pass  # No additional filtering
+
+        elif user.is_role('Accountant'):
+            pass  # Accountants can view all transactions
+
+        elif user.is_role('Sales Representative'):
+            # Can only view transactions related to their own orders or customers
+            queryset = queryset.filter(
+                Q(order__user=user) | Q(customer__user=user)
+            )
+
+        elif user.is_role('Auditor'):
+            pass  # Auditors can view all transactions
+
+        elif user.is_role('Inventory Manager'):
+            # Can only view transactions related to products they manage
+            queryset = queryset.filter(
+                order__items__product__in=Product.objects.filter(managed_by=user)
+            ).distinct()
+
+        else:
+            # Default to no access
+            queryset = queryset.none()
+
+        return queryset.prefetch_related('order', 'invoice', 'customer')
+
+    def perform_create(self, serializer):
+        # Additional role-based creation permission check
+        allowed_roles = ['Accountant', 'Administrator', 'Sales Representative']
+        user = self.request.user
+
+        if not user.role.name in allowed_roles:
+            logger.warning(f"Unauthorized transaction creation attempt by user {user.username}")
+            raise PermissionDenied("You are not authorized to create transactions")
+
+        logger.info(f"Transaction creation authorized for user {user.username}")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        # Additional role-based update permission check
+        allowed_roles = ['Accountant', 'Administrator']
+        user = self.request.user
+
+        if not user.role.name in allowed_roles:
+            logger.warning(f"Unauthorized transaction update attempt by user {user.username}")
+            raise PermissionDenied("You are not authorized to update transactions")
+
+        logger.info(f"Transaction update authorized for user {user.username}")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        # Additional role-based deletion permission check
+        allowed_roles = ['Administrator']
+        user = self.request.user
+
+        if not user.role.name in allowed_roles:
+            logger.warning(f"Unauthorized transaction deletion attempt by user {user.username}")
+            raise PermissionDenied("You are not authorized to delete transactions")
+
+        logger.info(f"Transaction deletion authorized for user {user.username}")
+        instance.delete()
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

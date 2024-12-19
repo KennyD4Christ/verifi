@@ -32,6 +32,10 @@ class Product(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
     category = models.ForeignKey(Category, related_name='products', on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)
+    low_stock_threshold = models.PositiveIntegerField(
+        default=10,
+        help_text="Minimum stock level that triggers low stock alert"
+    )
 
     def __str__(self):
         return f"{self.name} (ID: {self.id})"

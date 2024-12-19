@@ -145,6 +145,38 @@ class Command(BaseCommand):
                 'category': 'REPORTING'
             },
 
+            # Order Management Permissions
+            {
+                'name': PermissionConstants.ORDER_VIEW,
+                'description': 'View order information',
+                'category': 'ORDER'
+            },
+            {
+                'name': PermissionConstants.ORDER_CREATE,
+                'description': 'Create new orders',
+                'category': 'ORDER'
+            },
+            {
+                'name': PermissionConstants.ORDER_EDIT,
+                'description': 'Modify order details',
+                'category': 'ORDER'
+            },
+            {
+                'name': PermissionConstants.ORDER_DELETE,
+                'description': 'Delete orders from the system',
+                'category': 'ORDER'
+            },
+            {
+                'name': PermissionConstants.ORDER_STATUS_UPDATE,
+                'description': 'Update order status',
+                'category': 'ORDER'
+            },
+            {
+                'name': PermissionConstants.ORDER_ASSIGN,
+                'description': 'Assign orders to sales representatives',
+                'category': 'ORDER'
+            },
+
             # System-level Permissions
             {
                 'name': PermissionConstants.SYSTEM_FULL_ACCESS,
@@ -216,7 +248,15 @@ class Command(BaseCommand):
                 PermissionConstants.REPORT_VIEW,
                 PermissionConstants.REPORT_CREATE,
                 PermissionConstants.REPORT_EDIT,
-                PermissionConstants.REPORT_DELETE
+                PermissionConstants.REPORT_DELETE,
+
+                # Order Management
+                PermissionConstants.ORDER_VIEW,
+                PermissionConstants.ORDER_CREATE,
+                PermissionConstants.ORDER_EDIT,
+                PermissionConstants.ORDER_DELETE,
+                PermissionConstants.ORDER_STATUS_UPDATE,
+                PermissionConstants.ORDER_ASSIGN
             ],
             "Accountant": [
                 PermissionConstants.INVOICE_VIEW,
@@ -224,6 +264,7 @@ class Command(BaseCommand):
                 PermissionConstants.TRANSACTION_VIEW,
                 PermissionConstants.TRANSACTION_CREATE,
                 PermissionConstants.PRODUCT_VIEW,
+                PermissionConstants.ORDER_VIEW,
             ],
             "Inventory Manager": [
                 PermissionConstants.PRODUCT_VIEW,
@@ -231,17 +272,24 @@ class Command(BaseCommand):
                 PermissionConstants.STOCK_ADJUSTMENT_VIEW,
                 PermissionConstants.STOCK_ADJUSTMENT_CREATE,
                 PermissionConstants.STOCK_ADJUSTMENT_EDIT,
+                PermissionConstants.ORDER_VIEW,
+                PermissionConstants.ORDER_STATUS_UPDATE,
             ],
             "Sales Representative": [
                 PermissionConstants.PRODUCT_VIEW,
                 PermissionConstants.INVOICE_CREATE,
                 PermissionConstants.TRANSACTION_VIEW,
+                PermissionConstants.ORDER_VIEW,
+                PermissionConstants.ORDER_CREATE,
+                PermissionConstants.ORDER_EDIT,
+                PermissionConstants.ORDER_STATUS_UPDATE,
             ],
             "Auditor": [
                 PermissionConstants.SYSTEM_ANALYTICS_ACCESS,
                 PermissionConstants.REPORT_VIEW,
                 PermissionConstants.TRANSACTION_VIEW,
                 PermissionConstants.INVOICE_VIEW,
+                PermissionConstants.ORDER_VIEW,
             ]
         }
 

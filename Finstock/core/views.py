@@ -26,7 +26,11 @@ from .serializers import (
     CompanyInfoSerializer,
     PromotionSerializer
 )
+from users.views import BaseAccessControlViewSet
+from users.permissions import DynamicModelPermission
 from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly
+from users.constants import PermissionConstants
+from users.models import CustomUser
 import logging
 
 logger = logging.getLogger(__name__)
@@ -94,16 +98,41 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         return CompanyInfo.objects.all()
 
 
-class OrderViewSet(viewsets.ModelViewSet):
+class OrderViewSet(BaseAccessControlViewSet):
     queryset = Order.objects.prefetch_related('items__product').all()
     serializer_class = OrderSerializer
-    permission_classes = [permissions.IsAuthenticated]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, drf_filters.SearchFilter, drf_filters.OrderingFilter]
     filterset_class = DateRangeFilter
     filterset_fields = ['status', 'order_date', 'shipped_date', 'is_paid']
     search_fields = ['customer__user__first_name', 'customer__user__last_name', 'customer__user__email', 'id']
     ordering_fields = ['order_date', 'shipped_date', 'status', 'total_price']
+
+    model = Order
+    model_name = 'order'
+
+    # Map the new Order-specific permissions
+    view_permission = PermissionConstants.ORDER_VIEW
+    create_permission = PermissionConstants.ORDER_CREATE
+    edit_permission = PermissionConstants.ORDER_EDIT
+    delete_permission = PermissionConstants.ORDER_DELETE
+
+    def apply_role_based_filtering(self):
+        # Implement role-specific filtering logic
+        user = self.request.user
+
+        # If user is Sales Representative, show only their own orders
+        if user.role.name == 'Sales Representative':
+            return self.model.objects.filter(created_by=user)
+
+        # If user is Inventory Manager, show orders related to their inventory
+        elif user.role.name == 'Inventory Manager':
+            return self.model.objects.filter(
+                items__product__in=Product.objects.filter(managed_by=user)
+            ).distinct()
+
+        # Default to standard queryset for other roles
+        return self.model.objects.all()
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
@@ -124,13 +153,28 @@ class OrderViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         logger.debug(f"perform_create called with validated data: {serializer.validated_data}")
         try:
-            order = serializer.save(user=self.request.user)
-            logger.info(f"Order created successfully. ID: {order.id}")
-            logger.debug(f"Order {order.id} items: {list(order.items.all())}")
+            # Ensure only users with specific roles can create orders
+            allowed_roles = ['Sales Representative', 'Administrator']
+            if not self.request.user.role.name in allowed_roles:
+                logger.warning(f"Unauthorized order creation attempt by user {self.request.user.username}")
+                raise PermissionDenied("You are not authorized to create orders")
 
-            order.create_invoice()
+            # Save the order and set user to the current user
+            order = serializer.save(user=self.request.user)
+
+            logger.info(f"Order created successfully. ID: {order.id}")
+            logger.debug(f"Order {order.id} items: {list(order.items.all()) if hasattr(order, 'items') else 'No items related.'}")
+
+            # Generate an invoice for the order
+            if hasattr(order, 'create_invoice'):
+                order.create_invoice()
+            else:
+                logger.warning(f"Order {order.id} does not have a 'create_invoice' method implemented.")
+
+            # Create a transaction if the order's status warrants it
             if order.status in ['shipped', 'delivered']:
                 create_transaction_from_order(order)
+
         except ValidationError as e:
             logger.error(f"Error creating order: {str(e)}")
             raise DRFValidationError(str(e))
@@ -150,6 +194,33 @@ class OrderViewSet(viewsets.ModelViewSet):
         if end_date:
             end_date = make_aware(datetime.combine(parse_date(end_date), datetime.max.time()), timezone=utc)
             queryset = queryset.filter(order_date__lte=end_date)
+
+        # Role-based queryset filtering
+        user = self.request.user
+
+        # Administrator: full access to all orders
+        if user.is_superuser or user.is_role('Administrator'):
+            pass  # No additional filtering
+
+        # Sales Representative: can only view their own orders
+        elif user.is_role('Sales Representative'):
+            queryset = queryset.filter(user=user)
+
+        # Accountant: view all orders (maintains date filtering)
+        elif user.is_role('Accountant'):
+            pass  # No additional filtering needed
+
+        # Auditor: view all orders (maintains date filtering)
+        elif user.is_role('Auditor'):
+            pass  # No additional filtering needed
+
+        # Inventory Manager: no order access
+        elif user.is_role('Inventory Manager'):
+            queryset = queryset.none()
+
+        # Default: no access
+        else:
+            queryset = queryset.none()
 
         if self.action == 'list':
             return queryset.prefetch_related('items__product')
@@ -173,13 +244,37 @@ class OrderViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def perform_update(self, serializer):
         try:
-            order = serializer.save()
+            user = self.request.user
+
+            # Implement more granular update permissions
+            if not (
+                user.role.name in ['Sales Representative', 'Administrator'] or
+                (user.role.name == 'Sales Representative' and serializer.instance.user == user)
+            ):
+                logger.warning(f"Unauthorized order update attempt by user {user.username}")
+                raise PermissionDenied("You are not authorized to update this order")
+
+            # Save the order with user field tracking the modifier
+            order = serializer.save(user=user)
+
+            # Handle stock update and invoice creation based on status change
             if order.status in ['shipped', 'delivered'] and order.previous_status not in ['shipped', 'delivered']:
-                order.update_stock()
-                order.create_invoice()
+                if hasattr(order, 'update_stock'):
+                    order.update_stock()
+                else:
+                    logger.warning(f"Order {order.id} does not have an 'update_stock' method implemented.")
+
+                if hasattr(order, 'create_invoice'):
+                    order.create_invoice()
+                else:
+                    logger.warning(f"Order {order.id} does not have a 'create_invoice' method implemented.")
+
         except ValidationError as e:
             logger.error(f"Error updating order: {str(e)}")
-            raise serializers.ValidationError(str(e))
+            raise DRFValidationError(str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error updating order: {str(e)}")
+            raise
 
     @action(detail=False, methods=['post'])
     def bulk_delete(self, request):

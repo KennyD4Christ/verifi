@@ -13,6 +13,8 @@ class PermissionConstants:
     ORDER_CREATE = 'core.create_order'
     ORDER_EDIT = 'core.edit_order'
     ORDER_DELETE = 'core.delete_order'
+    ORDER_STATUS_UPDATE = 'core.update_order_status'
+    ORDER_ASSIGN = 'core.assign_order'
 
     # Product Permissions
     PRODUCT_VIEW = 'products.view_product'

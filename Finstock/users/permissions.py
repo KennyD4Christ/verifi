@@ -9,6 +9,9 @@ from transactions.models import Transaction
 from stock_adjustments.models import StockAdjustment
 from reports.models import Report
 from core.models import Order
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CanViewResource(permissions.BasePermission):
@@ -76,11 +79,18 @@ class RoleBasedPermission(permissions.BasePermission):
         if request.user.is_superuser:
             return True
             
-        # Check ownership for certain roles
-        if hasattr(obj, 'created_by') and request.user.is_role('Sales Representative'):
-            return obj.created_by == request.user
-            
-        return True
+        # Check if user is trying to modify the object
+        is_modify_request = request.method in ['PUT', 'PATCH', 'DELETE']
+        
+        if is_modify_request:
+            return obj.user == request.user or obj.customer == request.user
+    
+        if request.method == 'GET':
+            if request.user.is_role('Administrator'):
+                return True
+            return obj.user == request.user or obj.customer == request.user
+    
+        return False
 
 
 class AdminUserRolePermission(permissions.BasePermission):
@@ -88,10 +98,6 @@ class AdminUserRolePermission(permissions.BasePermission):
     Custom permission to only allow administrators to manage users and roles
     """
     def has_permission(self, request, view):
-        print(f"User: {request.user}")
-        print(f"Is Superuser: {request.user.is_superuser}")
-        print(f"User Roles: {request.user.get_roles()}")
-        print(f"User Permissions: {list(request.user.get_permissions())}")
         # Allow read-only access to all authenticated users
         if request.method in ['GET', 'HEAD', 'OPTIONS']:
             return request.user.is_authenticated
@@ -108,16 +114,15 @@ class BaseModelPermission(permissions.BasePermission):
     Base class for model-specific permissions that checks for specific permission strings.
     """
     def has_permission(self, request, view):
-        print(f"User: {request.user}")
-        print(f"Is Superuser: {request.user.is_superuser}")
-        print(f"User Roles: {request.user.get_roles()}")
-        print(f"User Permissions: {list(request.user.get_permissions())}")
-        # Always allow GET requests for authenticated users if they have view permission
-        if request.method == 'GET':
-            return request.user.is_authenticated and request.user.has_perm(self.view_permission)
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        if request.user.is_superuser:
+            return True
         
         # Map HTTP methods to required permissions
         method_permission_map = {
+            'GET': self.view_permission,
             'POST': self.create_permission,
             'PUT': self.edit_permission,
             'PATCH': self.edit_permission,
@@ -131,6 +136,39 @@ class BaseModelPermission(permissions.BasePermission):
 
         return (request.user.has_perm(required_permission) or 
                 request.user.has_role_permission(required_permission))
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_superuser:
+            return True
+
+        if request.user.is_role('Administrator'):
+            return True
+
+        # Check if user is trying to modify the object
+        is_modify_request = request.method in ['PUT', 'PATCH', 'DELETE']
+
+        # For modification requests, require ownership
+        if is_modify_request:
+            if hasattr(obj, 'created_by'):
+                return obj.created_by == request.user
+            if hasattr(obj, 'user'):
+                return obj.user == request.user
+            return False
+
+        # For read requests, check role-specific conditions
+        if request.method == 'GET':
+            # Check object ownership
+            if hasattr(obj, 'created_by') and obj.created_by == request.user:
+                return True
+            if hasattr(obj, 'user') and obj.user == request.user:
+                return True
+
+            # Role-specific checks
+            if request.user.is_role('Auditor'):
+                return True
+
+        return False
+
 
     def has_role_permission(self, permission_name):
         """
@@ -161,43 +199,12 @@ class InvoicePermission(BaseModelPermission):
     edit_permission = 'invoices.edit_invoice'
     delete_permission = 'invoices.delete_invoice'
 
-    def has_object_permission(self, request, view, obj):
-        # Additional object-level permission check
-        if request.method in ['PUT', 'PATCH', 'DELETE']:
-            # Ensure user has permission and is the creator
-            return (request.user.has_perm(self.edit_permission) and 
-                   obj.created_by == request.user)
-        return True
-
 
 class OrderPermission(BaseModelPermission):
     view_permission = 'orders.view_order'
     create_permission = 'orders.create_order'
     edit_permission = 'orders.edit_order'
     delete_permission = 'orders.delete_order'
-
-    def has_object_permission(self, request, view, obj):
-        # Comprehensive permission logic for orders
-        if request.method in ['GET']:
-            return (
-                request.user.is_superuser or  # Superuser always has access
-                request.user.is_role('Administrator') or  # Administrators can view all
-                request.user.is_role('Sales Representative') and (
-                    obj.user == request.user or  # User who created the order
-                    (obj.customer and obj.customer.user == request.user)  # Related customer
-                ) or
-                request.user.is_role('Auditor')  # Auditors can view
-            )
-
-        # Modification permissions
-        if request.method in ['PUT', 'PATCH', 'DELETE']:
-            return (
-                request.user.is_superuser or  # Superuser always has full access
-                request.user.is_role('Administrator') or  # Administrators can modify
-                (request.user.has_perm(self.edit_permission) and 
-                 obj.user == request.user)  # User who created the order
-            )
-        return True
 
 
 class ProductPermission(BaseModelPermission):
@@ -229,27 +236,6 @@ class TransactionPermission(BaseModelPermission):
     edit_permission = 'transactions.edit_transaction'
     delete_permission = 'transactions.delete_transaction'
 
-    def has_object_permission(self, request, view, obj):
-        if request.method in ['GET']:
-            return (
-                request.user.is_superuser or  # Superuser always has access
-                request.user.is_role('Administrator') or  # Administrators can view all
-                request.user.is_role('Accountant') or  # Accountants can view all transactions
-                request.user.is_role('Auditor') or  # Auditors can view
-                (obj.customer and obj.customer.user == request.user) or  # Related customer
-                (obj.order and obj.order.user == request.user)  # Order creator
-            )
-
-        if request.method in ['PUT', 'PATCH', 'DELETE']:
-            return (
-                request.user.is_superuser or  # Superuser always has full access
-                request.user.is_role('Administrator') or  # Administrators can modify
-                request.user.is_role('Accountant') or  # Accountants can modify
-                (request.user.has_perm(self.edit_permission) and
-                 (obj.order and obj.order.user == request.user))  # Order creator
-            )
-        return True
-
 
 class ReportPermission(BaseModelPermission):
     """
@@ -260,36 +246,29 @@ class ReportPermission(BaseModelPermission):
     edit_permission = 'reports.edit_report'
     delete_permission = 'reports.delete_report'
 
-    def has_object_permission(self, request, view, obj):
-        if request.method in ['GET']:
-            return (
-                request.user.is_superuser or  # Superuser always has access
-                request.user.is_role('Administrator') or  # Administrators can view all
-                request.user.is_role('Auditor') or  # Auditors can view
-                obj.created_by == request.user  # Report creator
-            )
-
-        if request.method in ['PUT', 'PATCH', 'DELETE']:
-            return (
-                request.user.is_superuser or  # Superuser always has full access
-                request.user.is_role('Administrator') or  # Administrators can modify
-                (request.user.has_perm(self.edit_permission) and
-                 obj.created_by == request.user)  # Report creator
-            )
-        return True
-
 
 class DynamicModelPermission(BaseModelPermission):
     """
     Dynamic Permission Checker with Enhanced Logging and Flexibility
     """
+    def __init__(self, view_permission=None, create_permission=None, 
+                 edit_permission=None, delete_permission=None):
+        self.view_permission = view_permission
+        self.create_permission = create_permission
+        self.edit_permission = edit_permission
+        self.delete_permission = delete_permission
+
     def has_permission(self, request, view):
-        # Enhanced logging for unauthorized access attempts
+        # Check if permissions are defined dynamically
+        if not hasattr(self, 'view_permission'):
+            logger.error(f"No view permission defined for {view.__class__.__name__}")
+            return False
+
+        # Rest of the existing method remains the same
         if not request.user.is_authenticated:
             logger.warning(f"Unauthorized access attempt to {view.__class__.__name__}")
             return False
 
-        # Use dynamic permission checking
         permission_map = {
             'GET': self.view_permission,
             'POST': self.create_permission,
@@ -299,13 +278,13 @@ class DynamicModelPermission(BaseModelPermission):
         }
 
         required_permission = permission_map.get(request.method)
-        
+
         if not required_permission:
             logger.warning(f"Unsupported HTTP method: {request.method}")
             return False
 
         has_permission = request.user.has_perm(required_permission)
-        
+
         if not has_permission:
             logger.info(f"User {request.user.username} lacks permission: {required_permission}")
 

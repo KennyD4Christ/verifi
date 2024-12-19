@@ -1,5 +1,12 @@
 from rest_framework import serializers
+from django.core import validators
+import re
 from .models import Report, ReportEntry, ReportFile, CalculatedField, ReportAccessLog
+import logging
+from rest_framework.exceptions import ValidationError
+
+logger = logging.getLogger(__name__)
+
 
 class ReportFileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -19,21 +26,95 @@ class CalculatedFieldSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'formula', 'created_by', 'created_at']
 
 class ReportSerializer(serializers.ModelSerializer):
+
     entries = ReportEntrySerializer(many=True, read_only=True)
     calculated_fields = CalculatedFieldSerializer(many=True, read_only=True)
+    name = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        allow_null=False,
+        trim_whitespace=True,
+        max_length=255,
+        min_length=3
+    )
 
     class Meta:
         model = Report
         fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'created_by', 'last_modified_by', 'is_archived', 'is_template', 'schedule', 'last_run', 'entries', 'calculated_fields']
 
+    def to_internal_value(self, data):
+        try:
+            # Log original input
+            logger.info(f"Original input data: {data}")
+
+            # Ensure name is correctly processed
+            if isinstance(data, dict):
+                # If name is a dictionary or complex object, extract the name
+                if 'name' in data and isinstance(data['name'], dict):
+                    data['name'] = data['name'].get('name', '')
+                elif 'name' in data and not isinstance(data['name'], str):
+                    data['name'] = str(data['name'])
+
+            # Ensure name is a string and not too long
+            name = str(data.get('name', '')).strip()
+            if len(name) > 255:
+                name = name[:255]
+
+            # Update data with processed name
+            data['name'] = name
+
+            # Log processed data
+            logger.info(f"Processed data: {data}")
+
+            return super().to_internal_value(data)
+
+        except Exception as e:
+            logger.error(f"Conversion error: {str(e)}")
+            raise serializers.ValidationError({
+                'name': f'Invalid input: {str(e)}'
+            })
+
     def validate_name(self, value):
-        if not value or not isinstance(value, str):
-            raise serializers.ValidationError("Report name must be a non-empty string.")
-        return value
+        # Additional name validation
+        try:
+            # Strip and validate name
+            cleaned_name = str(value).strip()
+            
+            if not cleaned_name:
+                raise serializers.ValidationError("Report name cannot be empty")
+            
+            if len(cleaned_name) > 255:
+                cleaned_name = cleaned_name[:255]
+            
+            return cleaned_name
+
+        except Exception as e:
+            logger.error(f"Name validation error: {str(e)}")
+            raise serializers.ValidationError(f"Invalid name: {str(e)}")
 
     def validate(self, data):
-        # Add any cross-field validation here if needed
-        return data
+        """
+        Final validation step with comprehensive checks.
+        """
+        try:
+            # Validate name presence and content
+            name = data.get('name', '').strip()
+            
+            if not name:
+                logger.warning("Final validation detected empty name")
+                raise serializers.ValidationError({
+                    'name': 'A valid non-empty report name is required.'
+                })
+
+            # Additional custom validations can be added here
+            logger.info(f"Final validation passed for report: {name}")
+            return data
+
+        except Exception as e:
+            logger.error(f"Final validation error: {str(e)}")
+            raise serializers.ValidationError({
+                'name': f'Validation failed: {str(e)}'
+            })
 
 class ReportAccessLogSerializer(serializers.ModelSerializer):
     class Meta:

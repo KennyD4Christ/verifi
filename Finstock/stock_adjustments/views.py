@@ -1,4 +1,5 @@
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, filters, status, permissions
+from django.core.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -8,7 +9,9 @@ from django.db.models import Q
 from django.http import HttpResponse
 from .models import StockAdjustment
 from .serializers import StockAdjustmentSerializer
-from users.permissions import CanViewResource, CanManageResource, StockAdjustmentPermission
+from users.views import BaseAccessControlViewSet
+from users.models import CustomUser
+from users.constants import PermissionConstants
 import logging
 import csv
 from django.views.decorators.http import require_GET
@@ -44,7 +47,6 @@ class StockAdjustmentViewSet(viewsets.ModelViewSet):
     """
     queryset = StockAdjustment.objects.all()
     serializer_class = StockAdjustmentSerializer
-    permission_classes = [StockAdjustmentPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [
         DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter
@@ -52,6 +54,48 @@ class StockAdjustmentViewSet(viewsets.ModelViewSet):
     filterset_class = StockAdjustmentFilter
     search_fields = ['product__name', 'reason']
     ordering_fields = ['adjustment_date', 'quantity', 'product__name']
+
+    model = StockAdjustment
+    model_name = 'stock_adjustment'
+
+    def get_permissions(self):
+        permission_map = {
+            'list': [PermissionConstants.STOCK_ADJUSTMENT_VIEW],
+            'retrieve': [PermissionConstants.STOCK_ADJUSTMENT_VIEW],
+            'create': [PermissionConstants.STOCK_ADJUSTMENT_CREATE],
+            'update': [PermissionConstants.STOCK_ADJUSTMENT_EDIT],
+            'partial_update': [PermissionConstants.STOCK_ADJUSTMENT_EDIT],
+            'destroy': [PermissionConstants.STOCK_ADJUSTMENT_DELETE]
+        }
+
+        # Get the required permission for the current action
+        required_permissions = permission_map.get(self.action, [])
+
+        class DynamicPermission(permissions.BasePermission):
+            def has_permission(self, request, view):
+                # Superusers always have access
+                if request.user.is_superuser:
+                    return True
+
+                # Check if user has any of the required permissions
+                return any(
+                    request.user.has_perm(perm)
+                    for perm in required_permissions
+                )
+
+        return [IsAuthenticated(), DynamicPermission()]
+
+    def apply_role_based_filtering(self):
+        user = self.request.user
+
+        if user.is_superuser or user.is_role('Administrator'):
+            return self.model.objects.all()
+
+        elif user.is_role('Inventory Manager'):
+            # Inventory Managers can view all stock adjustments
+            return self.model.objects.all()
+
+        return self.model.objects.none()
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -63,12 +107,27 @@ class StockAdjustmentViewSet(viewsets.ModelViewSet):
             )
         return queryset
 
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'export_csv', 'export_pdf']:
-            permission_classes = [CanViewResource]
-        else:
-            permission_classes = [CanManageResource]
-        return [permission() for permission in permission_classes]
+    def perform_create(self, serializer):
+        # Check if user has create permission
+        if not self.has_action_permission('create'):
+            raise PermissionDenied("You do not have permission to create stock adjustments")
+
+        # Log the user creating the stock adjustment
+        serializer.save(adjusted_by=self.request.user)
+
+    def perform_update(self, serializer):
+        # Check if user has edit permission
+        if not self.has_action_permission('change'):
+            raise PermissionDenied("You do not have permission to update stock adjustments")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        # Check if user has delete permission
+        if not self.has_action_permission('delete'):
+            raise PermissionDenied("You do not have permission to delete stock adjustments")
+
+        instance.delete()
 
     def create(self, request, *args, **kwargs):
         logger.info(f"Received data for stock adjustment creation: {request.data}")

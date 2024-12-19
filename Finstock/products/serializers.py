@@ -46,8 +46,29 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'price', 'sku', 'stock', 'sales', 'category', 'category_id', 'images', 'reviews']
+        fields = ['id', 'name', 'description', 'price', 'sku', 'stock', 'sales', 'category', 'category_id', 'images', 'reviews', 'low_stock_threshold']
         ref_name = 'ProductSerializer'
+
+    def validate_low_stock_threshold(self, value):
+        """
+        Validate the low stock threshold value during serialization.
+
+        Args:
+            value (int): Proposed low stock threshold value
+
+        Returns:
+            int: Validated low stock threshold
+
+        Raises:
+            serializers.ValidationError: If threshold is invalid
+        """
+        if value < 0:
+            raise serializers.ValidationError("Low stock threshold cannot be negative.")
+
+        if value > 1000:  # Optional: Set a reasonable maximum threshold
+            raise serializers.ValidationError("Low stock threshold cannot exceed 1000 units.")
+
+        return value
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -65,6 +86,7 @@ class ProductSerializer(serializers.ModelSerializer):
         instance.price = validated_data.get('price', instance.price)
         instance.sku = validated_data.get('sku', instance.sku)
         instance.stock = validated_data.get('stock', instance.stock)
+        instance.low_stock_threshold = validated_data.get('low_stock_threshold', instance.low_stock_threshold)
         instance.sales = validated_data.get('sales', instance.sales)
         instance.category = validated_data.pop('category', instance.category)
         instance.save()

@@ -1,4 +1,4 @@
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, filters, status, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
@@ -9,6 +9,10 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from .models import Product, ProductImage, Review, Category
 from .serializers import ProductSerializer, ProductImageSerializer, ReviewSerializer, CategorySerializer
+from django.core.exceptions import PermissionDenied
+from users.constants import PermissionConstants
+from users.views import BaseAccessControlViewSet
+from users.models import CustomUser
 from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, inch
@@ -21,7 +25,7 @@ from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
-from users.permissions import CanViewResource, CanManageResource, ProductPermission
+from users.permissions import CanViewResource, CanManageResource
 
 
 class ProductFilter(FilterSet):
@@ -53,13 +57,12 @@ class StandardResultsSetPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 100
 
-class ProductViewSet(viewsets.ModelViewSet):
+class ProductViewSet(BaseAccessControlViewSet):
     """
     API endpoint for managing products
     """
-    queryset = Product.objects.all()
+    queryset = Product.objects.all().order_by('-created_at')
     serializer_class = ProductSerializer
-    permission_classes = [ProductPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [
         DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter
@@ -68,6 +71,29 @@ class ProductViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'description', 'sku']
     ordering_fields = ['name', 'price', 'created_at']
     filterset_class = ProductFilter
+
+    model = Product
+    model_name = 'product'
+
+    def apply_role_based_filtering(self):
+        user = self.request.user
+
+        if user.is_superuser or user.is_role('Administrator'):
+            return self.model.objects.all()
+
+        elif user.is_role('Inventory Manager'):
+            return self.model.objects.all()
+
+        elif user.is_role('Sales Representative'):
+            return self.model.objects.filter(is_active=True)
+
+        elif user.is_role('Accountant'):
+            return self.model.objects.all()
+
+        elif user.is_role('Auditor'):
+            return self.model.objects.all()
+
+        return self.model.objects.none()
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -80,12 +106,59 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         return queryset
 
+    def perform_create(self, serializer):
+        allowed_roles = ['Administrator', 'Inventory Manager']
+        user = self.request.user
+
+        if not self.has_action_permission('create'):
+            raise PermissionDenied("You do not have permission to create products")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        allowed_roles = ['Administrator', 'Inventory Manager']
+        user = self.request.user
+
+        if not self.has_action_permission('change'):
+            raise PermissionDenied("You do not have permission to update products")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        allowed_roles = ['Administrator']
+        user = self.request.user
+
+        if not self.has_action_permission('delete'):
+            raise PermissionDenied("You do not have permission to delete products")
+
+        instance.delete()
+
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            permission_classes = [IsAuthenticated]
-        else:
-            permission_classes = [IsAuthenticated]
-        return [permission() for permission in permission_classes]
+        permission_map = {
+            'list': [PermissionConstants.PRODUCT_VIEW],
+            'retrieve': [PermissionConstants.PRODUCT_VIEW],
+            'create': [PermissionConstants.PRODUCT_CREATE],
+            'update': [PermissionConstants.PRODUCT_EDIT],
+            'partial_update': [PermissionConstants.PRODUCT_EDIT],
+            'destroy': [PermissionConstants.PRODUCT_DELETE]
+        }
+
+        # Get the required permission for the current action
+        required_permissions = permission_map.get(self.action, [])
+    
+        class DynamicPermission(permissions.BasePermission):
+            def has_permission(self, request, view):
+                # Superusers always have access
+                if request.user.is_superuser:
+                    return True
+            
+                # Check if user has any of the required permissions
+                return any(
+                    request.user.has_perm(perm) 
+                    for perm in required_permissions
+                )
+
+        return [IsAuthenticated(), DynamicPermission()]
 
     @action(detail=False, methods=['get'])
     def export_csv(self, request):

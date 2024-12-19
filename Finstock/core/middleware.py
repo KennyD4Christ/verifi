@@ -27,3 +27,18 @@ class VisitTrackingMiddleware(MiddlewareMixin):
 
         except Exception as e:
             logger.error(f"Unexpected error in visit tracking: {str(e)}")
+
+
+class RequestLoggingMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        logger.info(f"Incoming Request: {request.method} {request.path}")
+        logger.info(f"Request Data: {request.POST}")
+        logger.info(f"Request Headers: {request.headers}")
+        
+        response = self.get_response(request)
+        
+        logger.info(f"Response Status: {response.status_code}")
+        return response
