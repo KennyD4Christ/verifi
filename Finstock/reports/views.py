@@ -16,11 +16,13 @@ from django.core.exceptions import PermissionDenied
 from .models import Report, ReportEntry, ReportFile, CalculatedField, ReportAccessLog
 from rest_framework.permissions import IsAuthenticated
 from .serializers import ReportSerializer, ReportEntrySerializer, ReportFileSerializer, CalculatedFieldSerializer, ReportAccessLogSerializer
-from .utils import generate_pdf_report, send_report_email, export_report_to_csv, export_report_to_excel, calculate_custom_field, save_generated_file
+from .utils import generate_pdf_report, send_report_email, export_report_to_csv, export_report_to_excel, calculate_custom_field, save_generated_file, validate_date_range
 from django.core.cache import cache
 from django.db.models import Q
 import logging
 import traceback
+from datetime import datetime
+from django.utils.timezone import make_aware
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +40,21 @@ class ReportViewSet(BaseAccessControlViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        logger.debug(f"Base queryset count: {queryset.count()}")
+    
+        # Skip date filtering for PDF generation endpoint
+        if self.action == 'generate_pdf':
+            return queryset
+        
+        # Apply date filtering only for list/retrieve actions
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
-        
+    
         if start_date and end_date:
+            logger.debug(f"Applying date range filter: {start_date} to {end_date}")
             queryset = queryset.filter(created_at__range=[start_date, end_date])
-        
+            logger.debug(f"Filtered queryset count: {queryset.count()}")
+    
         return queryset
 
     # Permissions aligned with initialize_system_roles.py
@@ -95,6 +106,27 @@ class ReportViewSet(BaseAccessControlViewSet):
                     'details': 'No data provided'
                 }, status=status.HTTP_400_BAD_REQUEST)
 
+            # Extract date range from request data if provided
+            data = request.data.copy()
+            start_date = data.pop('start_date', None)
+            end_date = data.pop('end_date', None)
+
+            # Validate date range if provided
+            if start_date and end_date:
+                try:
+                    start_date, end_date = validate_date_range(start_date, end_date)
+                    # Store validated dates in request for use in perform_create
+                    request.validated_date_range = {
+                        'start_date': start_date,
+                        'end_date': end_date
+                    }
+                except ValidationError as ve:
+                    logger.error(f"Date range validation error: {str(ve)}")
+                    return Response({
+                        'error': 'Invalid date range',
+                        'details': str(ve)
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
             # Proceed with standard creation
             return super().create(request, *args, **kwargs)
 
@@ -132,6 +164,13 @@ class ReportViewSet(BaseAccessControlViewSet):
             if not self.request.user.is_role('Administrator'):
                 logger.warning(f"Unauthorized report creation attempt by {self.request.user.username}")
                 raise PermissionDenied("Only Administrators can create reports")
+
+            # Include date range in report metadata if provided
+            extra_fields = {}
+            if hasattr(self.request, 'validated_date_range'):
+                extra_fields['metadata'] = {
+                    'date_range': self.request.validated_date_range
+                }
 
             # Log pre-save validation state
             logger.info(f"Pre-save validation data: {serializer.validated_data}")
@@ -209,34 +248,67 @@ class ReportViewSet(BaseAccessControlViewSet):
 
     @action(detail=True, methods=['post'])
     def generate_pdf(self, request, pk=None):
+        logger.debug(f"Starting PDF generation for report {pk}")
+        logger.debug(f"User: {request.user.username}")
+        logger.debug(f"Query parameters: {request.query_params}")
         report = self.get_object()
         try:
-            pdf_file = generate_pdf_report(report)
-            # Save file to ReportFile model
+            # Explicitly get the report using the queryset
+            queryset = self.get_queryset()
+            report = queryset.get(pk=pk)
+
+            # Initialize date variables
+            start_date_str = request.query_params.get('start_date')
+            end_date_str = request.query_params.get('end_date')
+        
+            logger.debug(f"Retrieved report: {report.id}")
+            logger.debug(f"Date range: {start_date_str} to {end_date_str}")
+        
+            # Generate PDF with date parameters
+            pdf_file = generate_pdf_report(report, start_date_str, end_date_str)
+        
+            # Save the generated file
             report_file = save_generated_file(report, pdf_file, 'pdf')
-            
-            # Log access
+
+            # Create access log with metadata
+            metadata = {}
+            if start_date_str and end_date_str:
+                metadata.update({
+                    'date_range': {
+                        'start_date': start_date_str,
+                        'end_date': end_date_str
+                    }
+                })
+        
+            # Log the access
             ReportAccessLog.objects.create(
-                report=report, 
-                user=request.user, 
-                action='generate_pdf'
+                report=report,
+                user=request.user,
+                action='generate_pdf',
+                metadata=metadata
             )
-            
-            # Return file response
+        
+            # Return the file
             return FileResponse(
-                report_file.file, 
-                as_attachment=True, 
+                report_file.file,
+                as_attachment=True,
                 filename=report_file.file.name,
                 content_type='application/pdf'
             )
-            response['Content-Disposition'] = f'attachment; filename="{report_file.file.name}"'
-            return response
+        
+        except Report.DoesNotExist:
+            logger.error(f"Report {pk} not found in queryset")
+            return Response({
+                'error': 'Report not found',
+                'details': 'The requested report does not exist or you do not have permission to access it'
+            }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
             return Response({
-                'error': 'PDF generation failed', 
+                'error': 'PDF generation failed',
                 'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
     @action(detail=True, methods=['post'])
     def email_report(self, request, pk=None):

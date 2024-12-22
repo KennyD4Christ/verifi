@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.core import validators
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import JSONField
 
 User = get_user_model()
 
@@ -121,6 +122,10 @@ class ReportAccessLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     accessed_at = models.DateTimeField(auto_now_add=True)
     action = models.CharField(max_length=50)  # e.g., 'view', 'edit', 'delete'
+    metadata = JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user} {self.action} {self.report} at {self.accessed_at}"
+
+    class Meta:
+        ordering = ['-accessed_at']
