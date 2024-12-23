@@ -252,8 +252,17 @@ def generate_comprehensive_report(report, start_date_str=None, end_date_str=None
             date__range=[start_date, end_date]
         )
 
-        income_transactions = transactions.filter(transaction_type='income')
-        expense_transactions = transactions.filter(transaction_type='expense')
+        revenue = transactions.filter(
+            transaction_type='income'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        cost_of_services = transactions.filter(
+            transaction_type='cost_of_services'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        operating_expenses = transactions.filter(
+            transaction_type='expense'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
         return {
             'report_metadata': {
@@ -261,19 +270,16 @@ def generate_comprehensive_report(report, start_date_str=None, end_date_str=None
                 'period_end': end_date.strftime('%Y-%m-%d')
             },
             'financial_overview': {
-                'total_income': income_transactions.aggregate(
-                    total=Sum('amount')
-                )['total'] or Decimal('0.00'),
-                'total_expenses': expense_transactions.aggregate(
-                    total=Sum('amount')
-                )['total'] or Decimal('0.00'),
-                'net_profit': (
-                    income_transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-                ) - (
-                    expense_transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                'total_revenue': revenue,
+                'cost_of_services': cost_of_services,
+                'operating_expenses': operating_expenses,
+                'net_profit': revenue - cost_of_services - operating_expenses,
+                'income_breakdown': _analyze_income_breakdown(
+                    transactions.filter(transaction_type='income')
                 ),
-                'income_breakdown': _analyze_income_breakdown(income_transactions),
-                'expense_breakdown': _analyze_expense_breakdown(expense_transactions),
+                'expense_breakdown': _analyze_expense_breakdown(
+                    transactions.filter(transaction_type__in=['expense', 'cost_of_services'])
+                ),
                 'monthly_cash_flow': _calculate_monthly_cash_flow(transactions)
             },
             'inventory_insights': generate_inventory_insights(),
@@ -399,8 +405,9 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
 
     financial_summary = [
         ['Metric', 'Amount', 'Analysis'],
-        ['Total Revenue', f"${financial_data['total_income']:,.2f}", 'Gross business income'],
-        ['Total Expenses', f"${financial_data['total_expenses']:,.2f}", 'Operating costs'],
+        ['Total Revenue', f"${financial_data['total_revenue']:,.2f}", 'Gross business income'],
+        ['Cost of Services', f"${financial_data['cost_of_services']:,.2f}", 'Direct service costs'],
+        ['Operating Expenses', f"${financial_data['operating_expenses']:,.2f}", 'Operational costs'],
         ['Net Profit', f"${financial_data['net_profit']:,.2f}", 'Bottom line earnings']
     ]
 
@@ -418,7 +425,7 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
         category['category'],
         f"${category['total_amount']:,.2f}",
         f"{category['transaction_count']} transactions",
-        f"{(category['total_amount']/financial_data['total_income']*100):.1f}%"
+        f"{(category['total_amount']/financial_data['total_revenue']*100):.1f}%"
     ] for category in financial_data['income_breakdown']]
 
     income_headers = ['Category', 'Revenue', 'Volume', 'Share']
