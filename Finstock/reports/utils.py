@@ -11,10 +11,24 @@ import io
 import logging
 from django.core.files.base import ContentFile
 import csv
-from .models import ReportEntry, ReportFile
+from .models import ReportEntry, ReportFile, Report, ReportAccessLog
 import xlsxwriter
 from django.db.models import Sum, Avg, Count, F, ExpressionWrapper, DecimalField, IntegerField, Case, When, Q, Subquery, OuterRef
 import ast
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log
+)
+from smtplib import (
+    SMTPException,
+    SMTPServerDisconnected,
+    SMTPConnectError,
+    SMTPResponseException
+)
+from django.utils.html import strip_tags
 import operator as op
 import statistics
 from transactions.models import Transaction
@@ -27,8 +41,394 @@ from datetime import datetime
 from django.utils.timezone import make_aware
 from django.core.exceptions import ValidationError
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
+from django.template import Template, Context
+from django.core.mail import EmailMultiAlternatives
+from django.utils.html import strip_tags
+from typing import Optional, Dict, Any, List
+from dataclasses import dataclass
+from email.utils import formataddr
+import bleach
+from premailer import transform
+from django.contrib.auth import get_user_model
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class EmailRecipient:
+    email: str
+    full_name: Optional[str] = None
+    role: Optional[str] = None
+    permissions: List[str] = None
+
+    def __post_init__(self):
+        if self.permissions is None:
+            self.permissions = []
+
+    @property
+    def display_name(self) -> str:
+        if self.full_name:
+            return self.full_name
+        return self.email.split('@')[0].title()
+
+    @property
+    def is_administrator(self) -> bool:
+        return 'Administrator' in self.role
+
+    @property
+    def is_auditor(self) -> bool:
+        return 'Auditor' in self.role
+
+class ReportContentGenerator:
+    @staticmethod
+    def _generate_summary_section(report, recipient, report_data=None):
+        data = report_data or generate_comprehensive_report(report, None, None)
+        summary_parts = []
+
+        if recipient.is_administrator:
+            summary_parts.extend([
+                "<h2>Administrative Overview</h2>",
+                f"<p>Total Records: {data['total_records']}</p>",
+                f"<p>Last Updated: {data['updated_at']}</p>",
+                "<p>System Status: All metrics within expected ranges</p>"
+            ])
+        elif recipient.is_auditor:
+            summary_parts.extend([
+                "<h2>Audit Summary</h2>",
+                f"<p>Audit Trail: {report.get_audit_trail()}</p>",
+                f"<p>Compliance Status: {data['compliance_status']}</p>",
+                "<p>Key Findings:</p>",
+                "<ul><li>All compliance requirements met</li></ul>"
+            ])
+        else:
+            summary_parts.extend([
+                "<h2>Report Summary</h2>",
+                f"<p>Period: {data['start_date']} to {data['end_date']}</p>",
+                "<p>Key Highlights:</p>",
+                "<ul><li>Regular report summary available</li></ul>"
+            ])
+
+        return "\n".join(summary_parts)
+
+    @staticmethod
+    def _generate_manager_insights(report, report_data=None):
+        # Use provided report_data or generate new data
+        data = report_data or generate_comprehensive_report(report, None, None)
+        return f"""
+        <h2>Management Insights</h2>
+        <div class="insights-section">
+            <h3>Key Performance Indicators</h3>
+            <ul>
+                <li>Revenue Growth: {data['revenue_growth']}%</li>
+                <li>Operational Efficiency: {data['operational_efficiency']}%</li>
+                <li>Resource Utilization: {data['resource_utilization']}%</li>
+            </ul>
+            <h3>Action Items</h3>
+            <ul>
+                <li>Review performance metrics</li>
+                <li>Assess resource allocation</li>
+            </ul>
+        </div>
+        """
+
+    @staticmethod
+    def _generate_executive_summary(report, report_data=None):
+        # Use provided report_data or generate new data
+        data = report_data or generate_comprehensive_report(report, None, None)
+        return f"""
+        <h2>Executive Overview</h2>
+        <div class="executive-summary">
+            <p class="highlight">Overall Performance: {data['performance_rating']}</p>
+            <div class="metrics-grid">
+                <div class="metric">
+                    <h4>Financial Impact</h4>
+                    <p>{data,['financial_impact']}</p>
+                </div>
+                <div class="metric">
+                    <h4>Strategic Alignment</h4>
+                    <p>{data['strategic_alignment']}</p>
+                </div>
+            </div>
+        </div>
+        """
+
+class EmailSendingError(Exception):
+    """Custom exception for email sending failures"""
+    def __init__(self, message: str, attempts: int = 0):
+        self.attempts = attempts
+        super().__init__(f"{message} (Attempts made: {attempts})")
+
+def get_retry_config(exception: Exception) -> Dict[str, int]:
+    """Determine retry configuration based on exception type"""
+    if isinstance(exception, SMTPServerDisconnected):
+        return {'max_attempts': 5, 'min_wait': 2, 'max_wait': 8}
+    elif isinstance(exception, SMTPResponseException):
+        if exception.smtp_code == 421:  # Service not available
+            return {'max_attempts': 3, 'min_wait': 10, 'max_wait': 30}
+    return {'max_attempts': 3, 'min_wait': 4, 'max_wait': 10}
+
+def log_retry_attempt(retry_state):
+    """Log information about retry attempts"""
+    exc = retry_state.outcome.exception()
+    retry_config = get_retry_config(exc)
+    
+    if retry_state.attempt_number >= retry_config['max_attempts'] - 1:
+        logger.warning(
+            f"Final retry attempt. Error: {str(exc)}. "
+            f"Total attempts: {retry_state.attempt_number + 1}"
+        )
+    else:
+        logger.info(
+            f"Retry attempt {retry_state.attempt_number + 1} of {retry_config['max_attempts']}. "
+            f"Error: {str(exc)}"
+        )
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    retry=retry_if_exception_type((SMTPException, ConnectionError))
+)
+def send_enhanced_report_email(
+    report,
+    recipient: EmailRecipient,
+    include_summary: bool = True,
+    include_charts: bool = True,
+    start_date_str: Optional[str] = None,
+    end_date_str: Optional[str] = None
+) -> None:
+    """
+    Send enhanced report email with retry mechanism and improved error handling.
+    """
+    try:
+        if not start_date_str:
+            start_date_str = report.created_at.strftime('%Y-%m-%d')
+        if not end_date_str:
+            end_date_str = timezone.now().strftime('%Y-%m-%d')
+
+        report_data = generate_comprehensive_report(report, start_date_str, end_date_str)
+        logger.info(f"Email report data for {report.id}: Total Revenue: ${report_data['financial_overview']['total_revenue']}")
+
+        email_components = prepare_email_components(
+            report=report,
+            recipient=recipient,
+            include_summary=include_summary,
+            include_charts=include_charts,
+            report_data=report_data
+        )
+        
+        attempts = send_email_with_components(email_components, recipient)
+        
+        log_email_success(
+            report=report,
+            recipient=recipient,
+            report_data=report_data,
+            include_summary=include_summary,
+            include_charts=include_charts,
+            attempts=attempts
+        )
+        
+        logger.info(f"Report email sent successfully to {recipient.email}")
+
+    except Exception as e:
+        logger.error(f"Failed to send report email to {recipient.email}: {str(e)}")
+        raise EmailSendingError(str(e))
+
+def prepare_email_components(
+    report,
+    recipient: EmailRecipient,
+    include_summary: bool,
+    include_charts: bool,
+    report_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Prepare all components needed for the email.
+    """
+    try:
+        # Generate PDF report
+        pdf_content = generate_pdf_with_retry(report, report_data)
+        
+        # Get email template
+        email_template = Report.get_email_template()
+        if not email_template:
+            raise ValueError("Email template configuration is missing")
+        
+        # Generate email content
+        content_generator = ReportContentGenerator()
+        email_content = _generate_email_content(
+            report=report,
+            recipient=recipient,
+            include_summary=include_summary,
+            include_charts=include_charts,
+            content_generator=content_generator,
+            report_data=report_data
+        )
+        
+        # Prepare context
+        context = {
+            **report.generate_email_context(recipient_name=recipient.display_name),
+            'email_content': email_content,
+            'period_start': report_data['report_metadata']['period_start'],
+            'period_end': report_data['report_metadata']['period_end'],
+            'financial_overview': report_data['financial_overview'],
+            'performance_metrics': report_data['performance_metrics'],
+            'inventory_insights': report_data['inventory_insights']
+        }
+        
+        return {
+            'pdf_content': pdf_content,
+            'email_template': email_template,
+            'context': context,
+            'report_name': report.name,
+            'report_data': report_data
+        }
+    except Exception as e:
+        logger.error(f"Error preparing email components: {str(e)}")
+        raise
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    before_sleep=log_retry_attempt
+)
+def generate_pdf_with_retry(report, report_data: dict) -> bytes:
+    """Generate PDF report with retry mechanism"""
+    try:
+        with generate_pdf_report(report, report_data=report_data) as pdf_file:
+            return pdf_file.read()
+    except Exception as e:
+        logger.error(f"PDF generation failed: {str(e)}")
+        raise
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    before_sleep=log_retry_attempt
+)
+def send_email_with_components(
+    email_components: Dict[str, Any],
+    recipient: EmailRecipient
+) -> int:
+    """Send email with retry mechanism and return number of attempts"""
+    attempts = 0
+    
+    try:
+        html_template = Template(email_components['email_template'].template_content)
+        html_content = transform(html_template.render(Context(email_components['context'])))
+        text_content = strip_tags(html_content)
+        
+        period_str = (
+            f"{email_components['report_data']['report_metadata']['period_start']} to "
+            f"{email_components['report_data']['report_metadata']['period_end']}"
+        )
+        
+        msg = EmailMultiAlternatives(
+            subject=f"Report: {email_components['report_name']} - {period_str}",
+            body=text_content,
+            from_email=formataddr((settings.COMPANY_NAME, settings.DEFAULT_FROM_EMAIL)),
+            to=[formataddr((recipient.display_name, recipient.email))]
+        )
+        
+        msg.attach_alternative(html_content, "text/html")
+        msg.attach(
+            f"{email_components['report_name']}_report.pdf",
+            email_components['pdf_content'],
+            'application/pdf'
+        )
+        
+        msg.send(fail_silently=False)
+        return attempts
+        
+    except SMTPResponseException as e:
+        attempts += 1
+        logger.warning(
+            f"SMTP response error (code: {e.smtp_code}) on attempt {attempts}: {str(e)}"
+        )
+        raise
+    except SMTPException as e:
+        attempts += 1
+        logger.warning(f"SMTP error on attempt {attempts}: {str(e)}")
+        raise
+    except Exception as e:
+        attempts += 1
+        logger.error(f"Unexpected error on attempt {attempts}: {str(e)}")
+        raise
+
+def log_email_success(
+    report,
+    recipient: EmailRecipient,
+    report_data: dict,
+    include_summary: bool,
+    include_charts: bool,
+    attempts: int
+) -> None:
+    """Log successful email sending with metadata"""
+    # Get user if exists
+    User = get_user_model()
+    try:
+        user = User.objects.get(email=recipient.email)
+    except User.DoesNotExist:
+        user = None
+    
+    # Create access log
+    ReportAccessLog.objects.create(
+        report=report,
+        user=user,
+        action='email_sent',
+        metadata={
+            'recipient_email': recipient.email,
+            'recipient_role': recipient.role,
+            'included_summary': include_summary,
+            'included_charts': include_charts,
+            'pdf_attached': True,
+            'period_start': report_data['report_metadata']['period_start'],
+            'period_end': report_data['report_metadata']['period_end'],
+            'data_timestamp': timezone.now().isoformat(),
+            'sending_attempts': attempts
+        }
+    )
+    
+    if attempts > 1:
+        logger.warning(f"Email sent successfully after {attempts} attempts to {recipient.email}")
+
+def _generate_email_content(
+    report,
+    recipient: EmailRecipient,
+    include_summary: bool,
+    include_charts: bool,
+    content_generator: ReportContentGenerator,
+    report_data: dict
+) -> str:
+    content_parts = []
+
+    financial_data = report_data['financial_overview']
+    performance_data = report_data['performance_metrics']
+    
+    if recipient.is_administrator:
+        content_parts.extend([
+            "<h2>Administrative Overview</h2>",
+            f"<p>Period: {report_data['report_metadata']['period_start']} to {report_data['report_metadata']['period_end']}</p>",
+            f"<p>Total Revenue: ${financial_data['total_revenue']:,.2f}</p>",
+            f"<p>Net Profit: ${financial_data['net_profit']:,.2f}</p>",
+            f"<p>Total Orders: {performance_data['order_performance']['total_orders']}</p>"
+        ])
+    elif recipient.is_auditor:
+        content_parts.extend([
+            "<h2>Audit Summary</h2>",
+            f"<p>Financial Period: {report_data['report_metadata']['period_start']} to {report_data['report_metadata']['period_end']}</p>",
+            f"<p>Revenue Verified: ${financial_data['total_revenue']:,.2f}</p>",
+            f"<p>Expenses Verified: ${financial_data['operating_expenses']:,.2f}</p>",
+            f"<p>Cost of Services: ${financial_data['cost_of_services']:,.2f}</p>"
+        ])
+    else:
+        content_parts.extend([
+            "<h2>Report Summary</h2>",
+            f"<p>Period: {report_data['report_metadata']['period_start']} to {report_data['report_metadata']['period_end']}</p>",
+            "<p>Performance Overview:</p>",
+            f"<p>Average Order Value: ${performance_data['order_performance']['average_order_value']:,.2f}</p>"
+        ])
+
+    return "\n".join(content_parts)
 
 
 def validate_date_range(start_date_str, end_date_str):
@@ -289,19 +689,20 @@ def generate_comprehensive_report(report, start_date_str=None, end_date_str=None
     except ValueError as e:
         raise ValueError(f"Error generating report: {str(e)}")
 
-class ChartPlaceholder(Flowable):
-    """Custom flowable for chart placeholders"""
-    def __init__(self, width, height):
-        Flowable.__init__(self)
-        self.width = width
-        self.height = height
+def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_data=None):
+    """Generate a comprehensive PDF report with financial and inventory analysis."""
+    logger.info(f"Beginning PDF generation for report: {report.name}")
+    # Generate report data if not provided
+    if report_data is None:
+        report_data = generate_comprehensive_report(report, start_date_str, end_date_str)
 
-    def draw(self):
-        self.canv.rect(0, 0, self.width, self.height)
-        self.canv.line(0, 0, self.width, self.height)
-        self.canv.line(self.width, 0, 0, self.height)
+    logger.info(f"Report data for PDF generation: {report_data}")
 
-def generate_pdf_report(report, start_date_str=None, end_date_str=None):
+    logger.info(f"Initial financial data for report {report.name}:")
+    logger.info(f"Total Revenue: ${report_data['financial_overview']['total_revenue']:,.2f}")
+    logger.info(f"Cost of Services: ${report_data['financial_overview']['cost_of_services']:,.2f}")
+    logger.info(f"Operating Expenses: ${report_data['financial_overview']['operating_expenses']:,.2f}")
+    logger.info(f"Net Profit: ${report_data['financial_overview']['net_profit']:,.2f}")
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -313,6 +714,7 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
         bottomMargin=30
     )
 
+    # Define document styles
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
         name='MainTitle',
@@ -320,7 +722,7 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
         fontSize=24,
         spaceAfter=30,
         alignment=TA_CENTER,
-        textColor=colors.HexColor('#1a237e')  # Dark blue for corporate look
+        textColor=colors.HexColor('#1a237e')
     ))
 
     styles.add(ParagraphStyle(
@@ -329,7 +731,7 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
         fontSize=16,
         spaceBefore=20,
         spaceAfter=12,
-        textColor=colors.HexColor('#283593'),  # Slightly lighter blue
+        textColor=colors.HexColor('#283593'),
         borderWidth=1,
         borderColor=colors.HexColor('#e8eaf6'),
         borderPadding=10,
@@ -351,45 +753,18 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
     bodyStyle.spaceBefore = 6
     bodyStyle.spaceAfter = 6
 
+    # Initialize content list
     content = []
 
-    # Create header with company logo placeholder
-    # img = Image('path_to_logo.png', width=100, height=50)  # Uncomment and adjust when logo is available
-    # content.append(img)
-
+    # Set up period text
     period_text = f"Report Period: {start_date_str} to {end_date_str}" if start_date_str and end_date_str else "Complete Business Overview"
+    
+    # Add report headers
     content.append(Paragraph(period_text, styles['SubHeader']))
     content.append(Paragraph(f"Financial & Inventory Analysis Report", styles['MainTitle']))
     content.append(Paragraph(report.name, styles['SubHeader']))
 
-    metadata_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e8eaf6')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#1a237e')),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e8eaf6'))
-    ])
-
-    report_data = generate_comprehensive_report(report, start_date_str, end_date_str)
-
-    content.append(Paragraph("Executive Summary", styles['SectionHeader']))
-    executive_summary = f"""
-    This comprehensive report provides a detailed analysis of {report.name}'s financial performance,
-    inventory status, and key business metrics. The analysis covers {period_text.lower()}.
-    """
-    content.append(Paragraph(executive_summary, styles['BodyText']))
-    content.append(Spacer(1, 20))
-
-    content.append(Paragraph("Financial Performance Overview", styles['SectionHeader']))
-
-    financial_data = report_data['financial_overview']
+    # Define table styles
     financial_table_style = TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e8eaf6')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#1a237e')),
@@ -403,6 +778,21 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
         ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e8eaf6'))
     ])
 
+    # Add executive summary
+    content.append(Paragraph("Executive Summary", styles['SectionHeader']))
+    executive_summary = f"""
+    This comprehensive report provides a detailed analysis of {report.name}'s financial performance,
+    inventory status, and key business metrics. The analysis covers {period_text.lower()}.
+    """
+    content.append(Paragraph(executive_summary, styles['BodyText']))
+    content.append(Spacer(1, 20))
+
+    # Add financial overview
+    content.append(Paragraph("Financial Performance Overview", styles['SectionHeader']))
+    financial_data = report_data['financial_overview']
+    logger.info(f"Financial data before table creation for report {report.name}:")
+    logger.info(f"Financial data content: {financial_data}")
+    
     financial_summary = [
         ['Metric', 'Amount', 'Analysis'],
         ['Total Revenue', f"${financial_data['total_revenue']:,.2f}", 'Gross business income'],
@@ -411,15 +801,14 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
         ['Net Profit', f"${financial_data['net_profit']:,.2f}", 'Bottom line earnings']
     ]
 
-    financial_table = create_styled_table(
-        financial_summary,
-        headers=['Metric', 'Amount', 'Analysis'],
-        style_type='financial'
-    )
+    logger.info(f"Generated financial summary table rows: {financial_summary}")
+
+    financial_table = Table(financial_summary, colWidths=[doc.width/3.0]*3)
     financial_table.setStyle(financial_table_style)
     content.append(financial_table)
     content.append(Spacer(1, 20))
 
+    # Add revenue categories
     content.append(Paragraph("Revenue by Category", styles['SectionHeader']))
     income_data = [[
         category['category'],
@@ -434,6 +823,7 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
     content.append(income_table)
     content.append(Spacer(1, 20))
 
+    # Add inventory analytics
     content.append(Paragraph("Inventory Analytics", styles['SectionHeader']))
     inventory_data = report_data['inventory_insights']
 
@@ -444,15 +834,12 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
         ['Low Stock Alert', str(inventory_data['low_stock_products'].count()), 'Items needing reorder']
     ]
 
-    inventory_table = create_styled_table(
-        inventory_summary,
-        headers=['Metric', 'Current Status', 'Notes'],
-        style_type='inventory'
-    )
+    inventory_table = Table(inventory_summary, colWidths=[doc.width/3.0]*3)
     inventory_table.setStyle(financial_table_style)
     content.append(inventory_table)
     content.append(Spacer(1, 20))
 
+    # Add performance metrics
     content.append(Paragraph("Business Performance Metrics", styles['SectionHeader']))
     performance_data = report_data['performance_metrics']
 
@@ -468,6 +855,7 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
     performance_table.setStyle(financial_table_style)
     content.append(performance_table)
 
+    # Add page numbers
     def add_page_number(canvas, doc):
         page_num = canvas.getPageNumber()
         text = f"Page {page_num}"
@@ -476,15 +864,24 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None):
         canvas.drawRightString(doc.pagesize[0] - 50, 30, text)
         canvas.restoreState()
 
+    logger.info(f"Preparing to build PDF document for report {report.name}")
+    logger.info(f"Content length: {len(content)} sections")
+
+    # Build the PDF document
     doc.build(content, onFirstPage=add_page_number, onLaterPages=add_page_number)
 
+    # Prepare the final PDF file
     pdf_content = buffer.getvalue()
+    buffer_size = len(pdf_content)
+    logger.info(f"PDF generation completed. Buffer size: {buffer_size} bytes")
+
     buffer.close()
 
     formatted_date = datetime.now().strftime("%Y%m%d")
     pdf_file = ContentFile(pdf_content)
     pdf_file.name = f"{report.name}_Financial_Analysis_{formatted_date}.pdf"
 
+    logger.info(f"PDF file created successfully: {pdf_file.name}")
     return pdf_file
 
 def create_styled_table(data, headers=None, style_type='default'):
@@ -534,42 +931,54 @@ def create_styled_table(data, headers=None, style_type='default'):
     return table
     
 
-def send_report_email(report, recipient_email):
-    email_template = Report.objects.filter(is_template=True, name="Basic Email Template").first()
-    
-    if not email_template:
-        raise ValueError("Email template not found")
+def send_report_email(report, recipient_email, request=None, include_summary=True, include_charts=True):
+    try:
+        logger.info(f"Starting email preparation for report: {report.name}")
+        # Generate report data
+        report_data = generate_comprehensive_report(report, None, None)
 
-    subject_entry = email_template.entries.filter(title="Email Subject").first()
-    body_entry = email_template.entries.filter(title="Email Body").first()
+        logger.info(f"Generated report data for email - Financial Overview:")
+        logger.info(f"Total Revenue: ${report_data['financial_overview']['total_revenue']:,.2f}")
+        logger.info(f"Net Profit: ${report_data['financial_overview']['net_profit']:,.2f}")
+        
+        pdf_file = generate_pdf_report(report, report_data=report_data)
+        pdf_content = pdf_file.read()
+        
+        logger.info(f"PDF generated for email. Size: {len(pdf_content)} bytes")
 
-    if not subject_entry or not body_entry:
-        raise ValueError("Email template is missing subject or body")
+        email_template = Report.objects.filter(
+            is_template=True,
+            name="Basic Email Template"
+        ).first()
 
-    subject_template = Template(subject_entry.content)
-    body_template = Template(body_entry.content)
+        if not email_template:
+            raise ValueError("Email template not found")
 
-    context = Context({
-        'report_name': report.name,
-        'recipient_name': recipient_email.split('@')[0]  # Simple way to get a name from email
-    })
+        msg = EmailMultiAlternatives(
+            subject=f"Financial Report: {report.name}",
+            body=body_template.render(context),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient_email]
+        )
 
-    subject = subject_template.render(context)
-    message = body_template.render(context)
+        # Attach the PDF directly without creating additional buffers
+        msg.attach(
+            filename=f"{report.name}_report.pdf",
+            content=pdf_content,
+            mimetype='application/pdf'
+        )
+        
+        logger.info("PDF attached to email message")
 
-    from_email = settings.DEFAULT_FROM_EMAIL
-    recipient_list = [recipient_email]
+        msg.send(fail_silently=False)
+        
+        logger.info(f"Report email sent successfully to {recipient_email} with PDF size: {len(pdf_content)} bytes")
 
-    pdf_file = generate_pdf_report(report)
+        return True
 
-    send_mail(
-        subject,
-        message,
-        from_email,
-        recipient_list,
-        fail_silently=False,
-        attachments=[(f"{report.name}_report.pdf", pdf_file.read(), 'application/pdf')]
-    )
+    except Exception as e:
+        logger.error(f"Error sending report email: {str(e)}")
+        raise EmailSendingError(str(e))
 
 def export_report_to_csv(report):
     """
@@ -649,7 +1058,6 @@ def export_report_to_excel(report):
         ContentFile: An Excel file with detailed report information
     """
     import pandas as pd
-    from datetime import datetime
 
     def make_timezone_unaware(value):
         """Convert timezone-aware datetime to timezone-unaware."""

@@ -15,7 +15,13 @@ env = environ.Env(
        DB_USER=(str, None),
        DB_PASSWORD=(str, None),
        DB_HOST=(str, 'localhost'),
-       DB_PORT=(int, 3306)
+       DB_PORT=(int, 3306),
+       EMAIL_BACKEND=(str, 'django.core.mail.backends.smtp.EmailBackend'),
+       EMAIL_HOST=(str, 'smtp.gmail.com'),
+       EMAIL_PORT=(int, 587),
+       EMAIL_USE_TLS=(bool, True),
+       EMAIL_HOST_USER=(str, ''),
+       EMAIL_HOST_PASSWORD=(str, '')
    )
 
 # reading .env file
@@ -29,12 +35,13 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
+# Email Configuration
+EMAIL_BACKEND = env('EMAIL_BACKEND')
 EMAIL_HOST = env('EMAIL_HOST')
 EMAIL_PORT = env('EMAIL_PORT', cast=int)
+EMAIL_USE_TLS = env('EMAIL_USE_TLS', cast=bool)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
-EMAIL_USE_TLS = env('EMAIL_USE_TLS', cast=bool)
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 
 LOGGING = {
     'version': 1,
@@ -84,6 +91,9 @@ CACHES = {
 
 # Configure django-user-agents to use caching
 USER_AGENTS_CACHE = 'default'
+
+COMPANY_NAME = "verifi"
+COMPANY_LOGO_URL = BASE_DIR / 'static' / 'Logo 10.png'
 
 
 # Application definition

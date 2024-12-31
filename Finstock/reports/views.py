@@ -16,13 +16,14 @@ from django.core.exceptions import PermissionDenied
 from .models import Report, ReportEntry, ReportFile, CalculatedField, ReportAccessLog
 from rest_framework.permissions import IsAuthenticated
 from .serializers import ReportSerializer, ReportEntrySerializer, ReportFileSerializer, CalculatedFieldSerializer, ReportAccessLogSerializer
-from .utils import generate_pdf_report, send_report_email, export_report_to_csv, export_report_to_excel, calculate_custom_field, save_generated_file, validate_date_range
+from .utils import generate_pdf_report, send_report_email, export_report_to_csv, export_report_to_excel, calculate_custom_field, save_generated_file, validate_date_range, EmailRecipient, ReportContentGenerator, send_enhanced_report_email, _generate_email_content
 from django.core.cache import cache
 from django.db.models import Q
 import logging
 import traceback
 from datetime import datetime
 from django.utils.timezone import make_aware
+from django.contrib.auth import get_user_model
 
 logger = logging.getLogger(__name__)
 
@@ -314,11 +315,60 @@ class ReportViewSet(BaseAccessControlViewSet):
     def email_report(self, request, pk=None):
         report = self.get_object()
         recipient_email = request.data.get('email')
+        start_date = request.data.get('start_date')
+        end_date = request.data.get('end_date')
+    
         if not recipient_email:
             return Response({'error': 'Recipient email is required.'}, status=400)
-        send_report_email(report, recipient_email)
-        ReportAccessLog.objects.create(report=report, user=request.user, action='email')
-        return Response({'message': 'Report sent successfully.'})
+        
+        try:
+            # Create EmailRecipient with role information
+            recipient = EmailRecipient(
+                email=recipient_email,
+                full_name=request.data.get('recipient_name'),
+                role=request.user.get_roles(),
+                permissions=request.user.get_permissions()
+            )
+        
+            # Look up if the recipient email corresponds to a registered user
+            User = get_user_model()
+            try:
+                recipient_user = User.objects.get(email=recipient_email)
+            except User.DoesNotExist:
+                recipient_user = None
+            
+            # Create the access log entry before sending email
+            log_entry = ReportAccessLog.objects.create(
+                report=report,
+                user=recipient_user,  # This will be None for non-registered users
+                action='email_sent',
+                metadata={
+                    'recipient_email': recipient_email,
+                    'recipient_name': request.data.get('recipient_name'),
+                    'include_summary': request.data.get('include_summary', True),
+                    'include_charts': request.data.get('include_charts', True),
+                    'sent_by': request.user.email
+                }
+            )
+        
+            # Send enhanced email with role-based content
+            send_enhanced_report_email(
+                report,
+                recipient,
+                start_date_str=start_date,
+                end_date_str=end_date,
+                include_summary=request.data.get('include_summary', True),
+                include_charts=request.data.get('include_charts', True)
+            )
+        
+            return Response({'message': 'Report sent successfully.'})
+        
+        except Exception as e:
+            logger.error(f"Error sending enhanced report email: {str(e)}")
+            return Response(
+                {'error': 'Failed to send report email. Please try again.'},
+                status=500
+            )
 
     @action(detail=True, methods=['get'])
     def export_csv(self, request, pk=None):
