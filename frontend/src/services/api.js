@@ -1148,42 +1148,93 @@ export const fetchReports = async () => {
 
 // Function to generate reports
 export const generateReport = async (reportData) => {
+  if (!reportData || !reportData.name) {
+    throw new Error('Report name is required');
+  }
+
   try {
-    if (!reportData || !reportData.name) {
-      throw new Error('Report name is required');
+    // Sanitize and prepare report data
+    const sanitizedReportData = {
+      name: String(reportData.name).trim(), // Ensure name is a string and trimmed
+      description: reportData.description || `Generated on ${new Date().toLocaleString()}`,
+      is_template: !!reportData.is_template,
+      start_date: reportData.startDate || null,
+      end_date: reportData.endDate || null
+    };
+
+    // Validate name is not empty after trimming
+    if (!sanitizedReportData.name) {
+      throw new Error('Report name cannot be empty');
     }
-    const response = await axiosInstance.post('/reports/reports/', reportData);
+
+    // Perform deep clone to remove any potential circular references
+    const cleanPayload = JSON.parse(JSON.stringify(sanitizedReportData));
+
+    // Make API call with clean, sanitized data
+    const response = await axiosInstance.post('/reports/reports/', cleanPayload, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
     return response.data;
   } catch (error) {
+    // Comprehensive error handling
     if (error.response) {
-      console.error("Error generating report:", error.response.data);
-      throw new Error(`Failed to generate report: ${error.response.data.message || 'Unknown error'}`);
-    } else if (error.request) {
-      console.error("No response received when generating report");
-      throw new Error('No response received from server');
-    } else {
-      console.error("Error setting up request to generate report:", error.message);
-      throw new Error('Error setting up request');
+      // Server responded with an error status
+      const errorMessage = 
+        (error.response.data.name && error.response.data.name[0]) ||
+        error.response.data.detail || 
+        error.response.data.message || 
+        'An unknown error occurred';
+
+      throw new Error(errorMessage);
     }
+    throw error;
   }
 };
 
 // Function to download reports
-export const downloadReport = async (id) => {
+export const downloadReport = async (id, startDate = null, endDate = null) => {
   try {
-    const response = await axiosInstance.get(`/reports/reports/${id}/`);
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    const response = await axiosInstance.post(
+      `/reports/reports/${id}/generate_pdf/${params.toString() ? '?' + params.toString() : ''}`,
+      {},
+      { responseType: 'blob' }
+    );
+    
+    // Create a blob URL and trigger download
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `report_${id}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
     return response.data;
   } catch (error) {
-    if (error.response) {
-      console.error("Error downloading report:", error.response.data);
-      throw new Error(`Failed to download report: ${error.response.data.message || 'Unknown error'}`);
-    } else if (error.request) {
-      console.error("No response received when downloading report");
-      throw new Error('No response received from server');
-    } else {
-      console.error("Error setting up request to download report:", error.message);
-      throw new Error('Error setting up request');
+    if (error.response && error.response.status === 404) {
+      throw new Error('Report not found or not yet ready for download');
     }
+    console.error("PDF Download Error:", error);
+    throw new Error(`Failed to download PDF: ${error.message}`);
+  }
+};
+
+// Function to delete report
+export const deleteReport = async (id) => {
+  try {
+    const response = await axiosInstance.delete(`/reports/reports/${id}/`);
+    return response.data;
+  } catch (error) {
+    console.error("Delete Report Error:", error);
+    throw new Error(`Failed to delete report: ${error.message}`);
   }
 };
 
@@ -1208,6 +1259,29 @@ export async function exportReportToExcel(reportId) {
     throw error;
   }
 }
+
+export const sendReportEmail = async (reportId, emailData, dateRange) => {
+  try {
+    const requestData = {
+      ...emailData,
+      start_date: dateRange.startDate,
+      end_date: dateRange.endDate
+    };
+    const response = await axiosInstance.post(`/reports/reports/${reportId}/email_report/`, requestData);
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      console.error("Error sending report email:", error.response.data);
+      throw new Error(`Failed to send report email: ${error.response.data.message || 'Unknown error'}`);
+    } else if (error.request) {
+      console.error("No response received when sending report email");
+      throw new Error('No response received from server');
+    } else {
+      console.error("Error setting up request to send report email:", error.message);
+      throw new Error('Error setting up request');
+    }
+  }
+};
 
 // Function to clone a report template
 export async function cloneReportTemplate(templateId) {
@@ -1487,6 +1561,19 @@ export const fetchPermissions = async () => {
   }
 };
 
+export const fetchUserPermissions = async () => {
+  try {
+    const response = await axiosInstance.get('/users/permissions/');
+    return {
+      permissions: response.data.permissions || [],
+      accessibleRoutes: response.data.accessible_routes || []
+    };
+  } catch (error) {
+    console.error('Error fetching user permissions:', error);
+    throw error;
+  }
+};
+
 // Function to fetch roles
 export const fetchRoles = async () => {
   const response = await axiosInstance.get('/users/roles/');
@@ -1515,10 +1602,30 @@ export const updateRole = async (roleId, roleData) => {
       description: roleData.description,
       permission_ids: roleData.permissions.map(p => p.id || p)
     });
+    // Trigger a comprehensive permission refresh mechanism
+    await triggerPermissionRefresh(roleId);
     return response.data;
   } catch (error) {
     console.error('Error updating role:', error);
     throw error;
+  }
+};
+
+// Permission refresh utility
+const triggerPermissionRefresh = async (roleId) => {
+  try {
+    // Endpoint to force permission re-evaluation
+    await axiosInstance.post('/api/auth/refresh-permissions/', {
+      role_id: roleId,
+      refresh_type: 'full'
+    });
+
+    // Optional: Invalidate existing authentication tokens
+    await invalidateUserTokens();
+  } catch (refreshError) {
+    console.error('Permission refresh failed:', refreshError);
+    // Implement fallback mechanism or user notification
+    throw refreshError;
   }
 };
 

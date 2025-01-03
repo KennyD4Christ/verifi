@@ -29,12 +29,25 @@ const ReportProvider = ({ children }) => {
 
   const addReport = async (report) => {
     try {
+      console.log('Creating report with payload:', report);
       const newReport = await createReport(report);
-      setReports((prevReports) => [...prevReports, newReport]);
+      console.log('New report created:', newReport);
+
+      // Optional: Refetch reports to ensure consistency
+      const updatedReports = await fetchReports();
+      setReports(updatedReports);
+
       return newReport;
     } catch (error) {
-      console.error('Failed to create report:', error);
-      throw new Error('Failed to create report');
+      console.error('Detailed error in report creation:', error);
+    
+      const errorMessage = 
+        error.response?.data?.name?.[0] ||
+        error.response?.data?.detail ||
+        error.message ||
+        'Failed to create report. Please check your input.';
+
+      throw new Error(errorMessage);
     }
   };
 

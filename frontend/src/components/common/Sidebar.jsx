@@ -5,6 +5,7 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useAuth } from '../../context/AuthContext';
 import {
   FaHome,
   FaExchangeAlt,
@@ -62,7 +63,7 @@ const SidebarToggle = styled.button`
   cursor: pointer;
   font-size: 1.2rem;
   transition: transform 0.3s;
-  
+
   &:hover {
     transform: scale(1.1);
   }
@@ -130,7 +131,8 @@ const Sidebar = ({ theme, collapse, onToggle }) => {
     { id: '6', label: 'Orders', path: '/orders', icon: FaShoppingCart, visible: true },
     { id: '7', label: 'Customers', path: '/customers', icon: FaUsers, visible: true },
     { id: '8', label: 'User Roles', path: '/user-roles', icon: FaUserShield, visible: true },
-    { id: '9', label: 'Reports', path: '/reports', icon: FaChartBar, visible: true },
+    { id: '9', label: 'User Management', path: '/user-management', icon: FaUsers, visible: true },
+    { id: '10', label: 'Reports', path: '/reports', icon: FaChartBar, visible: true },
   ]);
 
   const visibleMenuItems = menuItems.filter(item => item.visible);

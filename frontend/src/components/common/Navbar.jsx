@@ -77,7 +77,7 @@ const Navbar = () => {
           <NavLink to="/transactions">Transactions</NavLink>
           <NavLink to="/stock-levels">Stock Levels</NavLink>
           <NavLink to="/user-roles">User Roles</NavLink>
-	  <NavLink to="/user-management">User Management</NavLink>
+          <NavLink to="/user-management">User Management</NavLink>
           <NavLink to="/reports">Reports</NavLink>
           <NavLink to="/products">Products</NavLink>
           <NavLink to="/customers">Customers</NavLink>

@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import authService from '../services/authService';
 import { isTokenPresent, getAuthHeader } from '../utils/auth';
+import fetchUserPermissions from '../services/api';
 
 export const AuthContext = createContext();
 
@@ -12,11 +13,27 @@ const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [permissions, setPermissions] = useState([]);
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
 
   const isAuthenticated = useCallback(() => {
     console.log('isAuthenticated called. Token present:', isTokenPresent());
     return isTokenPresent();
   }, []);
+
+  // Load user permissions after authentication
+  const loadUserPermissions = async () => {
+    try {
+      setIsLoadingPermissions(true);
+      const { permissions } = await fetchUserPermissions();
+      setPermissions(permissions);
+    } catch (error) {
+      console.error('Failed to load user permissions:', error);
+      setPermissions([]);
+    } finally {
+      setIsLoadingPermissions(false);
+    }
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -56,11 +73,12 @@ const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
+      setLoading(true);
       const userData = await authService.login(username, password);
       if (userData && userData.token) {
         localStorage.setItem('token', userData.token);
         setUser(userData.user);
-        console.log('User set after login:', userData.user);
+	await loadUserPermissions();
         return userData;
       } else {
         throw new Error('Invalid user data received');
@@ -69,7 +87,9 @@ const AuthProvider = ({ children }) => {
       console.error('Login failed:', error);
       setError(error.message || 'Login failed');
       throw error;
-    }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = async () => {
@@ -85,6 +105,11 @@ const AuthProvider = ({ children }) => {
     }
   };
 
+  // Method to check if user has a specific permission
+  const hasPermission = (requiredPermission) => {
+    return permissions.includes(requiredPermission);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -94,6 +119,9 @@ const AuthProvider = ({ children }) => {
         error,
         login,
         logout,
+	hasPermission,
+	isLoadingPermissions,
+        permissions,
         isAuthenticated,
         isInitialized,
 	authChecked
