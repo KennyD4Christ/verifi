@@ -51,6 +51,10 @@ from email.utils import formataddr
 import bleach
 from premailer import transform
 from django.contrib.auth import get_user_model
+from openpyxl.styles import NamedStyle, PatternFill, Font, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.dimensions import ColumnDimension
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -1098,74 +1102,186 @@ def export_report_to_csv(report):
     
     return csv_file
 
-def export_report_to_excel(report):
+def create_excel_styles(workbook):
+    """Create and return a dictionary of named styles for consistent Excel formatting."""
+    # Define common elements
+    header_font = Font(name='Calibri', size=12, bold=True, color='1A237E')
+    normal_font = Font(name='Calibri', size=11)
+    border = Border(
+        left=Side(style='thin', color='E8EAF6'),
+        right=Side(style='thin', color='E8EAF6'),
+        top=Side(style='thin', color='E8EAF6'),
+        bottom=Side(style='thin', color='E8EAF6')
+    )
+
+    # Header style
+    header_style = NamedStyle(name='header_style')
+    header_style.font = header_font
+    header_style.fill = PatternFill(start_color='E8EAF6', end_color='E8EAF6', fill_type='solid')
+    header_style.alignment = Alignment(horizontal='center', vertical='center')
+    header_style.border = border
+    workbook.add_named_style(header_style)
+
+    # Currency style
+    currency_style = NamedStyle(name='currency_style', number_format='$#,##0.00')
+    currency_style.font = normal_font
+    currency_style.alignment = Alignment(horizontal='right')
+    currency_style.border = border
+    workbook.add_named_style(currency_style)
+
+    # Percentage style
+    percentage_style = NamedStyle(name='percentage_style', number_format='0.0%')
+    percentage_style.font = normal_font
+    percentage_style.alignment = Alignment(horizontal='center')
+    percentage_style.border = border
+    workbook.add_named_style(percentage_style)
+
+    # Normal cell style
+    normal_style = NamedStyle(name='normal_style')
+    normal_style.font = normal_font
+    normal_style.alignment = Alignment(horizontal='left')
+    normal_style.border = border
+    workbook.add_named_style(normal_style)
+
+    return {
+        'header': header_style,
+        'currency': currency_style,
+        'percentage': percentage_style,
+        'normal': normal_style
+    }
+
+def format_worksheet(worksheet, data_frame, styles, start_row=1):
+    """Apply formatting to worksheet based on data types and column names."""
+    # Auto-adjust column widths
+    for idx, col in enumerate(data_frame.columns, 1):
+        max_length = max(
+            data_frame[col].astype(str).apply(len).max(),
+            len(str(col))
+        )
+        worksheet.column_dimensions[get_column_letter(idx)].width = min(max_length + 2, 50)
+
+    # Apply header styling
+    for cell in worksheet[start_row]:
+        cell.style = styles['header']
+
+    # Apply data styling based on column content
+    for idx, col in enumerate(data_frame.columns, 1):
+        col_letter = get_column_letter(idx)
+        for row in range(start_row + 1, worksheet.max_row + 1):
+            cell = worksheet[f"{col_letter}{row}"]
+            
+            if 'amount' in col.lower() or 'revenue' in col.lower() or 'cost' in col.lower():
+                cell.style = styles['currency']
+            elif 'percentage' in col.lower() or 'share' in col.lower():
+                cell.style = styles['percentage']
+            else:
+                cell.style = styles['normal']
+
+def export_report_to_excel(report, start_date_str=None, end_date_str=None):
     """
-    Generate a comprehensive Excel report with multiple worksheets.
+    Generate a comprehensive Excel report with financial and inventory analysis.
     
     Args:
-        report (Report): The report object to export
+        report: Report instance
+        start_date_str: Optional start date in YYYY-MM-DD format
+        end_date_str: Optional end date in YYYY-MM-DD format
     
     Returns:
-        ContentFile: An Excel file with detailed report information
+        ContentFile: Excel file content
     """
-    import pandas as pd
-
-    def make_timezone_unaware(value):
-        """Convert timezone-aware datetime to timezone-unaware."""
-        if isinstance(value, datetime) and value.tzinfo is not None:
-            return value.astimezone(tz=None).replace(tzinfo=None)
-        return value
-    
-    # Prepare report metadata
-    metadata_df = pd.DataFrame([{
-        'Name': report.name,
-        'Description': report.description or 'No description',
-        'Created By': str(report.created_by),
-        'Created At': make_timezone_unaware(report.created_at),
-        'Last Modified': make_timezone_unaware(report.updated_at),
-        'Is Archived': report.is_archived,
-        'Is Template': report.is_template
-    }])
-    
-    # Prepare entries
-    entries_data = [{
-        'Title': entry.title,
-        'Content': entry.content,
-        'Order': entry.order,
-        'Created By': str(entry.created_by),
-        'Created At': make_timezone_unaware(entry.created_at)
-    } for entry in report.entries.order_by('order')]
-    entries_df = pd.DataFrame(entries_data)
-    
-    # Prepare files associated with entries
-    files_data = []
-    for entry in report.entries.all():
-        for file in entry.files.all():
-            files_data.append({
-                'Entry Title': entry.title,
-                'File Name': file.file,
-                'File Type': file.file_type,
-                'Uploaded By': str(file.uploaded_by),
-                'Uploaded At': make_timezone_unaware(file.uploaded_at)
-            })
-    files_df = pd.DataFrame(files_data) if files_data else pd.DataFrame()
-    
-    # Write to Excel
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-        metadata_df.to_excel(writer, sheet_name='Report Metadata', index=False)
-        entries_df.to_excel(writer, sheet_name='Report Entries', index=False)
+    try:
+        # Generate comprehensive report data
+        report_data = generate_comprehensive_report(report, start_date_str, end_date_str)
         
-        if not files_df.empty:
-            files_df.to_excel(writer, sheet_name='Associated Files', index=False)
-    
-    excel_content = buffer.getvalue()
-    buffer.close()
-    
-    excel_file = ContentFile(excel_content)
-    excel_file.name = f"{report.name}_comprehensive_report.xlsx"
-    
-    return excel_file
+        buffer = io.BytesIO()
+        
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            workbook = writer.book
+            styles = create_excel_styles(workbook)
+
+            # Overview Sheet
+            overview_data = pd.DataFrame([{
+                'Report Name': report.name,
+                'Period': f"Report Period: {start_date_str} to {end_date_str}" if start_date_str and end_date_str else "Complete Business Overview",
+                'Generated On': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'Generated By': str(report.created_by)
+            }])
+            overview_data.to_excel(writer, sheet_name='Overview', index=False)
+            format_worksheet(writer.sheets['Overview'], overview_data, styles)
+
+            # Financial Overview
+            financial_data = pd.DataFrame([
+                {'Metric': key, 'Amount': value, 'Analysis': desc} 
+                for key, value, desc in [
+                    ('Total Revenue', report_data['financial_overview']['total_revenue'], 'Gross business income'),
+                    ('Cost of Services', report_data['financial_overview']['cost_of_services'], 'Direct service costs'),
+                    ('Operating Expenses', report_data['financial_overview']['operating_expenses'], 'Operational costs'),
+                    ('Net Profit', report_data['financial_overview']['net_profit'], 'Bottom line earnings')
+                ]
+            ])
+            financial_data.to_excel(writer, sheet_name='Financial Overview', index=False)
+            format_worksheet(writer.sheets['Financial Overview'], financial_data, styles)
+
+            # Revenue Categories
+            revenue_data = pd.DataFrame([{
+                'Category': cat['category'],
+                'Revenue': cat['total_amount'],
+                'Transaction Count': cat['transaction_count'],
+                'Revenue Share': cat['total_amount'] / report_data['financial_overview']['total_revenue']
+            } for cat in report_data['financial_overview']['income_breakdown']])
+            revenue_data.to_excel(writer, sheet_name='Revenue Analysis', index=False)
+            format_worksheet(writer.sheets['Revenue Analysis'], revenue_data, styles)
+
+            # Inventory Analysis
+            inventory_data = pd.DataFrame([{
+                'Metric': 'Total Products',
+                'Value': report_data['inventory_insights']['total_product_count'],
+                'Notes': 'Active inventory items'
+            }, {
+                'Metric': 'Stock Value',
+                'Value': report_data['inventory_insights']['total_stock_value'],
+                'Notes': 'Total inventory worth'
+            }, {
+                'Metric': 'Low Stock Alert',
+                'Value': report_data['inventory_insights']['low_stock_products'].count(),
+                'Notes': 'Items needing reorder'
+            }])
+            inventory_data.to_excel(writer, sheet_name='Inventory Analysis', index=False)
+            format_worksheet(writer.sheets['Inventory Analysis'], inventory_data, styles)
+
+            # Performance Metrics
+            performance_data = pd.DataFrame([{
+                'Metric': 'Customer Base',
+                'Value': report_data['performance_metrics']['customer_metrics']['total_customers'],
+                'Impact': 'Total active customers'
+            }, {
+                'Metric': 'Average Orders/Customer',
+                'Value': report_data['performance_metrics']['customer_metrics']['average_orders_per_customer'],
+                'Impact': 'Customer engagement'
+            }, {
+                'Metric': 'Average Order Value',
+                'Value': report_data['performance_metrics']['order_performance']['average_order_value'],
+                'Impact': 'Transaction size'
+            }, {
+                'Metric': 'Total Revenue',
+                'Value': report_data['performance_metrics']['order_performance']['total_revenue'],
+                'Impact': 'Total business value'
+            }])
+            performance_data.to_excel(writer, sheet_name='Performance Metrics', index=False)
+            format_worksheet(writer.sheets['Performance Metrics'], performance_data, styles)
+
+        excel_content = buffer.getvalue()
+        buffer.close()
+
+        formatted_date = datetime.now().strftime("%Y%m%d")
+        excel_file = ContentFile(excel_content)
+        excel_file.name = f"{report.name}_Financial_Analysis_{formatted_date}.xlsx"
+
+        return excel_file
+
+    except Exception as e:
+        logger.error(f"Error generating Excel report: {str(e)}")
+        raise Exception(f"Failed to generate Excel report: {str(e)}")
 
 def save_generated_file(report, file_content, file_type):
     """

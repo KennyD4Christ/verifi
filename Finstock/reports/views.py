@@ -24,6 +24,8 @@ import traceback
 from datetime import datetime
 from django.utils.timezone import make_aware
 from django.contrib.auth import get_user_model
+import mimetypes
+from django.http import HttpResponse
 
 logger = logging.getLogger(__name__)
 
@@ -178,59 +180,37 @@ class ReportViewSet(BaseAccessControlViewSet):
 
     @transaction.atomic
     def perform_create(self, serializer):
-        """
-        Enhanced create performance with detailed logging and error handling.
-        """
+        if not self.request.user.is_authenticated:
+            logger.warning("Unauthenticated report creation attempt")
+            raise PermissionDenied("Authentication required")
+
+        if not self.request.user.is_role('Administrator'):
+            logger.warning(f"Unauthorized report creation attempt by {self.request.user.username}")
+            raise PermissionDenied("Only Administrators can create reports")
+
         try:
-            # Validate user permissions
-            if not self.request.user.is_authenticated:
-                logger.warning("Unauthenticated report creation attempt")
-                raise PermissionDenied("Authentication required")
-
-            if not self.request.user.is_role('Administrator'):
-                logger.warning(f"Unauthorized report creation attempt by {self.request.user.username}")
-                raise PermissionDenied("Only Administrators can create reports")
-
-            raw_data = self.request.data
-            logger.info(f"Processing report creation with data: {raw_data}")
-        
-            start_date, end_date = self.process_date_range(raw_data)
-        
-            extra_fields = {}
-            if start_date and end_date:
-                extra_fields.update({
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'metadata': {
-                        'date_range': {
-                            'start_date': start_date.strftime('%Y-%m-%d'),
-                            'end_date': end_date.strftime('%Y-%m-%d')
-                        }
-                    }
-                })
-
-            logger.info(f"Creating report with extra fields: {extra_fields}")
-
-            # Create report with explicit user tracking
+            # Let the serializer handle all data validation
             report = serializer.save(
                 created_by=self.request.user,
-                last_modified_by=self.request.user,
-                **extra_fields
+                last_modified_by=self.request.user
             )
-
-            # Log post-save report details
-            logger.info(f"Report created successfully. Details: {report.__dict__}")
+            
+            # Add metadata after creation if needed
+            if report.start_date and report.end_date:
+                report.metadata = {
+                    'date_range': {
+                        'start_date': report.start_date.isoformat(),
+                        'end_date': report.end_date.isoformat(),
+                        'original_request': self.request.data
+                    }
+                }
+                report.save()
 
             return report
 
         except Exception as e:
-            # Comprehensive error logging
-            logger.error(f"Report Creation Error: {str(e)}")
-            logger.error(f"Full Traceback: {traceback.format_exc()}")
-            
-            raise serializers.ValidationError({
-                'name': f'Report creation failed: {str(e)}'
-            })
+            logger.error(f"Error in perform_create: {str(e)}")
+            raise serializers.ValidationError(f"Failed to create report: {str(e)}")
 
 
     @transaction.atomic
@@ -436,30 +416,62 @@ class ReportViewSet(BaseAccessControlViewSet):
     def export_excel(self, request, pk=None):
         report = self.get_object()
         try:
-            # Generate Excel
-            excel_file = export_report_to_excel(report)
-            
-            # Save file to ReportFile model
-            report_file = save_generated_file(report, excel_file, 'excel')
-            
-            # Log access
-            ReportAccessLog.objects.create(
-                report=report, 
-                user=request.user, 
-                action='export_excel'
+            # First check query parameters
+            start_date_str = request.query_params.get('start_date')
+            end_date_str = request.query_params.get('end_date')
+
+            # If not in query params, use report's stored dates
+            if not (start_date_str and end_date_str):
+                start_date_str = report.start_date.strftime('%Y-%m-%d') if report.start_date else None
+                end_date_str = report.end_date.strftime('%Y-%m-%d') if report.end_date else None
+
+            # Validate and process the dates
+            if start_date_str and end_date_str:
+                start_date, end_date = validate_date_range(start_date_str, end_date_str)
+            else:
+                start_date, end_date = validate_date_range(None, None)  # Will use default 30-day range
+
+            # Generate Excel with validated date range
+            excel_file = export_report_to_excel(
+                report,
+                start_date_str=start_date.strftime('%Y-%m-%d'),
+                end_date_str=end_date.strftime('%Y-%m-%d')
             )
-            
-            # Return file response
-            return FileResponse(
-                report_file.file, 
-                as_attachment=True, 
-                filename=f"{report.name}_comprehensive_report.xlsx",
+            report_file = save_generated_file(report, excel_file, 'excel')
+
+            # Read the file content
+            file_content = report_file.file.read()
+
+            # Create filename with date range
+            date_range = f"_{start_date.strftime('%Y%m%d')}_to_{end_date.strftime('%Y%m%d')}"
+            filename = f"{report.name}{date_range}_report.xlsx"
+
+            response = HttpResponse(
+                content=file_content,
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            response['Content-Length'] = len(file_content)
+
+            # Enhanced logging with date range information
+            ReportAccessLog.objects.create(
+                report=report,
+                user=request.user,
+                action='export_excel',
+                metadata={
+                    'start_date': start_date.strftime('%Y-%m-%d'),
+                    'end_date': end_date.strftime('%Y-%m-%d'),
+                    'source': 'query_params' if request.query_params.get('start_date') else 'report_stored'
+                }
+            )
+
+            return response
+
         except Exception as e:
-            logger.error(f"Excel export failed: {str(e)}")
+            logger.error(f"Excel export failed for report {pk}: {str(e)}")
+            logger.error(f"Date range attempted: {start_date_str} to {end_date_str}")
             return Response({
-                'error': 'Excel export failed', 
+                'error': 'Excel export failed',
                 'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

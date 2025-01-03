@@ -37,36 +37,37 @@ class ReportSerializer(serializers.ModelSerializer):
         max_length=255,
         min_length=3
     )
+    start_date = serializers.DateField(required=False, allow_null=True)
+    end_date = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = Report
         fields = ['id', 'name', 'description', 'start_date', 'end_date', 'created_at', 'updated_at', 'created_by', 'last_modified_by', 'is_archived', 'is_template', 'schedule', 'last_run', 'entries', 'calculated_fields']
+        read_only_fields = ['created_by', 'last_modified_by', 'created_at', 'updated_at']
 
     def to_internal_value(self, data):
         try:
-            # Log original input
             logger.info(f"Original input data: {data}")
+            
+            # Handle nested name object
+            if isinstance(data.get('name'), dict):
+                name_data = data['name']
+                processed_data = {
+                    **data,
+                    'name': name_data.get('name', ''),
+                    'start_date': name_data.get('startDate'),
+                    'end_date': name_data.get('endDate')
+                }
+            else:
+                processed_data = data.copy()
+                if not isinstance(processed_data.get('name'), str):
+                    processed_data['name'] = str(processed_data.get('name', ''))
 
-            # Ensure name is correctly processed
-            if isinstance(data, dict):
-                # If name is a dictionary or complex object, extract the name
-                if 'name' in data and isinstance(data['name'], dict):
-                    data['name'] = data['name'].get('name', '')
-                elif 'name' in data and not isinstance(data['name'], str):
-                    data['name'] = str(data['name'])
+            # Trim name if necessary
+            processed_data['name'] = processed_data.get('name', '').strip()[:255]
 
-            # Ensure name is a string and not too long
-            name = str(data.get('name', '')).strip()
-            if len(name) > 255:
-                name = name[:255]
-
-            # Update data with processed name
-            data['name'] = name
-
-            # Log processed data
-            logger.info(f"Processed data: {data}")
-
-            return super().to_internal_value(data)
+            logger.info(f"Processed data: {processed_data}")
+            return super().to_internal_value(processed_data)
 
         except Exception as e:
             logger.error(f"Conversion error: {str(e)}")
