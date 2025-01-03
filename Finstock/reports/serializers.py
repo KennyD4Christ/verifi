@@ -40,7 +40,7 @@ class ReportSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Report
-        fields = ['id', 'name', 'description', 'created_at', 'updated_at', 'created_by', 'last_modified_by', 'is_archived', 'is_template', 'schedule', 'last_run', 'entries', 'calculated_fields']
+        fields = ['id', 'name', 'description', 'start_date', 'end_date', 'created_at', 'updated_at', 'created_by', 'last_modified_by', 'is_archived', 'is_template', 'schedule', 'last_run', 'entries', 'calculated_fields']
 
     def to_internal_value(self, data):
         try:

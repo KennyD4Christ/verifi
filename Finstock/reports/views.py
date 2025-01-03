@@ -88,6 +88,31 @@ class ReportViewSet(BaseAccessControlViewSet):
         # Default: no access
         return self.model.objects.none()
 
+    def process_date_range(self, request_data):
+        """Process and validate date range from request data."""
+        try:
+            # Check for date range in the nested name object first
+            name_data = request_data.get('name', {})
+            if isinstance(name_data, dict):
+                start_date = name_data.get('startDate') or name_data.get('start_date')
+                end_date = name_data.get('endDate') or name_data.get('end_date')
+            else:
+                # Fall back to checking the root level of request data
+                start_date = request_data.get('startDate') or request_data.get('start_date')
+                end_date = request_data.get('endDate') or request_data.get('end_date')
+
+            if start_date and end_date:
+                validated_start, validated_end = validate_date_range(start_date, end_date)
+                return validated_start, validated_end
+
+            logger.info(f"No date range found in request data: {request_data}")
+            return None, None
+
+        except Exception as e:
+            logger.error(f"Error processing date range: {str(e)}")
+            logger.error(f"Request data: {request_data}")
+            return None, None
+
     def create(self, request, *args, **kwargs):
         """
         Enhanced create method with comprehensive error tracking.
@@ -166,20 +191,31 @@ class ReportViewSet(BaseAccessControlViewSet):
                 logger.warning(f"Unauthorized report creation attempt by {self.request.user.username}")
                 raise PermissionDenied("Only Administrators can create reports")
 
-            # Include date range in report metadata if provided
+            raw_data = self.request.data
+            logger.info(f"Processing report creation with data: {raw_data}")
+        
+            start_date, end_date = self.process_date_range(raw_data)
+        
             extra_fields = {}
-            if hasattr(self.request, 'validated_date_range'):
-                extra_fields['metadata'] = {
-                    'date_range': self.request.validated_date_range
-                }
+            if start_date and end_date:
+                extra_fields.update({
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'metadata': {
+                        'date_range': {
+                            'start_date': start_date.strftime('%Y-%m-%d'),
+                            'end_date': end_date.strftime('%Y-%m-%d')
+                        }
+                    }
+                })
 
-            # Log pre-save validation state
-            logger.info(f"Pre-save validation data: {serializer.validated_data}")
+            logger.info(f"Creating report with extra fields: {extra_fields}")
 
             # Create report with explicit user tracking
             report = serializer.save(
                 created_by=self.request.user,
-                last_modified_by=self.request.user
+                last_modified_by=self.request.user,
+                **extra_fields
             )
 
             # Log post-save report details
@@ -315,54 +351,49 @@ class ReportViewSet(BaseAccessControlViewSet):
     def email_report(self, request, pk=None):
         report = self.get_object()
         recipient_email = request.data.get('email')
-        start_date = request.data.get('start_date')
-        end_date = request.data.get('end_date')
-    
+
         if not recipient_email:
             return Response({'error': 'Recipient email is required.'}, status=400)
-        
+
         try:
-            # Create EmailRecipient with role information
+            start_date = request.data.get('start_date')
+            end_date = request.data.get('end_date')
+
+            # If not provided in request, fall back to report's stored dates
+            if not (start_date and end_date):
+                start_date = report.start_date
+                end_date = report.end_date
+
+            if not (start_date and end_date):
+                return Response({
+                    'error': 'Report does not have a valid date range.'
+                }, status=400)
+
+            # Convert to string format if they're date objects
+            start_date_str = start_date if isinstance(start_date, str) else start_date.strftime('%Y-%m-%d')
+            end_date_str = end_date if isinstance(end_date, str) else end_date.strftime('%Y-%m-%d')
+
+
+            logger.info(f"Generating email report for period: {start_date_str} to {end_date_str}")
+
             recipient = EmailRecipient(
                 email=recipient_email,
                 full_name=request.data.get('recipient_name'),
                 role=request.user.get_roles(),
                 permissions=request.user.get_permissions()
             )
-        
-            # Look up if the recipient email corresponds to a registered user
-            User = get_user_model()
-            try:
-                recipient_user = User.objects.get(email=recipient_email)
-            except User.DoesNotExist:
-                recipient_user = None
-            
-            # Create the access log entry before sending email
-            log_entry = ReportAccessLog.objects.create(
-                report=report,
-                user=recipient_user,  # This will be None for non-registered users
-                action='email_sent',
-                metadata={
-                    'recipient_email': recipient_email,
-                    'recipient_name': request.data.get('recipient_name'),
-                    'include_summary': request.data.get('include_summary', True),
-                    'include_charts': request.data.get('include_charts', True),
-                    'sent_by': request.user.email
-                }
-            )
-        
-            # Send enhanced email with role-based content
+
             send_enhanced_report_email(
                 report,
                 recipient,
-                start_date_str=start_date,
-                end_date_str=end_date,
+                start_date_str=start_date_str,
+                end_date_str=end_date_str,
                 include_summary=request.data.get('include_summary', True),
                 include_charts=request.data.get('include_charts', True)
             )
-        
+
             return Response({'message': 'Report sent successfully.'})
-        
+
         except Exception as e:
             logger.error(f"Error sending enhanced report email: {str(e)}")
             return Response(

@@ -38,6 +38,7 @@ from django.utils import timezone
 from django.db.models.functions import TruncMonth, Coalesce
 from decimal import Decimal
 from datetime import datetime
+from datetime import timedelta
 from django.utils.timezone import make_aware
 from django.core.exceptions import ValidationError
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
@@ -195,16 +196,19 @@ def send_enhanced_report_email(
     include_summary: bool = True,
     include_charts: bool = True,
     start_date_str: Optional[str] = None,
-    end_date_str: Optional[str] = None
+    end_date_str: Optional[str] = None,
+    pdf_content: Optional[bytes] = None
 ) -> None:
     """
     Send enhanced report email with retry mechanism and improved error handling.
     """
     try:
         if not start_date_str:
-            start_date_str = report.created_at.strftime('%Y-%m-%d')
+            start_date_str = report.start_date.strftime('%Y-%m-%d') if report.start_date else report.created_at.strftime('%Y-%m-%d')
         if not end_date_str:
-            end_date_str = timezone.now().strftime('%Y-%m-%d')
+            end_date_str = report.end_date.strftime('%Y-%m-%d') if report.end_date else timezone.now().strftime('%Y-%m-%d')
+
+        logger.info(f"Processing report email for period: {start_date_str} to {end_date_str}")
 
         report_data = generate_comprehensive_report(report, start_date_str, end_date_str)
         logger.info(f"Email report data for {report.id}: Total Revenue: ${report_data['financial_overview']['total_revenue']}")
@@ -217,7 +221,12 @@ def send_enhanced_report_email(
             report_data=report_data
         )
         
-        attempts = send_email_with_components(email_components, recipient)
+        if pdf_content is None:
+            with generate_pdf_report(report, start_date_str=start_date_str, end_date_str=end_date_str) as pdf_file:
+                pdf_content = pdf_file.read()
+
+        attempts = send_email_with_components(email_components, recipient, pdf_content)
+        return attempts
         
         log_email_success(
             report=report,
@@ -307,7 +316,8 @@ def generate_pdf_with_retry(report, report_data: dict) -> bytes:
 )
 def send_email_with_components(
     email_components: Dict[str, Any],
-    recipient: EmailRecipient
+    recipient: EmailRecipient,
+    pdf_content: bytes
 ) -> int:
     """Send email with retry mechanism and return number of attempts"""
     attempts = 0
@@ -332,7 +342,7 @@ def send_email_with_components(
         msg.attach_alternative(html_content, "text/html")
         msg.attach(
             f"{email_components['report_name']}_report.pdf",
-            email_components['pdf_content'],
+            pdf_content,
             'application/pdf'
         )
         
@@ -431,57 +441,91 @@ def _generate_email_content(
     return "\n".join(content_parts)
 
 
-def validate_date_range(start_date_str, end_date_str):
+def validate_date_range(start_date_str: Optional[str], end_date_str: Optional[str]) -> tuple:
     """
-    Validates and converts date strings to datetime objects for report date ranges.
-    
-    Parameters:
-        start_date_str (str): Start date in 'YYYY-MM-DD' format
-        end_date_str (str): End date in 'YYYY-MM-DD' format
-        
-    Returns:
-        tuple: (start_date, end_date) as timezone-aware datetime objects
-        
-    Raises:
-        ValidationError: If dates are invalid or if end_date is before start_date
+    Validates and processes date range inputs, handling various scenarios and ensuring proper timezone awareness.
+    Returns a tuple of validated start and end datetime objects.
     """
     try:
-        # Parse the date strings into datetime objects
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-        
-        # Make the dates timezone-aware using the current timezone
-        start_date = make_aware(start_date)
-        end_date = make_aware(
-            datetime.combine(end_date.date(), datetime.max.time())
-        )
-        
-        # Validate the date range
+        current_time = timezone.now()
+
+        # Handle cases where dates aren't provided
+        if not start_date_str and not end_date_str:
+            # Default to last 30 days if no dates provided
+            end_date = current_time
+            start_date = end_date - timedelta(days=30)
+            return start_date, end_date
+
+        # Process provided dates
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            start_date = make_aware(start_date)
+        else:
+            # If only end date provided, default start date to 30 days before
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            end_date = make_aware(end_date)
+            start_date = end_date - timedelta(days=30)
+
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            end_date = make_aware(
+                datetime.combine(end_date.date(), datetime.max.time())
+            )
+        else:
+            # If only start date provided, default end date to start date + 30 days
+            end_date = min(start_date + timedelta(days=30), current_time)
+
+        # Validate date range
         if end_date < start_date:
             raise ValidationError("End date must be after start date.")
-            
-        # Ensure dates are not in the future
-        current_time = timezone.now()
+
+        # Ensure end date doesn't exceed current time
         if end_date > current_time:
             end_date = current_time
-            
+
         return start_date, end_date
-        
+
     except ValueError:
         raise ValidationError("Invalid date format. Please use YYYY-MM-DD format.")
     except Exception as e:
         raise ValidationError(f"Error validating date range: {str(e)}")
 
 
-def generate_comprehensive_report(report, start_date_str=None, end_date_str=None):
+def generate_comprehensive_report(report, start_date_str: Optional[str], end_date_str: Optional[str]) -> dict:
     """Generate a comprehensive report with date range filtering."""
     try:
-        # If no dates provided, use report creation date and current time
-        if not start_date_str or not end_date_str:
-            start_date = report.created_at
-            end_date = timezone.now()
-        else:
+        if start_date_str and end_date_str:
+            # Use validated date range when dates are provided
             start_date, end_date = validate_date_range(start_date_str, end_date_str)
+        else:
+            # Handle cases where one or both dates are missing
+            if start_date_str:
+                # If only start date provided, validate it and set end date to current time
+                temp_start, end_date = validate_date_range(start_date_str, timezone.now().strftime('%Y-%m-%d'))
+                start_date = temp_start
+            elif end_date_str:
+                # If only end date provided, validate it and set start date to 30 days prior
+                end_date_obj = datetime.strptime(end_date_str, '%Y-%m-%d')
+                start_date_obj = end_date_obj - timedelta(days=30)
+                start_date, end_date = validate_date_range(
+                    start_date_obj.strftime('%Y-%m-%d'),
+                    end_date_str
+                )
+            else:
+                # If no dates provided, use custom default range based on report parameters
+                if hasattr(report, 'reporting_period') and report.reporting_period:
+                    # Use report's configured period if available
+                    start_date = report.created_at
+                    end_date = start_date + timedelta(days=report.reporting_period)
+                    # Ensure end date doesn't exceed current time
+                    if end_date > timezone.now():
+                        end_date = timezone.now()
+                else:
+                    # Default to report creation date and current time
+                    start_date = report.created_at
+                    end_date = timezone.now()
+        
+        logger.info(f"Generating report for period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
 
         def _analyze_income_breakdown(income_transactions):
             """
@@ -931,20 +975,30 @@ def create_styled_table(data, headers=None, style_type='default'):
     return table
     
 
-def send_report_email(report, recipient_email, request=None, include_summary=True, include_charts=True):
+def send_report_email(report, recipient_email, request=None, include_summary=True, include_charts=True, start_date_str=None, end_date_str=None):
     try:
         logger.info(f"Starting email preparation for report: {report.name}")
-        # Generate report data
-        report_data = generate_comprehensive_report(report, None, None)
-
-        logger.info(f"Generated report data for email - Financial Overview:")
-        logger.info(f"Total Revenue: ${report_data['financial_overview']['total_revenue']:,.2f}")
-        logger.info(f"Net Profit: ${report_data['financial_overview']['net_profit']:,.2f}")
         
+        # Validate and process date range
+        if not start_date_str:
+            start_date_str = report.start_date.strftime('%Y-%m-%d') if report.start_date else report.created_at.strftime('%Y-%m-%d')
+        if not end_date_str:
+            end_date_str = report.end_date.strftime('%Y-%m-%d') if report.end_date else timezone.now().strftime('%Y-%m-%d')
+            
+        logger.info(f"Generating report for date range: {start_date_str} to {end_date_str}")
+        
+        # Generate report with specified date range
+        report_data = generate_comprehensive_report(report, start_date_str, end_date_str)
+
+        logger.info(f"Generated report data for period: {start_date_str} to {end_date_str}")
+        logger.info(f"Financial Overview - Total Revenue: ${report_data['financial_overview']['total_revenue']:,.2f}")
+
         pdf_file = generate_pdf_report(report, report_data=report_data)
         pdf_content = pdf_file.read()
-        
-        logger.info(f"PDF generated for email. Size: {len(pdf_content)} bytes")
+
+        # Update email subject to include date range
+        period_str = f"{start_date_str} to {end_date_str}"
+        email_subject = f"Financial Report: {report.name} ({period_str})"
 
         email_template = Report.objects.filter(
             is_template=True,
@@ -955,25 +1009,22 @@ def send_report_email(report, recipient_email, request=None, include_summary=Tru
             raise ValueError("Email template not found")
 
         msg = EmailMultiAlternatives(
-            subject=f"Financial Report: {report.name}",
+            subject=email_subject,
             body=body_template.render(context),
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[recipient_email]
         )
 
-        # Attach the PDF directly without creating additional buffers
         msg.attach(
-            filename=f"{report.name}_report.pdf",
+            filename=f"{report.name}_report_{start_date_str}_to_{end_date_str}.pdf",
             content=pdf_content,
             mimetype='application/pdf'
         )
-        
-        logger.info("PDF attached to email message")
 
+        logger.info(f"Sending email with PDF for period {period_str}")
         msg.send(fail_silently=False)
         
-        logger.info(f"Report email sent successfully to {recipient_email} with PDF size: {len(pdf_content)} bytes")
-
+        logger.info(f"Report email sent successfully to {recipient_email}")
         return True
 
     except Exception as e:
