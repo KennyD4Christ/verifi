@@ -16,7 +16,7 @@ from django.core.exceptions import PermissionDenied
 from .models import Report, ReportEntry, ReportFile, CalculatedField, ReportAccessLog
 from rest_framework.permissions import IsAuthenticated
 from .serializers import ReportSerializer, ReportEntrySerializer, ReportFileSerializer, CalculatedFieldSerializer, ReportAccessLogSerializer
-from .utils import generate_pdf_report, send_report_email, export_report_to_csv, export_report_to_excel, calculate_custom_field, save_generated_file, validate_date_range, EmailRecipient, ReportContentGenerator, send_enhanced_report_email, _generate_email_content
+from .utils import generate_pdf_report, send_report_email, export_styled_report, export_report_to_excel, calculate_custom_field, save_generated_file, validate_date_range, EmailRecipient, ReportContentGenerator, send_enhanced_report_email, _generate_email_content
 from django.core.cache import cache
 from django.db.models import Q
 import logging
@@ -46,7 +46,7 @@ class ReportViewSet(BaseAccessControlViewSet):
         logger.debug(f"Base queryset count: {queryset.count()}")
     
         # Skip date filtering for PDF generation endpoint
-        if self.action == 'generate_pdf':
+        if self.action in ['generate_pdf', 'export_csv']:
             return queryset
         
         # Apply date filtering only for list/retrieve actions
@@ -381,36 +381,6 @@ class ReportViewSet(BaseAccessControlViewSet):
                 status=500
             )
 
-    @action(detail=True, methods=['get'])
-    def export_csv(self, request, pk=None):
-        report = self.get_object()
-        try:
-            # Generate CSV
-            csv_file = export_report_to_csv(report)
-            
-            # Save file to ReportFile model
-            report_file = save_generated_file(report, csv_file, 'csv')
-            
-            # Log access
-            ReportAccessLog.objects.create(
-                report=report, 
-                user=request.user, 
-                action='export_csv'
-            )
-            
-            # Return file response
-            return FileResponse(
-                report_file.file, 
-                as_attachment=True, 
-                filename=f"{report.name}_comprehensive_report.csv",
-                content_type='text/csv'
-            )
-        except Exception as e:
-            logger.error(f"CSV export failed: {str(e)}")
-            return Response({
-                'error': 'CSV export failed', 
-                'details': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['get'])
     def export_excel(self, request, pk=None):
@@ -472,6 +442,56 @@ class ReportViewSet(BaseAccessControlViewSet):
             logger.error(f"Date range attempted: {start_date_str} to {end_date_str}")
             return Response({
                 'error': 'Excel export failed',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['get'])
+    def export_csv(self, request, pk=None):
+        report = self.get_object()
+        try:
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+
+            if start_date and end_date:
+                try:
+                    start_date, end_date = validate_date_range(start_date, end_date)
+                except ValidationError as ve:
+                    return Response({
+                        'error': 'Invalid date range',
+                        'details': str(ve)
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            csv_file = export_styled_report(
+                report,
+                start_date.strftime('%Y-%m-%d') if start_date else None,
+                end_date.strftime('%Y-%m-%d') if end_date else None
+            )
+
+            report_file = save_generated_file(report, csv_file, 'csv')
+
+            ReportAccessLog.objects.create(
+                report=report,
+                user=request.user,
+                action='export_csv',
+                metadata={
+                    'date_range': {
+                        'start_date': start_date.isoformat() if start_date else None,
+                        'end_date': end_date.isoformat() if end_date else None
+                    }
+                }
+            )
+
+            return FileResponse(
+                report_file.file,
+                as_attachment=True,
+                filename=csv_file.name,
+                content_type='text/csv'
+            )
+
+        except Exception as e:
+            logger.error(f"CSV export failed: {str(e)}", exc_info=True)
+            return Response({
+                'error': 'CSV export failed',
                 'details': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

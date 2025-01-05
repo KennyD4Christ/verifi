@@ -28,6 +28,7 @@ from smtplib import (
     SMTPConnectError,
     SMTPResponseException
 )
+import csv
 from django.utils.html import strip_tags
 import operator as op
 import statistics
@@ -51,10 +52,12 @@ from email.utils import formataddr
 import bleach
 from premailer import transform
 from django.contrib.auth import get_user_model
-from openpyxl.styles import NamedStyle, PatternFill, Font, Alignment, Border, Side
+from openpyxl.styles import NamedStyle, PatternFill, Font, Alignment, Border, Side, Protection
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.dimensions import ColumnDimension
 import pandas as pd
+import numpy as np
+
 
 logger = logging.getLogger(__name__)
 
@@ -1035,253 +1038,555 @@ def send_report_email(report, recipient_email, request=None, include_summary=Tru
         logger.error(f"Error sending report email: {str(e)}")
         raise EmailSendingError(str(e))
 
-def export_report_to_csv(report):
+def export_styled_report(report, start_date_str=None, end_date_str=None):
     """
-    Export report entries to a structured CSV file.
+    Generates a visually enhanced financial report with professional styling and formatting.
+    Returns a single CSV file with enhanced formatting.
     
     Args:
-        report (Report): The report object to export
+        report: Report object containing the business data
+        start_date_str: Optional start date for filtering (str)
+        end_date_str: Optional end date for filtering (str)
     
     Returns:
-        ContentFile: A comprehensive CSV file
+        ContentFile: CSV file with enhanced formatting
     """
-    import csv
+    # Define formatting constants
+    SEPARATOR_LINE = ["=" * 80]
+    SECTION_SEPARATOR = ["-" * 80]
+    INDENT = "    "
     
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
+    report_data = generate_comprehensive_report(report, start_date_str, end_date_str)
+    rows = []
     
-    # Write report metadata
-    writer.writerow(['Report Metadata'])
-    writer.writerow(['Name', 'Description', 'Created By', 'Created At', 'Last Modified', 'Is Archived', 'Is Template'])
-    writer.writerow([
-        report.name,
-        report.description or 'No description',
-        str(report.created_by),
-        report.created_at,
-        report.updated_at,
-        report.is_archived,
-        report.is_template
+    # Header Section with clear separation
+    rows.extend(SEPARATOR_LINE)
+    rows.extend([
+        ["EXECUTIVE SUMMARY"],
+        [""],
+        [f"{INDENT}Report Name:", report.name],
+        [f"{INDENT}Analysis Period:", f"{start_date_str} to {end_date_str}" if start_date_str and end_date_str else "Complete Business Overview"],
+        [f"{INDENT}Generated:", datetime.now().strftime('%B %d, %Y %H:%M')],
+        [f"{INDENT}Author:", str(report.created_by)],
+        [f"{INDENT}Last Modified:", report.updated_at.strftime('%B %d, %Y %H:%M')],
+        [""]
     ])
     
-    writer.writerow([])  # Blank row for readability
+    # Financial Highlights Section
+    rows.extend(SECTION_SEPARATOR)
+    fo = report_data.get('financial_overview', {})
+    total_revenue = fo.get('total_revenue', 0)
+    cost_of_services = fo.get('cost_of_services', 0)
+    operating_expenses = fo.get('operating_expenses', 0)
+    calculated_gross_margin = total_revenue - cost_of_services
+    net_profit = fo.get('net_profit', calculated_gross_margin - operating_expenses)
     
-    # Write entries
-    writer.writerow(['Report Entries'])
-    writer.writerow(['Title', 'Content', 'Order', 'Created By', 'Created At'])
+    rows.extend([
+        ["FINANCIAL HIGHLIGHTS"],
+        [""],
+        [f"{INDENT}Key Performance Indicators", "Amount ($)", "% of Revenue", "Analysis"],
+        [f"{INDENT}Total Revenue", f"{total_revenue:,.2f}", "100.00%", "Primary income stream"],
+        [f"{INDENT}Cost of Services", f"{cost_of_services:,.2f}", 
+         f"{(cost_of_services/total_revenue*100 if total_revenue else 0):.2f}%", "Direct service costs"],
+        [f"{INDENT}Gross Margin", f"{calculated_gross_margin:,.2f}", 
+         f"{(calculated_gross_margin/total_revenue*100 if total_revenue else 0):.2f}%", "Operating efficiency"],
+        [f"{INDENT}Operating Expenses", f"{operating_expenses:,.2f}", 
+         f"{(operating_expenses/total_revenue*100 if total_revenue else 0):.2f}%", "Overhead costs"],
+        [f"{INDENT}Net Profit", f"{net_profit:,.2f}", 
+         f"{(net_profit/total_revenue*100 if total_revenue else 0):.2f}%", "Bottom line"],
+        [""]
+    ])
     
-    for entry in report.entries.order_by('order'):
-        writer.writerow([
-            entry.title,
-            entry.content,
-            entry.order,
-            str(entry.created_by),
-            entry.created_at
+    # Revenue Analysis Section
+    rows.extend(SECTION_SEPARATOR)
+    rows.extend([
+        ["REVENUE ANALYSIS"],
+        [""],
+        [f"{INDENT}Revenue Stream", "Amount ($)", "Transaction Volume", "Share of Revenue"]
+    ])
+    
+    for category in fo.get('income_breakdown', []):
+        transaction_count = category.get('transaction_count', 0)
+        total_amount = category.get('total_amount', 0)
+        revenue_share = (total_amount / total_revenue) if total_revenue > 0 else 0
+        
+        rows.append([
+            f"{INDENT}{category.get('category', 'Uncategorized')}",
+            f"{total_amount:,.2f}",
+            f"{transaction_count:,}",
+            f"{revenue_share:.2%}"
         ])
-
-    # Associated Files Section
-    writer.writerow([])
-    writer.writerow(['Associated Files'])
-    writer.writerow(['Entry Title', 'File Name', 'File Type', 'Uploaded By', 'Uploaded At'])
-
-    for entry in report.entries.all():
-        for file in entry.files.all():
-            writer.writerow([
-                entry.title,
-                file.file,  # Use file.file directly
-                file.file_type,
-                str(file.uploaded_by),
-                file.uploaded_at
-            ])
+    rows.append([""])
     
-    # Get CSV content and encode
+    # Operational Metrics Section
+    rows.extend(SECTION_SEPARATOR)
+    inventory_insights = report_data.get('inventory_insights', {})
+    pm = report_data.get('performance_metrics', {})
+    
+    rows.extend([
+        ["OPERATIONAL METRICS"],
+        [""],
+        [f"{INDENT}Category", "Current Value", "Target", "Impact"],
+        [""],
+        [f"{INDENT}Inventory Management"],
+        [f"{INDENT}{INDENT}Total Stock Value", f"${inventory_insights.get('total_stock_value', 0):,.2f}", 
+         "Variable", "Working Capital"],
+        [f"{INDENT}{INDENT}Low Stock Items", str(len(inventory_insights.get('low_stock_products', []))),
+         "0", "Service Level"],
+        [""],
+        [f"{INDENT}Customer Metrics"],
+        [f"{INDENT}{INDENT}Active Customers", f"{pm.get('customer_metrics', {}).get('total_customers', 0):,}",
+         "Growing", "Market Share"],
+        [f"{INDENT}{INDENT}Avg. Order Value", f"${pm.get('order_performance', {}).get('average_order_value', 0):,.2f}",
+         "Growing", "Revenue Growth"]
+    ])
+    
+    rows.extend(SEPARATOR_LINE)
+    
+    # Write to CSV with enhanced formatting
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    for row in rows:
+        writer.writerow(row if isinstance(row, list) else [row])
+    
     csv_content = buffer.getvalue().encode('utf-8')
     buffer.close()
     
+    # Create file with formatted name
     csv_file = ContentFile(csv_content)
-    csv_file.name = f"{report.name}_comprehensive_report.csv"
+    formatted_date = datetime.now().strftime("%Y%m%d_%H%M")
+    csv_file.name = f"{report.name}_financial_analysis_{formatted_date}.csv"
     
     return csv_file
 
 def create_excel_styles(workbook):
-    """Create and return a dictionary of named styles for consistent Excel formatting."""
-    # Define common elements
-    header_font = Font(name='Calibri', size=12, bold=True, color='1A237E')
-    normal_font = Font(name='Calibri', size=11)
-    border = Border(
-        left=Side(style='thin', color='E8EAF6'),
-        right=Side(style='thin', color='E8EAF6'),
-        top=Side(style='thin', color='E8EAF6'),
-        bottom=Side(style='thin', color='E8EAF6')
+    """Create and return a dictionary of sophisticated named styles for professional Excel formatting."""
+    # Enhanced color palette using professional, accessible colors
+    colors = {
+        'primary': '1E3A8A',      # Rich navy blue for headers
+        'secondary': 'F1F5F9',    # Soft blue-gray for alternate rows
+        'accent1': '2563EB',      # Vivid blue for highlights
+        'accent2': 'F8FAFC',      # Lightest blue-gray for subtle emphasis
+        'border': 'CBD5E1',       # Medium gray for borders
+        'positive': '059669',     # Emerald green for positive values
+        'negative': 'DC2626',     # Crimson red for negative values
+        'neutral': '475569',      # Slate gray for neutral text
+        'muted': '94A3B8'         # Muted blue-gray for secondary text
+    }
+
+    # Sophisticated font configurations
+    header_font = Font(
+        name='Segoe UI',
+        size=12,
+        bold=True,
+        color=colors['primary']
+    )
+    
+    subheader_font = Font(
+        name='Segoe UI',
+        size=11,
+        bold=True,
+        color=colors['accent1']
+    )
+    
+    normal_font = Font(
+        name='Segoe UI',
+        size=10,
+        color=colors['neutral']
     )
 
-    # Header style
+    # Enhanced border styles
+    thin_border = Side(style='thin', color=colors['border'])
+    medium_border = Side(style='medium', color=colors['primary'])
+    
+    standard_border = Border(
+        left=thin_border,
+        right=thin_border,
+        top=thin_border,
+        bottom=thin_border
+    )
+    
+    header_border = Border(
+        left=thin_border,
+        right=thin_border,
+        top=medium_border,
+        bottom=medium_border
+    )
+
+    # Enhanced header style
     header_style = NamedStyle(name='header_style')
     header_style.font = header_font
-    header_style.fill = PatternFill(start_color='E8EAF6', end_color='E8EAF6', fill_type='solid')
-    header_style.alignment = Alignment(horizontal='center', vertical='center')
-    header_style.border = border
+    header_style.fill = PatternFill(
+        start_color=colors['secondary'],
+        end_color=colors['secondary'],
+        fill_type='solid'
+    )
+    header_style.alignment = Alignment(
+        horizontal='left',
+        vertical='center',
+        wrap_text=True
+    )
+    header_style.border = header_border
     workbook.add_named_style(header_style)
 
-    # Currency style
-    currency_style = NamedStyle(name='currency_style', number_format='$#,##0.00')
+    # Enhanced subheader style
+    subheader_style = NamedStyle(name='subheader_style')
+    subheader_style.font = subheader_font
+    subheader_style.fill = PatternFill(
+        start_color=colors['accent2'],
+        end_color=colors['accent2'],
+        fill_type='solid'
+    )
+    subheader_style.alignment = Alignment(
+        horizontal='left',
+        vertical='center'
+    )
+    subheader_style.border = standard_border
+    workbook.add_named_style(subheader_style)
+
+    # Sophisticated currency style
+    currency_style = NamedStyle(
+        name='currency_style',
+        number_format='_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
+    )
     currency_style.font = normal_font
     currency_style.alignment = Alignment(horizontal='right')
-    currency_style.border = border
+    currency_style.border = standard_border
     workbook.add_named_style(currency_style)
 
-    # Percentage style
-    percentage_style = NamedStyle(name='percentage_style', number_format='0.0%')
+    # Enhanced currency negative style
+    currency_negative_style = NamedStyle(
+        name='currency_negative_style',
+        number_format='[Red]_($* #,##0.00_);[Red]_($* (#,##0.00);_($* "-"??_);_(@_)'
+    )
+    currency_negative_style.font = Font(
+        name='Segoe UI',
+        size=10,
+        color=colors['negative']
+    )
+    currency_negative_style.alignment = Alignment(horizontal='right')
+    currency_negative_style.border = standard_border
+    workbook.add_named_style(currency_negative_style)
+
+    # Enhanced percentage style
+    percentage_style = NamedStyle(
+        name='percentage_style',
+        number_format='0.00%'
+    )
     percentage_style.font = normal_font
     percentage_style.alignment = Alignment(horizontal='center')
-    percentage_style.border = border
+    percentage_style.border = standard_border
     workbook.add_named_style(percentage_style)
 
-    # Normal cell style
+    # Enhanced metric style for KPIs
+    metric_style = NamedStyle(name='metric_style')
+    metric_style.font = Font(
+        name='Segoe UI',
+        size=11,
+        bold=True,
+        color=colors['accent1']
+    )
+    metric_style.alignment = Alignment(
+        horizontal='center',
+        vertical='center'
+    )
+    metric_style.border = standard_border
+    workbook.add_named_style(metric_style)
+
+    # Enhanced normal style
     normal_style = NamedStyle(name='normal_style')
     normal_style.font = normal_font
-    normal_style.alignment = Alignment(horizontal='left')
-    normal_style.border = border
+    normal_style.alignment = Alignment(
+        horizontal='left',
+        vertical='center'
+    )
+    normal_style.border = standard_border
     workbook.add_named_style(normal_style)
 
     return {
         'header': header_style,
+        'subheader': subheader_style,
         'currency': currency_style,
+        'currency_negative': currency_negative_style,
         'percentage': percentage_style,
-        'normal': normal_style
+        'normal': normal_style,
+        'metric': metric_style
     }
 
-def format_worksheet(worksheet, data_frame, styles, start_row=1):
-    """Apply formatting to worksheet based on data types and column names."""
-    # Auto-adjust column widths
+def format_worksheet(worksheet, data_frame, styles, start_row=1, alternate_rows=True):
+    """Apply sophisticated formatting to worksheet with enhanced visual appeal."""
+    # Enhanced print setup
+    worksheet.page_setup.orientation = worksheet.ORIENTATION_LANDSCAPE
+    worksheet.page_setup.fitToWidth = 1
+    worksheet.page_setup.fitToHeight = 0
+    worksheet.page_setup.paperSize = worksheet.PAPERSIZE_A4
+    worksheet.print_options.gridLines = False
+    worksheet.sheet_properties.pageSetUpPr.fitToPage = True
+
+    # Ensure sheet visibility
+    worksheet.sheet_state = 'visible'
+
+    # Freeze panes and set zoom
+    worksheet.freeze_panes = f'A{start_row + 1}'
+    worksheet.sheet_view.zoomScale = 100
+
+    # Intelligent column width adjustment
     for idx, col in enumerate(data_frame.columns, 1):
+        col_letter = get_column_letter(idx)
         max_length = max(
             data_frame[col].astype(str).apply(len).max(),
             len(str(col))
         )
-        worksheet.column_dimensions[get_column_letter(idx)].width = min(max_length + 2, 50)
+        
+        # Sophisticated width calculation based on content type
+        if any(text in col.lower() for text in ['notes', 'description', 'analysis']):
+            worksheet.column_dimensions[col_letter].width = min(max_length * 0.85, 50)
+        elif any(text in col.lower() for text in ['date', 'period']):
+            worksheet.column_dimensions[col_letter].width = max(len(str(col)) * 1.2, 12)
+        elif any(text in col.lower() for text in ['amount', 'revenue', 'cost', 'value']):
+            worksheet.column_dimensions[col_letter].width = max(len(str(col)) * 1.3, 15)
+        else:
+            worksheet.column_dimensions[col_letter].width = min(max_length * 1.1, 25)
 
-    # Apply header styling
-    for cell in worksheet[start_row]:
+    # Apply enhanced header styling
+    header_row = worksheet[start_row]
+    for cell in header_row:
         cell.style = styles['header']
 
-    # Apply data styling based on column content
+    # Apply sophisticated data styling with improved alternate rows
     for idx, col in enumerate(data_frame.columns, 1):
         col_letter = get_column_letter(idx)
+        
         for row in range(start_row + 1, worksheet.max_row + 1):
             cell = worksheet[f"{col_letter}{row}"]
             
-            if 'amount' in col.lower() or 'revenue' in col.lower() or 'cost' in col.lower():
-                cell.style = styles['currency']
-            elif 'percentage' in col.lower() or 'share' in col.lower():
+            # Enhanced style selection based on content
+            if any(text in col.lower() for text in ['amount', 'revenue', 'cost', 'value']):
+                try:
+                    value = float(cell.value or 0)
+                    cell.style = styles['currency_negative'] if value < 0 else styles['currency']
+                except (ValueError, TypeError):
+                    cell.style = styles['normal']
+            
+            elif any(text in col.lower() for text in ['percentage', 'share', 'ratio', 'margin']):
                 cell.style = styles['percentage']
+                
+            elif any(text in col.lower() for text in ['metric', 'kpi', 'indicator']):
+                cell.style = styles['metric']
+            
             else:
                 cell.style = styles['normal']
 
+            # Enhanced alternate row styling
+            if alternate_rows and row % 2 == 0:
+                cell.fill = PatternFill(
+                    start_color='F8FAFC',
+                    end_color='F8FAFC',
+                    fill_type='solid'
+                )
+
+    # Add enhanced total row
+    if any(col.lower() in ['amount', 'revenue', 'cost', 'value'] for col in data_frame.columns):
+        total_row = worksheet.max_row + 1
+        
+        # Style the total row header
+        total_cell = worksheet.cell(row=total_row, column=1, value='Total')
+        total_cell.style = styles['subheader']
+        
+        # Add subtotals for numeric columns
+        for idx, col in enumerate(data_frame.columns, 1):
+            if col.lower() in ['amount', 'revenue', 'cost', 'value']:
+                cell = worksheet.cell(row=total_row, column=idx)
+                cell.value = f'=SUM({get_column_letter(idx)}{start_row + 1}:{get_column_letter(idx)}{total_row-1})'
+                cell.style = styles['currency']
+                
+                # Add bottom border to total row
+                cell.border = Border(
+                    left=Side(style='thin'),
+                    right=Side(style='thin'),
+                    top=Side(style='thin'),
+                    bottom=Side(style='double')
+                )
+
+    # Add auto-filter to header row
+    worksheet.auto_filter.ref = f"A{start_row}:{get_column_letter(worksheet.max_column)}{worksheet.max_row}"
+
 def export_report_to_excel(report, start_date_str=None, end_date_str=None):
     """
-    Generate a comprehensive Excel report with financial and inventory analysis.
-    
+    Generate a consolidated Excel report with professional formatting and detailed analysis.
+
     Args:
-        report: Report instance
+        report: Report instance containing business data
         start_date_str: Optional start date in YYYY-MM-DD format
         end_date_str: Optional end date in YYYY-MM-DD format
-    
+
     Returns:
-        ContentFile: Excel file content
+        ContentFile: Professionally formatted Excel file content
     """
     try:
-        # Generate comprehensive report data
         report_data = generate_comprehensive_report(report, start_date_str, end_date_str)
-        
         buffer = io.BytesIO()
-        
+
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             workbook = writer.book
             styles = create_excel_styles(workbook)
 
-            # Overview Sheet
-            overview_data = pd.DataFrame([{
-                'Report Name': report.name,
-                'Period': f"Report Period: {start_date_str} to {end_date_str}" if start_date_str and end_date_str else "Complete Business Overview",
-                'Generated On': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'Generated By': str(report.created_by)
-            }])
-            overview_data.to_excel(writer, sheet_name='Overview', index=False)
-            format_worksheet(writer.sheets['Overview'], overview_data, styles)
+            # Set professional workbook properties
+            workbook.properties.title = f"{report.name} - Financial Analysis"
+            workbook.properties.subject = "Business Performance Report"
+            workbook.properties.creator = str(report.created_by)
+            workbook.properties.created = datetime.now()
+            workbook.properties.category = "Financial Reports"
 
-            # Financial Overview
-            financial_data = pd.DataFrame([
-                {'Metric': key, 'Amount': value, 'Analysis': desc} 
-                for key, value, desc in [
-                    ('Total Revenue', report_data['financial_overview']['total_revenue'], 'Gross business income'),
-                    ('Cost of Services', report_data['financial_overview']['cost_of_services'], 'Direct service costs'),
-                    ('Operating Expenses', report_data['financial_overview']['operating_expenses'], 'Operational costs'),
-                    ('Net Profit', report_data['financial_overview']['net_profit'], 'Bottom line earnings')
-                ]
+            # Create consolidated DataFrame
+            data_frames = []
+            current_row = 0
+
+            # 1. Report Header
+            header_data = pd.DataFrame([
+                {'Section': 'REPORT INFORMATION', 'Metric': '', 'Value': '', 'Description': ''},
+                {'Section': '', 'Metric': 'Report Name', 'Value': report.name, 'Description': 'Comprehensive Business Analysis'},
+                {'Section': '', 'Metric': 'Analysis Period', 
+                 'Value': f"{start_date_str} to {end_date_str}" if start_date_str and end_date_str else "Complete Business Overview",
+                 'Description': 'Analysis Timeframe'},
+                {'Section': '', 'Metric': 'Generated Date', 
+                 'Value': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
+                 'Description': 'Report Creation Timestamp'},
+                {'Section': '', 'Metric': 'Report Author', 
+                 'Value': str(report.created_by),
+                 'Description': 'Report Owner'},
+                {'Section': '', 'Metric': '', 'Value': '', 'Description': ''}
             ])
-            financial_data.to_excel(writer, sheet_name='Financial Overview', index=False)
-            format_worksheet(writer.sheets['Financial Overview'], financial_data, styles)
+            data_frames.append(header_data)
+            current_row += len(header_data)
 
-            # Revenue Categories
-            revenue_data = pd.DataFrame([{
-                'Category': cat['category'],
-                'Revenue': cat['total_amount'],
-                'Transaction Count': cat['transaction_count'],
-                'Revenue Share': cat['total_amount'] / report_data['financial_overview']['total_revenue']
-            } for cat in report_data['financial_overview']['income_breakdown']])
-            revenue_data.to_excel(writer, sheet_name='Revenue Analysis', index=False)
-            format_worksheet(writer.sheets['Revenue Analysis'], revenue_data, styles)
+            # 2. Financial Overview
+            fo = report_data.get('financial_overview', {})
+            total_revenue = fo.get('total_revenue', 0)
+            cost_of_services = fo.get('cost_of_services', 0)
+            operating_expenses = fo.get('operating_expenses', 0)
+            calculated_gross_margin = total_revenue - cost_of_services
+            net_profit = fo.get('net_profit', calculated_gross_margin - operating_expenses)
 
-            # Inventory Analysis
-            inventory_data = pd.DataFrame([{
-                'Metric': 'Total Products',
-                'Value': report_data['inventory_insights']['total_product_count'],
-                'Notes': 'Active inventory items'
-            }, {
-                'Metric': 'Stock Value',
-                'Value': report_data['inventory_insights']['total_stock_value'],
-                'Notes': 'Total inventory worth'
-            }, {
-                'Metric': 'Low Stock Alert',
-                'Value': report_data['inventory_insights']['low_stock_products'].count(),
-                'Notes': 'Items needing reorder'
-            }])
-            inventory_data.to_excel(writer, sheet_name='Inventory Analysis', index=False)
-            format_worksheet(writer.sheets['Inventory Analysis'], inventory_data, styles)
+            financial_data = pd.DataFrame([
+                {'Section': 'FINANCIAL OVERVIEW', 'Metric': '', 'Value': '', 'Description': ''},
+                {'Section': '', 'Metric': 'Total Revenue', 'Value': total_revenue, 
+                 'Description': 'Gross business income across all revenue streams'},
+                {'Section': '', 'Metric': 'Cost of Services', 'Value': cost_of_services,
+                 'Description': 'Direct costs associated with service delivery'},
+                {'Section': '', 'Metric': 'Gross Margin', 'Value': calculated_gross_margin,
+                 'Description': 'Revenue less cost of services'},
+                {'Section': '', 'Metric': 'Operating Expenses', 'Value': operating_expenses,
+                 'Description': 'Operational and administrative costs'},
+                {'Section': '', 'Metric': 'Net Profit', 'Value': net_profit,
+                 'Description': 'Final profit after all deductions'},
+                {'Section': '', 'Metric': '', 'Value': '', 'Description': ''}
+            ])
+            data_frames.append(financial_data)
+            current_row += len(financial_data)
 
-            # Performance Metrics
-            performance_data = pd.DataFrame([{
-                'Metric': 'Customer Base',
-                'Value': report_data['performance_metrics']['customer_metrics']['total_customers'],
-                'Impact': 'Total active customers'
-            }, {
-                'Metric': 'Average Orders/Customer',
-                'Value': report_data['performance_metrics']['customer_metrics']['average_orders_per_customer'],
-                'Impact': 'Customer engagement'
-            }, {
-                'Metric': 'Average Order Value',
-                'Value': report_data['performance_metrics']['order_performance']['average_order_value'],
-                'Impact': 'Transaction size'
-            }, {
-                'Metric': 'Total Revenue',
-                'Value': report_data['performance_metrics']['order_performance']['total_revenue'],
-                'Impact': 'Total business value'
-            }])
-            performance_data.to_excel(writer, sheet_name='Performance Metrics', index=False)
-            format_worksheet(writer.sheets['Performance Metrics'], performance_data, styles)
+            # 3. Revenue Analysis
+            revenue_header = pd.DataFrame([
+                {'Section': 'REVENUE ANALYSIS', 'Metric': '', 'Value': '', 'Description': ''}
+            ])
+            data_frames.append(revenue_header)
+            current_row += 1
+
+            income_breakdown = fo.get('income_breakdown', [])
+            if income_breakdown:
+                revenue_data = pd.DataFrame([
+                    {'Section': '',
+                     'Metric': cat.get('category', 'Uncategorized'),
+                     'Value': cat.get('total_amount', 0),
+                     'Description': f"Count: {cat.get('transaction_count', 0)} | "
+                                  f"Avg Value: {cat.get('total_amount', 0) / cat.get('transaction_count', 1) if cat.get('transaction_count', 0) > 0 else 0:.2f} | "
+                                  f"Share: {(cat.get('total_amount', 0) / total_revenue * 100 if total_revenue > 0 else 0):.1f}%"
+                    } for cat in income_breakdown
+                ])
+                data_frames.append(revenue_data)
+                current_row += len(revenue_data)
+
+            # 4. Inventory Insights
+            inventory_insights = report_data.get('inventory_insights', {})
+            inventory_data = pd.DataFrame([
+                {'Section': '', 'Metric': '', 'Value': '', 'Description': ''},
+                {'Section': 'INVENTORY MANAGEMENT', 'Metric': '', 'Value': '', 'Description': ''},
+                {'Section': '', 'Metric': 'Total Products', 
+                 'Value': inventory_insights.get('total_product_count', 0),
+                 'Description': 'Current inventory item count'},
+                {'Section': '', 'Metric': 'Total Stock Value',
+                 'Value': inventory_insights.get('total_stock_value', 0),
+                 'Description': 'Current inventory value'},
+                {'Section': '', 'Metric': 'Low Stock Items',
+                 'Value': getattr(inventory_insights.get('low_stock_products', []), 'count', lambda: 0)(),
+                 'Description': 'Items below threshold'},
+                {'Section': '', 'Metric': '', 'Value': '', 'Description': ''}
+            ])
+            data_frames.append(inventory_data)
+            current_row += len(inventory_data)
+
+            # 5. Performance Metrics
+            pm = report_data.get('performance_metrics', {})
+            customer_metrics = pm.get('customer_metrics', {})
+            order_performance = pm.get('order_performance', {})
+
+            performance_data = pd.DataFrame([
+                {'Section': 'PERFORMANCE METRICS', 'Metric': '', 'Value': '', 'Description': ''},
+                {'Section': '', 'Metric': 'Customer Base',
+                 'Value': customer_metrics.get('total_customers', 0),
+                 'Description': 'Total active customers'},
+                {'Section': '', 'Metric': 'Average Orders/Customer',
+                 'Value': customer_metrics.get('average_orders_per_customer', 0),
+                 'Description': 'Customer engagement level'},
+                {'Section': '', 'Metric': 'Average Order Value',
+                 'Value': order_performance.get('average_order_value', 0),
+                 'Description': 'Transaction value analysis'}
+            ])
+            data_frames.append(performance_data)
+
+            # Combine all sections
+            consolidated_data = pd.concat(data_frames, ignore_index=True)
+            consolidated_data.to_excel(writer, sheet_name='Business Analysis', index=False)
+
+            # Format the consolidated worksheet
+            worksheet = writer.sheets['Business Analysis']
+            
+            # Apply formatting
+            for row in range(1, len(consolidated_data) + 2):  # +2 for header row
+                for col in range(1, 5):  # 4 columns
+                    cell = worksheet.cell(row=row, column=col)
+                    
+                    # Section headers
+                    if consolidated_data.iloc[row-2]['Section'] != '':
+                        cell.style = styles['header']
+                    # Regular rows
+                    else:
+                        cell.style = styles['normal']
+                        
+                    # Format value column for numbers
+                    if col == 3 and isinstance(consolidated_data.iloc[row-2]['Value'], (int, float)):
+                        cell.number_format = '#,##0.00'
+
+            # Adjust column widths
+            worksheet.column_dimensions['A'].width = 20  # Section
+            worksheet.column_dimensions['B'].width = 25  # Metric
+            worksheet.column_dimensions['C'].width = 15  # Value
+            worksheet.column_dimensions['D'].width = 50  # Description
 
         excel_content = buffer.getvalue()
         buffer.close()
 
-        formatted_date = datetime.now().strftime("%Y%m%d")
+        formatted_date = datetime.now().strftime("%Y%m%d_%H%M")
         excel_file = ContentFile(excel_content)
         excel_file.name = f"{report.name}_Financial_Analysis_{formatted_date}.xlsx"
 
         return excel_file
 
     except Exception as e:
-        logger.error(f"Error generating Excel report: {str(e)}")
+        logger.error(f"Error generating Excel report: {str(e)}", exc_info=True)
+        logger.error(f"Report data structure: {report_data.keys() if 'report_data' in locals() else 'No report data available'}")
         raise Exception(f"Failed to generate Excel report: {str(e)}")
+        
 
 def save_generated_file(report, file_content, file_type):
     """
