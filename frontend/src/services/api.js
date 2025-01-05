@@ -1239,26 +1239,60 @@ export const deleteReport = async (id) => {
 };
 
 // Function to export report to CSV
-export async function exportReportToCsv(reportId) {
+export async function exportReportToCsv(reportId, params) {
   try {
-    const response = await axiosInstance.get(`/reports/reports/${reportId}/export_csv/`);
-    return response.data.csv_url;
+    const response = await axiosInstance.get(
+      `/reports/reports/${reportId}/export_csv/?${params.toString()}`,
+      {
+        responseType: 'blob',
+      }
+    );
+
+    // Create a URL for the blob
+    const blob = new Blob([response.data], { type: 'text/csv' });
+    const file_url = window.URL.createObjectURL(blob);
+
+    // Get filename from response headers if available
+    const contentDisposition = response.headers['content-disposition'];
+    const filename = contentDisposition
+      ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+      : null;
+
+    return { file_url, filename };
   } catch (error) {
     console.error('Error exporting report to CSV:', error);
     throw error;
   }
 }
 
+
 // Function to export report to Excel
-export async function exportReportToExcel(reportId) {
+export const exportReportToExcel = async (reportId, startDate, endDate) => {
   try {
-    const response = await axiosInstance.get(`/reports/reports/${reportId}/export_excel/`);
-    return response.data.excel_url;
+    const response = await axiosInstance.get(
+      `/reports/reports/${reportId}/export_excel/`,
+      {
+        params: {
+          start_date: startDate,
+          end_date: endDate
+        },
+        responseType: 'arraybuffer'
+      }
+    );
+
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const filename = `report_${reportId}_${startDate}_${endDate}.xlsx`;
+
+    return { url, filename };
   } catch (error) {
-    console.error('Error exporting report to Excel:', error);
-    throw error;
+    console.error('Excel export error:', error);
+    throw new Error('Failed to export report to Excel');
   }
-}
+};
 
 export const sendReportEmail = async (reportId, emailData, dateRange) => {
   try {

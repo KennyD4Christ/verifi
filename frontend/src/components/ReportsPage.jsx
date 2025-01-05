@@ -3,8 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { ReportContext } from '../context/ReportContext';
 import ReportNameModal from '../modals/ReportNameModal';
 import EmailReportModal from '../modals/EmailReportModal';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import DateRangeSelector from '../modals/DateRangeModal';
 import { 
   fetchReports, 
@@ -16,7 +17,75 @@ import {
   cloneReportTemplate,
   sendReportEmail
 } from '../services/api';
-import { Alert, Spinner } from 'react-bootstrap';
+import { Alert, Spinner, Button, Modal } from 'react-bootstrap';
+import { format } from 'date-fns';
+
+
+const ExportConfirmationModal = ({ show, onHide, onConfirm, dateRange, isExporting }) => (
+  <Modal show={show} onHide={onHide}>
+    <Modal.Header closeButton>
+      <Modal.Title>Export Report Configuration</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+      <p>Please confirm the date range for your export:</p>
+      <div className="mb-3">
+        <strong>Start Date:</strong> {dateRange.startDate || 'Not specified (will use default range)'}
+      </div>
+      <div className="mb-3">
+        <strong>End Date:</strong> {dateRange.endDate || 'Not specified (will use default range)'}
+      </div>
+      <p className="text-muted">
+        Note: The exported report will include comprehensive financial metrics and analysis for the selected period.
+      </p>
+    </Modal.Body>
+    <Modal.Footer>
+      <Button variant="secondary" onClick={onHide}>Cancel</Button>
+      <Button 
+        variant="primary" 
+        onClick={onConfirm}
+        disabled={isExporting}
+      >
+        {isExporting ? 'Exporting...' : 'Confirm Export'}
+      </Button>
+    </Modal.Footer>
+  </Modal>
+);
+
+const ActionButton = styled.button`
+  background-color: #0645AD;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #052c65;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+`;
+
+const StyledActionButton = styled(ActionButton)`
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  &.export-btn {
+    background-color: #2c3e50;
+    &:hover {
+      background-color: #34495e;
+    }
+  }
+`;
 
 
 const ActionCell = styled.td`
@@ -68,9 +137,28 @@ const StyledToastContainer = styled(ToastContainer)`
   }
 `;
 
+const TemplateSelect = styled.select`
+  width: 100%;
+  max-width: 300px;
+  padding: 0.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid #dce0e3;
+  border-radius: 4px;
+  background-color: white;
+  color: #2c3e50;
+
+  &:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  }
+`;
+
 const Heading = styled.h1`
-  font-size: 2em;
-  margin-bottom: 20px;
+  color: #2c3e50;
+  margin-bottom: 2rem;
+  font-size: 2.5rem;
+  font-weight: 600;
 `;
 
 const StyledTable = styled.table`
@@ -107,36 +195,21 @@ const ActionButtonContainer = styled.div`
   }
 `;
 
-const ActionButton = styled.button`
-  background-color: #0645AD;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  font-weight: bold;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background-color: #052c65;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 `;
 
 const AnimatedTableRow = styled.tr`
-  transition: all 0.3s ease;
+  animation: ${fadeIn} 0.3s ease;
 
   &:hover {
+    transition: all 0.3s ease;
     background-color: #f0f8ff;
     transform: scale(1.01);
   }
 `;
+
 
 
 const ReportsPage = () => {
@@ -149,6 +222,9 @@ const ReportsPage = () => {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedExportId, setSelectedExportId] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   if (!isAuthenticated()) {
     return <div>Please log in to view reports.</div>;
@@ -162,7 +238,10 @@ const ReportsPage = () => {
   const existingReportNames = reports.map(report => report.name);
 
   const handleDateRangeChange = (newDateRange) => {
-    setDateRange(newDateRange);
+    setDateRange({
+      startDate: newDateRange.startDate ? format(new Date(newDateRange.startDate), 'yyyy-MM-dd') : '',
+      endDate: newDateRange.endDate ? format(new Date(newDateRange.endDate), 'yyyy-MM-dd') : ''
+    });
   };
 
   const handleGenerateReport = async (reportName) => {
@@ -213,32 +292,6 @@ const ReportsPage = () => {
     }
   };
 
-  const renderActionButtons = (report) => (
-    <ActionCell>
-      <ActionButton onClick={() => handleDownloadReport(report.id)}>
-        Download PDF
-      </ActionButton>
-      <ActionButton onClick={() => handleExportCsv(report.id)}>
-        Export CSV
-      </ActionButton>
-      <ActionButton onClick={() => handleExportExcel(report.id)}>
-        Export Excel
-      </ActionButton>
-      <ActionButton onClick={() => {
-        setSelectedReport(report);
-        setShowEmailModal(true);
-      }}>
-        Email Report
-      </ActionButton>
-      <ActionButton
-        variant="danger"
-        onClick={() => handleDeleteReport(report.id)}
-      >
-        Delete
-      </ActionButton>
-    </ActionCell>
-  );
-
   const handleDownloadReport = async (reportId) => {
     try {
       await downloadReport(reportId, dateRange.startDate, dateRange.endDate);
@@ -263,20 +316,54 @@ const ReportsPage = () => {
   };
 
   const handleExportCsv = async (reportId) => {
+    setSelectedExportId(reportId);
+    setShowExportModal(true);
+  };
+
+  const confirmExport = async () => {
+    setIsExporting(true);
     try {
-      const csvUrl = await exportReportToCsv(reportId);
-      window.open(csvUrl, '_blank');
+      const params = new URLSearchParams();
+      if (dateRange.startDate) params.append('start_date', dateRange.startDate);
+      if (dateRange.endDate) params.append('end_date', dateRange.endDate);
+
+      const response = await exportReportToCsv(selectedExportId, params);
+      
+      // Create a temporary link to trigger the download
+      const link = document.createElement('a');
+      link.href = response.file_url;
+      link.download = `${response.filename || 'report.csv'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('Report exported successfully!');
+      setShowExportModal(false);
     } catch (error) {
-      console.error('Error exporting report to CSV:', error);
+      console.error('Export failed:', error);
+      toast.error(error.response?.data?.details || 'Failed to export report');
+    } finally {
+      setIsExporting(false);
     }
   };
 
   const handleExportExcel = async (reportId) => {
     try {
-      const excelUrl = await exportReportToExcel(reportId);
-      window.open(excelUrl, '_blank');
+      const { url, filename } = await exportReportToExcel(reportId);
+    
+      // Create a link element and trigger the download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    
+      toast.success('Report exported successfully');
     } catch (error) {
       console.error('Error exporting report to Excel:', error);
+      toast.error(error.message || 'Failed to export report');
     }
   };
 
@@ -289,6 +376,38 @@ const ReportsPage = () => {
       console.error('Error cloning report template:', error);
     }
   };
+
+  const renderActionButtons = (report) => (
+    <ActionCell>
+      <StyledActionButton onClick={() => handleDownloadReport(report.id)}>
+        Download PDF
+      </StyledActionButton>
+      <StyledActionButton
+        className="export-btn"
+        onClick={() => handleExportCsv(report.id)}
+        disabled={isExporting}
+      >
+        Export CSV
+      </StyledActionButton>
+      <StyledActionButton onClick={() => handleExportExcel(report.id)}>
+        Export Excel
+      </StyledActionButton>
+      <StyledActionButton
+        onClick={() => {
+          setSelectedReport(report);
+          setShowEmailModal(true);
+        }}
+      >
+        Email Report
+      </StyledActionButton>
+      <StyledActionButton
+        variant="danger"
+        onClick={() => handleDeleteReport(report.id)}
+      >
+        Delete
+      </StyledActionButton>
+    </ActionCell>
+  );
 
   return (
     <>
@@ -303,6 +422,13 @@ const ReportsPage = () => {
         onHide={() => setShowReportNameModal(false)}
         onSubmit={handleGenerateReport}
         existingReportNames={existingReportNames}
+      />
+      <ExportConfirmationModal
+        show={showExportModal}
+        onHide={() => setShowExportModal(false)}
+        onConfirm={confirmExport}
+        dateRange={dateRange}
+        isExporting={isExporting}
       />
       <StyledToastContainer />
       <ReportsContainer>
@@ -322,21 +448,22 @@ const ReportsPage = () => {
           </ActionButton>
         </ActionButtonContainer>
 
-        <div>
-          <select
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value)}
-            className="form-control"
-          >
-            <option value="">Select a template</option>
-            {reports.filter(r => r.is_template).map((template) => (
-              <option key={template.id} value={template.id}>{template.name}</option>
+        <TemplateSelect
+          value={selectedTemplate}
+          onChange={(e) => setSelectedTemplate(e.target.value)}
+        >
+          <option value="">Select a template</option>
+          {reports
+            .filter(r => r.is_template)
+            .map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
             ))}
-          </select>
-        </div>
+        </TemplateSelect>
 
         {loading ? (
-          <Spinner animation="border" role="status" className="d-block mx-auto" />
+          <Spinner animation="border" role="status" className="text-center" />
         ) : (
           <StyledTable>
             <thead>
