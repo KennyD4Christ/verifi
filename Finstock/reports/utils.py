@@ -4,7 +4,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from django.conf import settings
 from reportlab.pdfgen import canvas
 from io import BytesIO
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import letter, A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 import io
@@ -38,8 +38,7 @@ from core.models import Customer, Order, OrderItem
 from django.utils import timezone
 from django.db.models.functions import TruncMonth, Coalesce
 from decimal import Decimal
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.utils.timezone import make_aware
 from django.core.exceptions import ValidationError
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
@@ -57,6 +56,11 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.dimensions import ColumnDimension
 import pandas as pd
 import numpy as np
+from reportlab.graphics.shapes import Drawing, Line, String, Rect
+from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.graphics.charts.linecharts import HorizontalLineChart
+from reportlab.graphics.charts.legends import Legend
+from reportlab.graphics.charts.piecharts import Pie
 
 
 logger = logging.getLogger(__name__)
@@ -740,246 +744,750 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
     except ValueError as e:
         raise ValueError(f"Error generating report: {str(e)}")
 
+def create_revenue_trend_chart(financial_data, width, height):
+    """
+    Create a line chart showing revenue trends from financial overview data.
+
+    Args:
+        financial_data (dict): Financial overview data containing revenue information
+        width (int): Width of the chart
+        height (int): Height of the chart
+
+    Returns:
+        Drawing: A ReportLab drawing object containing the revenue trend chart
+    """
+    # Initialize the drawing
+    drawing = Drawing(width, height)
+    chart = HorizontalLineChart()
+    chart.x = 50
+    chart.y = 50
+    chart.width = width - 100
+    chart.height = height - 100
+
+    # Extract and process revenue data
+    try:
+        if 'monthly_revenue' in financial_data:
+            revenue_data = financial_data['monthly_revenue']
+        else:
+            revenue_data = [{
+                'month': datetime.now().strftime('%B'),
+                'revenue': financial_data['total_revenue']
+            }]
+
+        # Sort data by month and separate into lists
+        sorted_data = sorted(revenue_data, key=lambda x: datetime.strptime(x['month'], '%B'))
+        revenue_values = [float(entry['revenue']) for entry in sorted_data]  # Convert Decimal to float
+        months = [entry['month'][:3] for entry in sorted_data]
+
+        # Configure chart data
+        chart.data = [revenue_values]
+        chart.categoryAxis.categoryNames = months
+
+        # Style the chart
+        chart.categoryAxis.labels.boxAnchor = 'ne'
+        chart.categoryAxis.labels.angle = 30
+        chart.categoryAxis.labels.fontSize = 8
+        chart.lines[0].strokeWidth = 3
+        chart.lines[0].strokeColor = colors.HexColor('#1a237e')
+        chart.fillColor = colors.white
+
+        # Calculate value range using float values
+        min_value = min(revenue_values) if revenue_values else 0
+        max_value = max(revenue_values) if revenue_values else 100
+        
+        # Set value axis range
+        chart.valueAxis.valueMin = float(min_value * 0.9)
+        chart.valueAxis.valueMax = float(max_value * 1.1)
+        chart.valueAxis.labelTextFormat = lambda x: f'${x:,.0f}'
+
+        # Add grid lines for better readability
+        chart.valueAxis.gridStrokeWidth = 0.5
+        chart.valueAxis.gridStrokeColor = colors.HexColor('#e0e0e0')
+
+    except Exception as e:
+        # If there's any error, create a simple placeholder chart
+        chart.data = [[0]]
+        chart.categoryAxis.categoryNames = ['No Data']
+        print(f"Error creating revenue chart: {str(e)}")
+
+    drawing.add(chart)
+    return drawing
+
+def create_category_pie_chart(data, width, height):
+    """
+    Create a pie chart showing revenue distribution by category.
+    
+    Args:
+        data (list): List of dictionaries containing category revenue data
+        width (int): Width of the chart
+        height (int): Height of the chart
+        
+    Returns:
+        Drawing: A ReportLab drawing object containing the pie chart
+    """
+    drawing = Drawing(width, height)
+    pie = Pie()
+    
+    # Set chart position and dimensions
+    pie.x = width/2
+    pie.y = height/2
+    pie.width = min(width, height) - 100
+    pie.height = min(width, height) - 100
+    
+    # Process and validate data
+    valid_categories = []
+    for category in data:
+        if (category.get('total_amount', 0) > 0 and 
+            category.get('category') and 
+            isinstance(category['category'], str)):
+            valid_categories.append(category)
+    
+    if not valid_categories:
+        # Create a placeholder chart if no valid data
+        pie.data = [100]
+        pie.labels = ['No Data']
+    else:
+        # Prepare valid data for the chart
+        pie.data = [category['total_amount'] for category in valid_categories]
+        pie.labels = [category['category'] for category in valid_categories]
+    
+    # Style the pie chart
+    pie.slices.strokeWidth = 0.5
+    pie.slices.strokeColor = colors.white
+    
+    # Add custom colors for slices
+    chart_colors = [
+        colors.HexColor('#1a237e'),  # Deep Blue
+        colors.HexColor('#303f9f'),  # Medium Blue
+        colors.HexColor('#3949ab'),  # Light Blue
+        colors.HexColor('#5c6bc0'),  # Lighter Blue
+        colors.HexColor('#7986cb'),  # Very Light Blue
+    ]
+    
+    for i in range(len(pie.data)):
+        pie.slices[i].fillColor = chart_colors[i % len(chart_colors)]
+    
+    # Configure labels
+    pie.sideLabels = True  # Place labels outside the pie
+    pie.simpleLabels = False
+    pie.labels = [f'{label} ({value:,.0f})' for label, value in zip(pie.labels, pie.data)]
+    
+    # Add percentage values
+    total = sum(pie.data)
+    if total > 0:
+        percentages = [(value/total) * 100 for value in pie.data]
+        pie.labels = [f'{label} ({perc:.1f}%)' for label, perc in zip(pie.labels, percentages)]
+    
+    drawing.add(pie)
+    return drawing
+
+def create_inventory_bar_chart(data, width, height):
+    """Create a bar chart for inventory levels"""
+    drawing = Drawing(width, height)
+    
+    chart = VerticalBarChart()
+    chart.x = 50
+    chart.y = 50
+    chart.width = width - 100
+    chart.height = height - 100
+    
+    # Configure chart
+    chart.data = [data['stock_levels']]
+    chart.categoryAxis.categoryNames = data['product_categories']
+    chart.categoryAxis.labels.boxAnchor = 'ne'
+    chart.categoryAxis.labels.angle = 30
+    
+    # Style the chart
+    chart.bars[0].fillColor = colors.HexColor('#303f9f')
+    chart.valueAxis.valueMin = 0
+    
+    drawing.add(chart)
+    return drawing
+
+def calculate_growth_rate(current_value, previous_value):
+    """
+    Calculate the percentage growth rate between two values.
+
+    Args:
+        current_value (float): The current period value
+        previous_value (float): The previous period value
+
+    Returns:
+        float: The percentage growth rate. Returns 0.0 if previous value is 0 or if
+              either value is None to avoid division by zero errors.
+    """
+    if current_value is None or previous_value is None:
+        return 0.0
+
+    try:
+        if previous_value == 0:
+            return 0.0 if current_value == 0 else 100.0
+        return ((current_value - previous_value) / previous_value) * 100
+    except (TypeError, ValueError):
+        return 0.0
+
+def calculate_inventory_turnover(inventory_data):
+    """
+    Calculate inventory turnover ratio based on provided inventory insights.
+    
+    Args:
+        inventory_data (dict): Dictionary containing inventory metrics and costs
+        
+    Returns:
+        float: Calculated inventory turnover ratio
+    """
+    try:
+        cost_of_goods_sold = inventory_data.get('cost_of_goods_sold', 0)
+        average_inventory = inventory_data.get('average_inventory_value', 0)
+        
+        if average_inventory == 0:
+            return 0
+            
+        turnover_ratio = cost_of_goods_sold / average_inventory
+        return round(turnover_ratio, 2)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return 0
+
+def generate_advanced_analysis(report_data):
+    """
+    Generate sophisticated business analysis and insights based on report data.
+    
+    Args:
+        report_data (dict): Comprehensive report data including financial and inventory metrics
+        
+    Returns:
+        dict: Structured analysis including trends, risks, and opportunities
+    """
+    analysis = {
+        'trends': [],
+        'risks': [],
+        'opportunities': [],
+        'kpi_analysis': {}
+    }
+    
+    try:
+        # Revenue Analysis
+        revenue_growth = calculate_growth_rate(
+            report_data['financial_overview']['total_revenue'],
+            report_data['financial_overview'].get('previous_revenue', 0)
+        )
+        
+        if revenue_growth > 0:
+            analysis['trends'].append({
+                'metric': 'Revenue Growth',
+                'value': revenue_growth,
+                'impact': 'positive',
+                'insight': f'Revenue grown by {revenue_growth:.1f}% indicates strong market performance.'
+            })
+        elif revenue_growth < 0:
+            analysis['risks'].append({
+                'category': 'Revenue',
+                'issue': 'Declining Revenue',
+                'impact': 'high',
+                'recommendation': 'Investigate revenue decline factors and develop recovery strategies.'
+            })
+        
+        # Profitability Analysis
+        try:
+            profit_margin = (report_data['financial_overview']['net_profit'] /
+                           report_data['financial_overview']['total_revenue'] * 100)
+            
+            analysis['kpi_analysis']['profit_margin'] = {
+                'value': profit_margin,
+                'benchmark': 20.0,
+                'status': 'above_target' if profit_margin > 20 else 'below_target'
+            }
+            
+            if profit_margin < 15:
+                analysis['risks'].append({
+                    'category': 'Profitability',
+                    'issue': 'Low Profit Margin',
+                    'impact': 'high',
+                    'recommendation': 'Review pricing strategy and cost structure.'
+                })
+        except (ZeroDivisionError, KeyError):
+            analysis['risks'].append({
+                'category': 'Financial Data',
+                'issue': 'Incomplete Profit Data',
+                'impact': 'medium',
+                'recommendation': 'Ensure complete financial data collection.'
+            })
+        
+        # Inventory Analysis
+        stock_turnover = calculate_inventory_turnover(report_data['inventory_insights'])
+        
+        if stock_turnover > 0:
+            if stock_turnover < 4:
+                analysis['risks'].append({
+                    'category': 'Inventory',
+                    'issue': 'Low Stock Turnover',
+                    'impact': 'medium',
+                    'recommendation': 'Review procurement strategy and consider inventory optimization.'
+                })
+            elif stock_turnover > 12:
+                analysis['opportunities'].append({
+                    'category': 'Inventory',
+                    'insight': 'High Stock Turnover',
+                    'impact': 'positive',
+                    'recommendation': 'Consider increasing stock levels to prevent stockouts.'
+                })
+        
+    except Exception as e:
+        print(f"Error in advanced analysis generation: {str(e)}")
+        # Return basic analysis structure if error occurs
+        return analysis
+    
+    return analysis
+
 def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_data=None):
-    """Generate a comprehensive PDF report with financial and inventory analysis."""
-    logger.info(f"Beginning PDF generation for report: {report.name}")
-    # Generate report data if not provided
     if report_data is None:
         report_data = generate_comprehensive_report(report, start_date_str, end_date_str)
 
-    logger.info(f"Report data for PDF generation: {report_data}")
-
-    logger.info(f"Initial financial data for report {report.name}:")
-    logger.info(f"Total Revenue: ${report_data['financial_overview']['total_revenue']:,.2f}")
-    logger.info(f"Cost of Services: ${report_data['financial_overview']['cost_of_services']:,.2f}")
-    logger.info(f"Operating Expenses: ${report_data['financial_overview']['operating_expenses']:,.2f}")
-    logger.info(f"Net Profit: ${report_data['financial_overview']['net_profit']:,.2f}")
-
+    # Initialize buffer and document with adjusted margins for better whitespace
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
-        rightMargin=50,
-        leftMargin=50,
-        topMargin=50,
-        bottomMargin=30
+        rightMargin=60,
+        leftMargin=60,
+        topMargin=60,
+        bottomMargin=40
     )
 
-    # Define document styles
+    # Enhanced style definitions with a more sophisticated color palette
+    corporate_colors = {
+        'primary': colors.HexColor('#1a237e'),     # Deep blue for primary elements
+        'secondary': colors.HexColor('#303f9f'),   # Medium blue for secondary elements
+        'accent': colors.HexColor('#7986cb'),      # Light blue for accents
+        'background': colors.HexColor('#f5f6fa'),  # Light gray-blue for backgrounds
+        'text': colors.HexColor('#2c3e50'),       # Dark gray-blue for main text
+        'subtle': colors.HexColor('#90a4ae'),
+        'warning': colors.HexColor('#fb8c00'),
+        'chart_colors': [
+            colors.HexColor('#1a237e'),
+            colors.HexColor('#303f9f'),
+            colors.HexColor('#7986cb'),
+            colors.HexColor('#c5cae9'),
+            colors.HexColor('#3949ab')
+        ]
+    }
+
     styles = getSampleStyleSheet()
+    
+    # Main Title Style
     styles.add(ParagraphStyle(
         name='MainTitle',
         parent=styles['Title'],
-        fontSize=24,
-        spaceAfter=30,
+        fontSize=28,
+        spaceAfter=40,
+        spaceBefore=30,
         alignment=TA_CENTER,
-        textColor=colors.HexColor('#1a237e')
+        textColor=corporate_colors['primary'],
+        fontName='Helvetica-Bold',
+        leading=34  # Increased leading for better readability
     ))
 
+    # Section Header Style
     styles.add(ParagraphStyle(
         name='SectionHeader',
         parent=styles['Heading1'],
-        fontSize=16,
-        spaceBefore=20,
-        spaceAfter=12,
-        textColor=colors.HexColor('#283593'),
-        borderWidth=1,
-        borderColor=colors.HexColor('#e8eaf6'),
-        borderPadding=10,
-        leading=20
+        fontSize=18,
+        spaceBefore=25,
+        spaceAfter=15,
+        textColor=corporate_colors['secondary'],
+        fontName='Helvetica-Bold',
+        borderWidth=0,  # Removed border for cleaner look
+        leading=22,
+        alignment=TA_LEFT
     ))
 
+    # Enhanced Sub-Header Style
     styles.add(ParagraphStyle(
         name='SubHeader',
         parent=styles['Heading2'],
-        fontSize=12,
-        spaceBefore=10,
-        spaceAfter=8,
-        textColor=colors.HexColor('#303f9f')
+        fontSize=14,
+        spaceBefore=15,
+        spaceAfter=10,
+        textColor=corporate_colors['accent'],
+        fontName='Helvetica-Bold',
+        leading=18
     ))
 
-    bodyStyle = styles['Normal']
-    bodyStyle.fontSize = 10
-    bodyStyle.leading = 14
-    bodyStyle.spaceBefore = 6
-    bodyStyle.spaceAfter = 6
+    # Body Text Style
+    if 'BodyText' not in styles:
+        styles.add(ParagraphStyle(
+            name='BodyText',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=corporate_colors['text'],
+            spaceAfter=12,
+            spaceBefore=12,
+            leading=16,
+            alignment=TA_LEFT
+        ))
 
-    # Initialize content list
-    content = []
+    # Style for insights and analysis text
+    styles.add(ParagraphStyle(
+        name='InsightText',
+        parent=styles['BodyText'],
+        fontSize=10,
+        textColor=corporate_colors['secondary'],
+        spaceBefore=6,
+        spaceAfter=12,
+        leading=14,
+        leftIndent=20,
+        bulletIndent=12,
+        firstLineIndent=0
+    ))
 
-    # Set up period text
-    period_text = f"Report Period: {start_date_str} to {end_date_str}" if start_date_str and end_date_str else "Complete Business Overview"
-    
-    # Add report headers
-    content.append(Paragraph(period_text, styles['SubHeader']))
-    content.append(Paragraph(f"Financial & Inventory Analysis Report", styles['MainTitle']))
-    content.append(Paragraph(report.name, styles['SubHeader']))
-
-    # Define table styles
-    financial_table_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e8eaf6')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#1a237e')),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    # Enhanced Table Style
+    enhanced_table_style = TableStyle([
+        # Header styling
+        ('BACKGROUND', (0, 0), (-1, 0), corporate_colors['background']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), corporate_colors['primary']),
+        ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 15),
+        ('TOPPADDING', (0, 0), (-1, 0), 15),
+        
+        # Body styling
         ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-        ('ALIGN', (-1, 1), (-1, -1), 'RIGHT'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e8eaf6'))
+        ('TEXTCOLOR', (0, 1), (-1, -1), corporate_colors['text']),
+        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 12),
+        ('TOPPADDING', (0, 1), (-1, -1), 12),
+        
+        # Grid styling
+        ('GRID', (0, 0), (-1, -1), 0.5, corporate_colors['subtle']),
+        ('LINEBELOW', (0, 0), (-1, 0), 1, corporate_colors['primary']),
+        
+        # Alternate row colors for better readability
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, corporate_colors['background']])
     ])
 
-    # Add executive summary
+    content = []
+
+    # Header Section
+    period_text = f"Report Period: {start_date_str} to {end_date_str}" if start_date_str and end_date_str else "Complete Business Overview"
+    content.append(Paragraph(f"Financial & Inventory Analysis Report", styles['MainTitle']))
+    content.append(Paragraph(report.name, styles['SubHeader']))
+    content.append(Paragraph(period_text, styles['BodyText']))
+    content.append(Spacer(1, 30))
+
+    # Executive Summary Section
     content.append(Paragraph("Executive Summary", styles['SectionHeader']))
     executive_summary = f"""
-    This comprehensive report provides a detailed analysis of {report.name}'s financial performance,
-    inventory status, and key business metrics. The analysis covers {period_text.lower()}.
+    This comprehensive analysis presents detailed insights into {report.name}'s financial performance,
+    inventory status, and key business metrics for the period {period_text.lower()}. The report 
+    highlights critical performance indicators and provides actionable insights for business optimization.
     """
-    content.append(Paragraph(executive_summary, styles['BodyText']))
-    content.append(Spacer(1, 20))
+    content.append(Paragraph(executive_summary.strip(), styles['BodyText']))
+    content.append(Spacer(1, 25))
 
-    # Add financial overview
-    content.append(Paragraph("Financial Performance Overview", styles['SectionHeader']))
-    financial_data = report_data['financial_overview']
-    logger.info(f"Financial data before table creation for report {report.name}:")
-    logger.info(f"Financial data content: {financial_data}")
-    
-    financial_summary = [
-        ['Metric', 'Amount', 'Analysis'],
-        ['Total Revenue', f"${financial_data['total_revenue']:,.2f}", 'Gross business income'],
-        ['Cost of Services', f"${financial_data['cost_of_services']:,.2f}", 'Direct service costs'],
-        ['Operating Expenses', f"${financial_data['operating_expenses']:,.2f}", 'Operational costs'],
-        ['Net Profit', f"${financial_data['net_profit']:,.2f}", 'Bottom line earnings']
+    # Executive Dashboard Section
+    content.append(Paragraph("Executive Dashboard", styles['SectionHeader']))
+
+    # Create KPI Summary Cards
+    kpi_data = [
+        ['Revenue', f"${report_data['financial_overview']['total_revenue']:,.2f}",
+         f"{calculate_growth_rate(report_data['financial_overview']['total_revenue'], report_data['financial_overview'].get('previous_revenue', 0)):+.1f}%"],
+        ['Profit Margin', f"{(report_data['financial_overview']['net_profit'] / report_data['financial_overview']['total_revenue'] * 100):.1f}%",
+         'Target: 20%'],
+        ['Customer Base', f"{report_data['performance_metrics']['customer_metrics']['total_customers']:,}",
+         f"{calculate_growth_rate(report_data['performance_metrics']['customer_metrics']['total_customers'], report_data['performance_metrics']['customer_metrics'].get('previous_total_customers', 0)):+.1f}%"]
     ]
 
-    logger.info(f"Generated financial summary table rows: {financial_summary}")
+    # Create KPI cards with enhanced styling
+    kpi_table = create_kpi_dashboard(kpi_data, doc.width, styles)
+    content.append(kpi_table)
+    content.append(Spacer(1, 30))
 
-    financial_table = Table(financial_summary, colWidths=[doc.width/3.0]*3)
-    financial_table.setStyle(financial_table_style)
-    content.append(financial_table)
+    # Revenue Trend Visualization
+    content.append(Paragraph("Revenue Performance Trend", styles['SubHeader']))
+    revenue_chart = create_revenue_trend_chart(report_data['financial_overview'], 500, 200)
+    content.append(revenue_chart)
     content.append(Spacer(1, 20))
 
-    # Add revenue categories
-    content.append(Paragraph("Revenue by Category", styles['SectionHeader']))
-    income_data = [[
-        category['category'],
-        f"${category['total_amount']:,.2f}",
-        f"{category['transaction_count']} transactions",
-        f"{(category['total_amount']/financial_data['total_revenue']*100):.1f}%"
-    ] for category in financial_data['income_breakdown']]
+    # Category Distribution
+    content.append(Paragraph("Revenue Distribution by Category", styles['SubHeader']))
+    category_chart = create_category_pie_chart(report_data['financial_overview']['income_breakdown'], 400, 300)
+    content.append(category_chart)
 
-    income_headers = ['Category', 'Revenue', 'Volume', 'Share']
-    income_table = Table([income_headers] + income_data, colWidths=[doc.width/4.0]*4)
-    income_table.setStyle(financial_table_style)
+    # Add page break before detailed analysis
+    content.append(PageBreak())
+
+    # Detailed Analysis Sections
+    advanced_analysis = generate_advanced_analysis(report_data)
+
+    # Performance Insights Section
+    content.append(Paragraph("Key Performance Insights", styles['SectionHeader']))
+
+    for trend in advanced_analysis['trends']:
+        content.append(Paragraph(
+            f"• {trend['insight']}",
+            styles['InsightText']
+        ))
+
+    # Risk Assessment Section
+    content.append(Paragraph("Risk Assessment", styles['SectionHeader']))
+
+    for risk in advanced_analysis['risks']:
+        content.append(Paragraph(
+            f"• {risk['category']}: {risk['issue']} - {risk['recommendation']}",
+            styles['InsightText']
+        ))
+
+    # Financial Performance Section with enhanced table structure
+    content.append(Paragraph("Financial Performance Overview", styles['SectionHeader']))
+    financial_data = report_data['financial_overview']
+    
+    financial_summary = [
+        ['Key Metrics', 'Amount', 'Analysis'],
+        ['Total Revenue', f"${financial_data['total_revenue']:,.2f}", 'Total business income generated during the period'],
+        ['Cost of Services', f"${financial_data['cost_of_services']:,.2f}", 'Direct costs associated with service delivery'],
+        ['Operating Expenses', f"${financial_data['operating_expenses']:,.2f}", 'General and administrative expenses'],
+        ['Net Profit', f"${financial_data['net_profit']:,.2f}", 'Final profit after all deductions']
+    ]
+
+    # Create table with adjusted column widths for better proportions
+    financial_table = Table(financial_summary, colWidths=[doc.width * 0.25, doc.width * 0.25, doc.width * 0.5])
+    financial_table.setStyle(enhanced_table_style)
+    content.append(financial_table)
+    content.append(Spacer(1, 25))
+
+    content.append(Paragraph("Revenue by Category Analysis", styles['SectionHeader']))
+    
+    revenue_insight = """
+    The following analysis breaks down revenue streams by category, highlighting key contributors 
+    to overall business performance. This segmentation provides insights into revenue distribution 
+    and helps identify areas for potential growth or optimization.
+    """
+    content.append(Paragraph(revenue_insight.strip(), styles['BodyText']))
+    
+    income_data = report_data['financial_overview']['income_breakdown']
+    
+    # Create revenue breakdown table with enhanced formatting
+    income_table_data = [[
+        'Revenue Category',
+        'Amount',
+        'Transaction Volume',
+        'Revenue Share',
+        'Trend'
+    ]]
+    
+    total_revenue = report_data['financial_overview']['total_revenue']
+    
+    for category in income_data:
+        share = (category['total_amount'] / total_revenue) * 100
+        trend_indicator = '↑' if category.get('growth_rate', 0) > 0 else '↓'
+        trend_color = corporate_colors['success'] if category.get('growth_rate', 0) > 0 else corporate_colors['warning']
+        
+        income_table_data.append([
+            category['category'],
+            f"${category['total_amount']:,.2f}",
+            f"{category['transaction_count']:,}",
+            f"{share:.1f}%",
+            Paragraph(f"{trend_indicator} {abs(category.get('growth_rate', 0)):.1f}%",
+                     ParagraphStyle('TrendStyle',
+                                  parent=styles['BodyText'],
+                                  textColor=trend_color))
+        ])
+
+    income_table = Table(income_table_data,
+                        colWidths=[doc.width * 0.25, doc.width * 0.2,
+                                 doc.width * 0.2, doc.width * 0.15,
+                                 doc.width * 0.2])
+    income_table.setStyle(enhanced_table_style)
     content.append(income_table)
     content.append(Spacer(1, 20))
 
-    # Add inventory analytics
-    content.append(Paragraph("Inventory Analytics", styles['SectionHeader']))
+    # Inventory Analytics Section with Enhanced Metrics
+    content.append(Paragraph("Inventory Analytics & Management", styles['SectionHeader']))
+    
+    inventory_insight = """
+    This section provides a comprehensive overview of inventory status, movement patterns, and key 
+    performance indicators. The analysis helps identify potential stock optimization opportunities 
+    and areas requiring attention.
+    """
+    content.append(Paragraph(inventory_insight.strip(), styles['BodyText']))
+    
     inventory_data = report_data['inventory_insights']
-
-    inventory_summary = [
-        ['Metric', 'Current Status', 'Notes'],
-        ['Total Products', str(inventory_data['total_product_count']), 'Active inventory items'],
-        ['Stock Value', f"${inventory_data['total_stock_value']:,.2f}", 'Total inventory worth'],
-        ['Low Stock Alert', str(inventory_data['low_stock_products'].count()), 'Items needing reorder']
+    
+    # Create enhanced inventory metrics table
+    inventory_metrics = [
+        ['Metric', 'Current Value', 'Status', 'Recommendation'],
+        ['Total SKUs', 
+         str(inventory_data['total_product_count']),
+         'Active Inventory',
+         'Monitor product mix diversity'],
+        ['Total Stock Value',
+         f"${inventory_data['total_stock_value']:,.2f}",
+         'Invested Capital',
+         'Optimize working capital allocation'],
+        ['Low Stock Items',
+         str(inventory_data['low_stock_products'].count()),
+         'Requires Attention' if inventory_data['low_stock_products'].count() > 0 else 'Optimal',
+         'Review reorder points and lead times'],
+        ['Inventory Turnover',
+         f"{inventory_data.get('inventory_turnover', 0):.2f}x",
+         'Stock Efficiency',
+         'Analyze slow-moving items']
     ]
 
-    inventory_table = Table(inventory_summary, colWidths=[doc.width/3.0]*3)
-    inventory_table.setStyle(financial_table_style)
+    inventory_table = Table(inventory_metrics, colWidths=[doc.width * 0.25] * 4)
+    inventory_table.setStyle(enhanced_table_style)
     content.append(inventory_table)
     content.append(Spacer(1, 20))
 
-    # Add performance metrics
-    content.append(Paragraph("Business Performance Metrics", styles['SectionHeader']))
+    # Business Performance Metrics with Enhanced Analytics
+    content.append(Paragraph("Business Performance & Customer Metrics", styles['SectionHeader']))
+    
+    performance_insight = """
+    This section analyzes key business performance indicators and customer metrics, providing insights 
+    into operational efficiency and customer engagement levels. The metrics help identify trends and 
+    areas for strategic focus.
+    """
+    content.append(Paragraph(performance_insight.strip(), styles['BodyText']))
+    
     performance_data = report_data['performance_metrics']
-
-    performance_summary = [
-        ['Metric', 'Value', 'Industry Impact'],
-        ['Customer Base', str(performance_data['customer_metrics']['total_customers']), 'Total active customers'],
-        ['Avg. Orders/Customer', f"{performance_data['customer_metrics']['average_orders_per_customer']:.2f}", 'Customer engagement'],
-        ['Avg. Order Value', f"${performance_data['order_performance']['average_order_value']:,.2f}", 'Transaction size'],
-        ['Revenue', f"${performance_data['order_performance']['total_revenue']:,.2f}", 'Total business value']
+    
+    # Create comprehensive performance metrics table
+    performance_metrics = [
+        ['Key Performance Indicator', 'Current Value', 'Previous Period', 'Change'],
+        ['Total Customers',
+         str(performance_data['customer_metrics']['total_customers']),
+         str(performance_data['customer_metrics'].get('previous_total_customers', 0)),
+         calculate_change(performance_data['customer_metrics']['total_customers'],
+                        performance_data['customer_metrics'].get('previous_total_customers', 0))],
+        ['Average Order Value',
+         f"${performance_data['order_performance']['average_order_value']:,.2f}",
+         f"${performance_data['order_performance'].get('previous_average_order_value', 0):,.2f}",
+         calculate_change(performance_data['order_performance']['average_order_value'],
+                        performance_data['order_performance'].get('previous_average_order_value', 0))],
+        ['Customer Retention Rate',
+         f"{performance_data['customer_metrics'].get('retention_rate', 0):.1f}%",
+         f"{performance_data['customer_metrics'].get('previous_retention_rate', 0):.1f}%",
+         calculate_change(performance_data['customer_metrics'].get('retention_rate', 0),
+                        performance_data['customer_metrics'].get('previous_retention_rate', 0))],
+        ['Average Orders per Customer',
+         f"{performance_data['customer_metrics']['average_orders_per_customer']:.2f}",
+         f"{performance_data['customer_metrics'].get('previous_average_orders', 0):.2f}",
+         calculate_change(performance_data['customer_metrics']['average_orders_per_customer'],
+                        performance_data['customer_metrics'].get('previous_average_orders', 0))]
     ]
 
-    performance_table = Table(performance_summary, colWidths=[doc.width/3.0]*3)
-    performance_table.setStyle(financial_table_style)
+    performance_table = Table(performance_metrics, colWidths=[doc.width * 0.4, doc.width * 0.2,
+                                                            doc.width * 0.2, doc.width * 0.2])
+    performance_table.setStyle(enhanced_table_style)
     content.append(performance_table)
+    content.append(Spacer(1, 20))
 
-    # Add page numbers
+    # Recommendations Section
+    content.append(Paragraph("Strategic Action Items", styles['SectionHeader']))
+    recommendations = generate_strategic_recommendations(advanced_analysis)
+    
+    for rec in recommendations:
+        content.append(Paragraph(
+            f"• {rec['action']}: {rec['rationale']}",
+            styles['InsightText']
+        ))
+
+    # Enhanced footer with page numbers
     def add_page_number(canvas, doc):
         page_num = canvas.getPageNumber()
         text = f"Page {page_num}"
         canvas.saveState()
         canvas.setFont('Helvetica', 9)
-        canvas.drawRightString(doc.pagesize[0] - 50, 30, text)
+        canvas.setFillColor(corporate_colors['subtle'])
+        canvas.drawRightString(doc.pagesize[0] - 60, 30, text)
+        canvas.drawString(60, 30, report.name)
+        canvas.line(60, 40, doc.pagesize[0] - 60, 40)
         canvas.restoreState()
 
-    logger.info(f"Preparing to build PDF document for report {report.name}")
-    logger.info(f"Content length: {len(content)} sections")
-
-    # Build the PDF document
+    # Build document
     doc.build(content, onFirstPage=add_page_number, onLaterPages=add_page_number)
 
-    # Prepare the final PDF file
+    # Finalize PDF
     pdf_content = buffer.getvalue()
-    buffer_size = len(pdf_content)
-    logger.info(f"PDF generation completed. Buffer size: {buffer_size} bytes")
-
     buffer.close()
 
     formatted_date = datetime.now().strftime("%Y%m%d")
     pdf_file = ContentFile(pdf_content)
     pdf_file.name = f"{report.name}_Financial_Analysis_{formatted_date}.pdf"
 
-    logger.info(f"PDF file created successfully: {pdf_file.name}")
     return pdf_file
 
-def create_styled_table(data, headers=None, style_type='default'):
-    if headers:
-        data.insert(0, headers)
+def calculate_change(current, previous):
+    """Calculate percentage change with appropriate formatting"""
+    if previous == 0:
+        return "N/A"
+    change = ((current - previous) / previous) * 100
+    return f"{'+' if change > 0 else ''}{change:.1f}%"
 
-    num_columns = len(data[0])
-    col_widths = [2.5 * inch] * num_columns
-
-    table = Table(data, colWidths=col_widths)
-
-    corporate_blue = colors.HexColor('#1a237e')  # Dark blue
-    corporate_light_blue = colors.HexColor('#e8eaf6')  # Light blue
-
-    base_style = [
-        ('BACKGROUND', (0, 0), (-1, 0), corporate_light_blue),
-        ('TEXTCOLOR', (0, 0), (-1, 0), corporate_blue),
-        ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
-        ('PADDING', (0, 0), (-1, -1), 6),
-
-        ('GRID', (0, 0), (-1, -1), 1, corporate_light_blue),
-        ('LINEBELOW', (0, 0), (-1, 0), 1, corporate_blue),
-    ]
-
-    if style_type == 'financial':
-        base_style.extend([
-            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),  # Right align numbers
-            ('TEXTCOLOR', (-1, 1), (-1, -1), corporate_blue),  # Highlight totals
-        ])
-    elif style_type == 'inventory':
-        base_style.extend([
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('ALIGN', (-1, 1), (-1, -1), 'CENTER'),  # Center align status
-        ])
-
-    table.setStyle(TableStyle(base_style))
-
+def create_kpi_dashboard(kpi_data, width, styles):
+    """
+    Create an enhanced KPI dashboard with visual indicators
+    
+    Args:
+        kpi_data (list): List of KPI data to display
+        width (float): Width of the table
+        styles (dict): ReportLab stylesheet containing base styles
+        
+    Returns:
+        Table: A formatted ReportLab Table object containing the KPI dashboard
+    """
+    table_data = []
+    
+    # Create a custom KPI cell style
+    kpi_cell_style = ParagraphStyle(
+        'KPICell',
+        parent=styles['BodyText'],
+        fontSize=12,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#2c3e50')
+    )
+    
+    for kpi in kpi_data:
+        formatted_cells = [
+            Paragraph(str(kpi[0]), kpi_cell_style),
+            Paragraph(str(kpi[1]), kpi_cell_style),
+            Paragraph(str(kpi[2]), kpi_cell_style)
+        ]
+        table_data.append(formatted_cells)
+    
+    # Create and style the table
+    table = Table(table_data, colWidths=[width/3.0]*3)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f5f6fa')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 20),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e8eaf6')),
+        ('ROUNDEDCORNERS', (0, 0), (-1, -1), 8)
+    ]))
+    
     return table
+
+def generate_strategic_recommendations(analysis):
+    """Generate actionable strategic recommendations based on advanced analysis"""
+    recommendations = []
+    
+    # Financial Strategy Recommendations
+    if analysis['kpi_analysis']['profit_margin']['status'] == 'below_target':
+        recommendations.append({
+            'action': 'Implement Cost Optimization Program',
+            'rationale': 'Current profit margins are below target. Focus on operational efficiency and pricing strategy.',
+            'priority': 'high'
+        })
+    
+    # Add more recommendation logic based on analysis
+    return recommendations
     
 
 def send_report_email(report, recipient_email, request=None, include_summary=True, include_charts=True, start_date_str=None, end_date_str=None):
