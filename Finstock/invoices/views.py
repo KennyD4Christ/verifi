@@ -22,6 +22,9 @@ from products.models import Product
 from products.serializers import ProductSerializer
 from decimal import Decimal
 from .models import Invoice, InvoiceItem
+from users.models import CustomUser
+from users.constants import PermissionConstants
+from users.views import BaseAccessControlViewSet
 from .serializers import InvoiceSerializer, InvoiceItemSerializer
 from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly, InvoicePermission
 from core.models import Customer, CompanyInfo
@@ -50,7 +53,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProductSerializer
 
 
-class InvoiceViewSet(viewsets.ModelViewSet):
+class InvoiceViewSet(BaseAccessControlViewSet):
     """
     ViewSet for listing, creating, retrieving, updating,
     and deleting invoices.
@@ -63,6 +66,27 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     filterset_fields = ['status', 'issue_date', 'due_date']
     search_fields = ['customer__name', 'invoice_number']
     ordering_fields = ['issue_date', 'due_date', 'total_amount', 'status']
+
+    view_permission = PermissionConstants.INVOICE_VIEW
+    create_permission = PermissionConstants.INVOICE_CREATE
+    edit_permission = PermissionConstants.INVOICE_EDIT
+    delete_permission = PermissionConstants.INVOICE_DELETE
+
+    def apply_role_based_filtering(self):
+        user = self.request.user
+
+        try:
+            if user.is_role('Administrator'):
+                return self.model.objects.all()
+            elif user.is_role('Sales Representative'):
+                return self.model.objects.filter(order__sales_rep=user)
+            elif user.is_role('Customer'):
+                return self.model.objects.filter(order__customer__user=user)
+
+            return self.model.objects.all()
+        except Exception as e:
+            logger.error(f"Error in apply_role_based_filtering for user {user.id}: {str(e)}")
+            return self.model.objects.none()
 
     def get_queryset(self):
         user = self.request.user
@@ -122,7 +146,19 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
+        if not self.request.user.has_role_permission(self.create_permission):
+            raise PermissionDenied("You do not have permission to create invoices")
         serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        if not self.request.user.has_role_permission(self.edit_permission):
+            raise PermissionDenied("You do not have permission to update invoices")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not self.request.user.has_role_permission(self.delete_permission):
+            raise PermissionDenied("You do not have permission to delete invoices")
+        instance.delete()
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -135,9 +171,6 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
-
-    def perform_update(self, serializer):
-        serializer.save()
 
     @action(detail=False, methods=['post'], permission_classes=[CanViewResource, CanManageResource])
     def associate_with_customer(self, request):

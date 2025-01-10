@@ -6,7 +6,8 @@ from .views import (
     OrderItemViewSet,
     AddressViewSet,
     CompanyInfoViewSet,
-    PromotionViewSet
+    PromotionViewSet,
+    sales_representatives_view
 )
 
 router = DefaultRouter()
@@ -20,4 +21,5 @@ router.register(r'promotions', PromotionViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('customers/search/', CustomerViewSet.as_view({'get': 'search'}), name='customer-search'),
+    path('sales-reps/', sales_representatives_view, name='sales-representatives'),
 ]

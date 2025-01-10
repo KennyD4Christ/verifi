@@ -23,6 +23,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
 from products.models import Product
 from products.serializers import ProductSerializer
+from users.views import BaseAccessControlViewSet
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class StandardResultsSetPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 100
 
-class StockAdjustmentViewSet(viewsets.ModelViewSet):
+class StockAdjustmentViewSet(BaseAccessControlViewSet):
     """
     API endpoint for managing stock adjustments
     """
@@ -57,6 +58,12 @@ class StockAdjustmentViewSet(viewsets.ModelViewSet):
 
     model = StockAdjustment
     model_name = 'stock_adjustment'
+
+    # Define permissions using PermissionConstants
+    view_permission = PermissionConstants.STOCK_ADJUSTMENT_VIEW
+    create_permission = PermissionConstants.STOCK_ADJUSTMENT_CREATE
+    edit_permission = PermissionConstants.STOCK_ADJUSTMENT_EDIT
+    delete_permission = PermissionConstants.STOCK_ADJUSTMENT_DELETE
 
     def get_permissions(self):
         permission_map = {
@@ -108,25 +115,18 @@ class StockAdjustmentViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        # Check if user has create permission
-        if not self.has_action_permission('create'):
+        if not self.request.user.has_role_permission(self.create_permission):
             raise PermissionDenied("You do not have permission to create stock adjustments")
-
-        # Log the user creating the stock adjustment
         serializer.save(adjusted_by=self.request.user)
 
     def perform_update(self, serializer):
-        # Check if user has edit permission
-        if not self.has_action_permission('change'):
+        if not self.request.user.has_role_permission(self.edit_permission):
             raise PermissionDenied("You do not have permission to update stock adjustments")
-
         serializer.save()
 
     def perform_destroy(self, instance):
-        # Check if user has delete permission
-        if not self.has_action_permission('delete'):
+        if not self.request.user.has_role_permission(self.delete_permission):
             raise PermissionDenied("You do not have permission to delete stock adjustments")
-
         instance.delete()
 
     def create(self, request, *args, **kwargs):

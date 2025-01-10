@@ -81,6 +81,12 @@ class Transaction(TimeStampedModel):
         if self.order and self.customer and self.order.customer != self.customer:
             raise ValidationError("Transaction customer must match the order customer.")
 
+        # Validate category assignment
+        if self.category and self.category not in dict(self.CATEGORY_CHOICES):
+            raise ValidationError({
+                'category': f'Invalid category. Must be one of: {", ".join(dict(self.CATEGORY_CHOICES).keys())}'
+            })
+
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)

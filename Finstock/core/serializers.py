@@ -1,13 +1,15 @@
 from rest_framework import serializers, viewsets
 from django.db import transaction
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.exceptions import ObjectDoesNotExist
 from products.models import Product
 from stock_adjustments.models import StockAdjustment
 from products.serializers import ProductSerializer
+from transactions.models import Transaction
 from .models import Customer, Order, OrderItem, Address, CompanyInfo, Promotion
 import logging
 from decimal import Decimal
+from users.constants import PermissionConstants
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -130,25 +132,39 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     from invoices.serializers import InvoiceSerializer
     customer = CustomerSerializer(read_only=True)
+    sales_rep_name = serializers.SerializerMethodField()
+    customer_name = serializers.SerializerMethodField()
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     customer_id = serializers.PrimaryKeyRelatedField(
         queryset=Customer.objects.all(), source='customer'
     )
     items = OrderItemSerializer(many=True)
     total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    shipping_address = serializers.CharField()
-    billing_address = serializers.CharField()
     previous_status = serializers.CharField(read_only=True)
     invoice = InvoiceSerializer(read_only=True)
+    sales_rep = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    def get_sales_rep_name(self, obj):
+        if obj.sales_rep:
+            first_name = obj.sales_rep.first_name or ''
+            last_name = obj.sales_rep.last_name or ''
+            full_name = f"{first_name} {last_name}".strip()
+            return full_name or obj.sales_rep.username
+        return "N/A"
+
+    def get_customer_name(self, obj):
+        if obj.customer and obj.customer.user:
+            return f"{obj.customer.user.first_name} {obj.customer.user.last_name}"
+        return "N/A"
 
     class Meta:
         model = Order
         fields = [
-            'id', 'customer', 'customer_id', 'order_date', 'user', 'shipped_date', 'is_paid', 'is_shipped',
-            'items', 'created', 'modified', 'status', 'total_price', 'previous_status',
-            'shipping_address', 'billing_address', 'special_instructions', 'invoice'
+            'id', 'customer', 'customer_id', 'customer_name', 'order_date', 'user', 'shipped_date', 'is_paid', 'is_shipped',
+            'items', 'created', 'modified', 'status', 'total_price', 'previous_status', 'sales_rep', 'sales_rep_name',
+            'special_instructions', 'invoice', 'transaction_category'
         ]
-        read_only_fields = ['id', 'user']
+        read_only_fields = ['id', 'user', 'sales_rep']
 
     def to_internal_value(self, data):
         logger.debug(f"OrderSerializer to_internal_value called with data: {data}")
@@ -171,21 +187,14 @@ class OrderSerializer(serializers.ModelSerializer):
         return attrs
 
     def _validate_order_creation_permission(self, user):
-        # Check if user has permission to create/edit orders
-        allowed_roles = ['Sales Representative', 'Administrator']
-
-        if not user.role.name in allowed_roles:
+        if not user.has_role_permission(PermissionConstants.ORDER_CREATE):
             raise serializers.ValidationError({
                 'permission': 'You do not have permission to create or modify orders.'
             })
 
     def _validate_order_status_change(self, user, data):
-        # Implement status change restrictions based on user role
         if 'status' in data:
-            # Only certain roles can change order status
-            status_change_roles = ['Sales Representative', 'Administrator']
-
-            if user.role.name not in status_change_roles:
+            if not user.has_role_permission(PermissionConstants.ORDER_EDIT):
                 raise serializers.ValidationError({
                     'status': 'You are not authorized to change order status.'
                 })
@@ -200,41 +209,61 @@ class OrderSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop('items')
-        shipping_address_str = validated_data.pop('shipping_address')
-        billing_address_str = validated_data.pop('billing_address')
+        user = validated_data.get('user')
 
-        # Create or get Address instances
-        shipping_address = Address.create_from_string(shipping_address_str)
-        billing_address = Address.create_from_string(billing_address_str)
+        # Create order with initial status
+        order = Order.objects.create(**validated_data)
+        logger.info(f"Initial order {order.id} created")
 
-        # Create the order
-        order = Order.objects.create(
-            shipping_address=shipping_address,
-            billing_address=billing_address,
-            **validated_data
-        )
-
+        total_amount = Decimal('0')
+        
         # Create order items and stock adjustments
         for item_data in items_data:
             order_item = OrderItem.objects.create(order=order, **item_data)
+            total_amount += order_item.quantity * order_item.unit_price
             
             StockAdjustment.objects.create(
                 product=order_item.product,
                 quantity=-order_item.quantity,
-                adjusted_by=order.customer.user if order.customer.user else None,
+                adjusted_by=user,
                 adjustment_type='REMOVE',
-                reason=f"New Order {order.id} created"
+                reason=f"Order #{order.id} - Item: {order_item.product.name}"
             )
-            logger.info(f"Created order {order.id}")
-        # Always create an invoice, but set its status based on the order status
+            logger.info(f"Created stock adjustment for order {order.id}, item {order_item.product.name}")
+
+        # Create invoice after all items are added
         invoice = order.create_invoice()
         logger.info(f"Created invoice {invoice.id} for order {order.id}")
-    
-        # Refresh the order to ensure we have the latest data
-        order.refresh_from_db()
-        logger.info(f"Refreshed order {order.id} from database")
 
+        # If order status requires transaction, create it here
+        if order.status in ['shipped', 'delivered']:
+            self._create_transaction(order, user)
+
+        order.refresh_from_db()
         return order
+
+    def _create_transaction(self, order, user):
+        logger.info(f"Creating transaction for order {order.id}")
+        try:
+            if not user.has_role_permission(PermissionConstants.TRANSACTION_CREATE):
+                logger.error(f"User {user.username} does not have permission to create transactions")
+                raise PermissionDenied("User does not have permission to create transactions")
+
+            transaction = Transaction.objects.create(
+                order=order,
+                customer=order.customer,
+                transaction_type='income',
+                amount=order.total_price,
+                date=order.shipped_date or order.order_date,
+                payment_method='other',
+                status='completed',
+                category='other'
+            )
+            logger.info(f"Successfully created transaction {transaction.id} for order {order.id}")
+            return transaction
+        except Exception as e:
+            logger.error(f"Failed to create transaction for order {order.id}: {str(e)}")
+            raise ValidationError(f"Failed to create transaction: {str(e)}")
 
     @transaction.atomic
     def update(self, instance, validated_data):
@@ -269,8 +298,6 @@ class OrderSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         from invoices.serializers import InvoiceSerializer
         representation = super().to_representation(instance)
-        representation['shipping_address'] = str(instance.shipping_address) if instance.shipping_address else None
-        representation['billing_address'] = str(instance.billing_address) if instance.billing_address else None
         representation['total_price'] = str(instance.total_price)
         if instance.invoice:
             representation['invoice'] = InvoiceSerializer(instance.invoice).data

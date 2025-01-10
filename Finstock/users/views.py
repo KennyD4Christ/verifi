@@ -157,8 +157,8 @@ class BaseAccessControlViewSet(viewsets.ModelViewSet):
         if self.request.user.is_superuser:
             return self.model.objects.all()
 
-        view_permission = f'{self.model_name}.view_{self.model_name}'
-        if not self.request.user.has_perm(view_permission):
+        # Check if user has view permission using the constant
+        if not self.request.user.has_role_permission(self.view_permission):
             return self.model.objects.none()
 
         queryset = self.apply_role_based_filtering()
@@ -232,6 +232,22 @@ class BaseAccessControlViewSet(viewsets.ModelViewSet):
     def has_action_permission(self, action_type):
         permission = f'{self.model_name}.{action_type}_{self.model_name}'
         return self.request.user.has_perm(permission)
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+
+        # Additional logging for debugging
+        if not request.user.is_authenticated:
+            logger.warning(f"Unauthenticated access attempt to {self.action} on {self.model_name}")
+            raise PermissionDenied("Authentication required")
+
+        action_permission = getattr(self, f'{self.action}_permission', None)
+        if action_permission and not request.user.has_role_permission(action_permission):
+            logger.warning(
+                f"Permission denied for user {request.user.username} "
+                f"attempting {self.action} on {self.model_name}"
+            )
+            raise PermissionDenied(f"You don't have permission to {self.action} this resource")
 
 
 class UserViewSet(BaseAccessControlViewSet):

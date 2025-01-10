@@ -539,13 +539,46 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
         logger.info(f"Generating report for period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
 
         def _analyze_income_breakdown(income_transactions):
-            """
-            Detailed breakdown of income sources
-            """
-            return income_transactions.values('category').annotate(
+            # First, get all transactions with categories
+            categorized = income_transactions.exclude(
+                Q(category__isnull=True) | Q(category='')  # Handle both NULL and empty string cases
+            ).values(
+                'category'
+            ).annotate(
                 total_amount=Sum('amount'),
                 transaction_count=Count('id')
             ).order_by('-total_amount')
+
+            # Get the category mapping
+            category_mapping = dict(Transaction.CATEGORY_CHOICES)
+    
+            # Process categorized transactions
+            breakdown = []
+            for item in categorized:
+                category_name = category_mapping.get(item['category'])
+                if category_name:  # Only add if we have a valid category name
+                    breakdown.append({
+                        'category': category_name,
+                        'total_amount': item['total_amount'],
+                        'transaction_count': item['transaction_count']
+                    })
+
+            # Handle uncategorized transactions (both NULL and empty string categories)
+            uncategorized = income_transactions.filter(
+                Q(category__isnull=True) | Q(category='')
+            ).aggregate(
+                total_amount=Sum('amount'),
+                transaction_count=Count('id')
+            )
+
+            if uncategorized['total_amount']:
+                breakdown.append({
+                    'category': 'Uncategorized Income',
+                    'total_amount': uncategorized['total_amount'],
+                    'transaction_count': uncategorized['transaction_count']
+                })
+
+            return breakdown
 
         def _analyze_expense_breakdown(expense_transactions):
             """
@@ -568,7 +601,7 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
 
         def generate_inventory_insights():
             """
-            Generate comprehensive inventory analysis
+            Generate comprehensive inventory analysis with enhanced low stock reporting
             """
             date_filter = Q(
                 order_items__order__order_date__range=[start_date, end_date],
@@ -612,21 +645,30 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
                 )
             )
 
+            low_stock_products = inventory_data.filter(
+                stock__lt=F('low_stock_threshold')
+            ).values(
+                'name',
+                'stock',
+                'low_stock_threshold',
+                'total_sales'
+            ).order_by('stock')
+
             return {
                 'total_product_count': inventory_data.count(),
                 'total_stock_value': inventory_data.aggregate(
                     total=Sum(F('stock') * F('price'))
                 )['total'] or Decimal('0.00'),
-
-                'low_stock_products': inventory_data.filter(
-                    stock__lt=F('low_stock_threshold')
-                ),
-
+                'inventory_status': {
+                    'status': 'Healthy' if not low_stock_products else 'Attention Required',
+                    'low_stock_count': low_stock_products.count()
+                },
+                'low_stock_products': low_stock_products,
                 'top_selling_products': inventory_data.filter(
                     Q(total_sales__gt=0) | Q(total_revenue__gt=0)
                 ).order_by('-total_sales')[:10].values(
-                    'name', 
-                    'total_sales', 
+                    'name',
+                    'total_sales',
                     'total_revenue'
                 )
             }
@@ -1168,6 +1210,82 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, corporate_colors['background']])
     ])
 
+    def prepare_revenue_chart_data(financial_overview):
+        try:
+            monthly_data = []
+            cash_flow = financial_overview.get('monthly_cash_flow', [])
+            for entry in cash_flow:
+                if entry['transaction_type'] == 'income':
+                    monthly_data.append({
+                        'month': entry['month'].strftime('%B'),
+                        'revenue': float(entry['total_amount'])
+                    })
+            return {'monthly_revenue': monthly_data}
+        except Exception as e:
+            logger.error(f"Error preparing revenue chart data: {str(e)}")
+            return {'monthly_revenue': []}
+
+    def prepare_category_chart_data(income_breakdown):
+        logger.info(f"Income breakdown data: {income_breakdown}")
+    
+        formatted_data = []
+        total_amount = sum(item['total_amount'] for item in income_breakdown)
+    
+        if total_amount > 0:
+            for item in income_breakdown:
+                if item['total_amount'] > 0:
+                    category_name = item['category'] if item['category'] else 'Uncategorized Income'
+                    formatted_data.append({
+                        'category': category_name,
+                        'total_amount': float(item['total_amount'])  # Convert Decimal to float
+                    })
+    
+        # Add logging for the formatted output
+        logger.info(f"Formatted category data: {formatted_data}")
+        return formatted_data
+
+    def prepare_inventory_chart_data(inventory_insights):
+        try:
+            products = inventory_insights['low_stock_products']
+        
+            # Convert queryset to list and get required fields
+            product_list = list(products.values('name', 'stock')[:10])
+        
+            if not product_list:
+                logger.warning("No low stock products found")
+                return {
+                    'product_categories': ['No Low Stock Items'],
+                    'stock_levels': [[0]]
+                }
+        
+            # Separate the data into two lists
+            categories = [p['name'] for p in product_list]
+            stock_levels = [[p['stock'] for p in product_list]]
+        
+            logger.info(f"Inventory chart data - Categories: {categories}, Levels: {stock_levels}")
+        
+            return {
+                'product_categories': categories,
+                'stock_levels': stock_levels
+            }
+        except Exception as e:
+            logger.error(f"Error in prepare_inventory_chart_data: {str(e)}")
+            return {
+                'product_categories': ['Data Unavailable'],
+                'stock_levels': [[0]]
+            }
+
+    def validate_chart_dimensions(width, height, min_width=300, min_height=200):
+        return max(width, min_width), max(height, min_height)
+
+    formatted_category_data = prepare_category_chart_data(report_data['financial_overview']['income_breakdown'])
+    logger.info(f"Category data being passed to chart: {formatted_category_data}")
+    if not formatted_category_data:
+        logger.warning("No valid category data available for pie chart")
+
+    width, height = validate_chart_dimensions(400, 300)
+    category_chart = create_category_pie_chart(formatted_category_data, width, height)
+
     content = []
 
     # Header Section
@@ -1207,13 +1325,23 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
 
     # Revenue Trend Visualization
     content.append(Paragraph("Revenue Performance Trend", styles['SubHeader']))
-    revenue_chart = create_revenue_trend_chart(report_data['financial_overview'], 500, 200)
+    width, height = validate_chart_dimensions(500, 200)
+    revenue_chart = create_revenue_trend_chart(
+        prepare_revenue_chart_data(report_data['financial_overview']), 
+        width, 
+        height
+    )
     content.append(revenue_chart)
     content.append(Spacer(1, 20))
 
     # Category Distribution
     content.append(Paragraph("Revenue Distribution by Category", styles['SubHeader']))
-    category_chart = create_category_pie_chart(report_data['financial_overview']['income_breakdown'], 400, 300)
+    width, height = validate_chart_dimensions(400, 300)
+    category_chart = create_category_pie_chart(
+        prepare_category_chart_data(report_data['financial_overview']['income_breakdown']), 
+        width, 
+        height
+    )
     content.append(category_chart)
 
     # Add page break before detailed analysis
@@ -1341,6 +1469,27 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
     inventory_table.setStyle(enhanced_table_style)
     content.append(inventory_table)
     content.append(Spacer(1, 20))
+
+    # Add this where you want the inventory chart to appear
+    try:
+        content.append(Paragraph("Inventory Stock Levels", styles['SubHeader']))
+        inventory_data = prepare_inventory_chart_data(report_data['inventory_insights'])
+    
+        # Log the prepared data
+        logger.info(f"Prepared inventory data: {inventory_data}")
+    
+        if inventory_data['product_categories'][0] not in ['No Low Stock Items', 'Data Unavailable']:
+            width, height = validate_chart_dimensions(500, 200)
+            inventory_chart = create_inventory_bar_chart(inventory_data, width, height)
+            content.append(inventory_chart)
+        else:
+            content.append(Paragraph("No low stock items to display", styles['BodyText']))
+    
+        content.append(Spacer(1, 20))
+    except Exception as e:
+        logger.error(f"Error adding inventory chart to report: {str(e)}")
+        content.append(Paragraph("Unable to generate inventory chart", styles['BodyText']))
+        content.append(Spacer(1, 20))
 
     # Business Performance Metrics with Enhanced Analytics
     content.append(Paragraph("Business Performance & Customer Metrics", styles['SectionHeader']))

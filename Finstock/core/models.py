@@ -109,7 +109,8 @@ class Order(TimeStampedModel):
     """
     Model representing an order.
     """
-    customer = models.ForeignKey(Customer, related_name='orders', on_delete=models.CASCADE)
+    sales_rep = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sales_orders')
+    customer = models.ForeignKey(Customer, related_name='orders', on_delete=models.SET_NULL, null=True, blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders', null=True)
     order_date = models.DateTimeField(default=timezone.now)
     shipped_date = models.DateTimeField(blank=True, null=True)
@@ -128,9 +129,15 @@ class Order(TimeStampedModel):
     estimated_delivery = models.DateTimeField(blank=True, null=True)
     previous_status = models.CharField(max_length=20, null=True, blank=True)
     invoice = models.OneToOneField('invoices.Invoice', on_delete=models.SET_NULL, null=True, blank=True, related_name='related_order')
+    transaction_category = models.CharField(max_length=50, choices=[
+        ('income', 'Income'),
+        ('expense', 'Expense'),
+        ('cost_of_services', 'Cost of Services'),
+    ], default='income')
 
     def __str__(self):
-        return f"Order {self.id} for {self.customer}"
+        customer_name = self.customer.get_full_name() if self.customer else "No Customer"
+        return f"Order {self.id} by {self.sales_rep.get_full_name()} for {customer_name}"
 
     @property
     def total_price(self):

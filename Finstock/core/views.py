@@ -1,9 +1,10 @@
 from django.db.models import Q, DateTimeField
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import transaction, connection
+from django.contrib.auth import get_user_model
 from django.shortcuts import render  # noqa
 from rest_framework import viewsets, permissions, status, filters as drf_filters
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404  # noqa
 from rest_framework.serializers import ValidationError as DRFValidationError
@@ -26,10 +27,10 @@ from .serializers import (
     CompanyInfoSerializer,
     PromotionSerializer
 )
+from users.constants import PermissionConstants
 from users.views import BaseAccessControlViewSet
 from users.permissions import DynamicModelPermission
 from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly
-from users.constants import PermissionConstants
 from users.models import CustomUser
 import logging
 
@@ -104,8 +105,8 @@ class OrderViewSet(BaseAccessControlViewSet):
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, drf_filters.SearchFilter, drf_filters.OrderingFilter]
     filterset_class = DateRangeFilter
-    filterset_fields = ['status', 'order_date', 'shipped_date', 'is_paid']
-    search_fields = ['customer__user__first_name', 'customer__user__last_name', 'customer__user__email', 'id']
+    filterset_fields = ['status', 'order_date', 'shipped_date', 'is_paid', 'transaction_category']
+    search_fields = ['sales_rep__first_name', 'sales_rep__last_name', 'customer__user__first_name', 'customer__user__last_name', 'id']
     ordering_fields = ['order_date', 'shipped_date', 'status', 'total_price']
 
     model = Order
@@ -118,62 +119,77 @@ class OrderViewSet(BaseAccessControlViewSet):
     delete_permission = PermissionConstants.ORDER_DELETE
 
     def apply_role_based_filtering(self):
-        # Implement role-specific filtering logic
         user = self.request.user
-
-        # If user is Sales Representative, show only their own orders
-        if user.role.name == 'Sales Representative':
-            return self.model.objects.filter(created_by=user)
-
-        # If user is Inventory Manager, show orders related to their inventory
-        elif user.role.name == 'Inventory Manager':
-            return self.model.objects.filter(
-                items__product__in=Product.objects.filter(managed_by=user)
-            ).distinct()
-
-        # Default to standard queryset for other roles
-        return self.model.objects.all()
+        
+        try:
+            if user.is_role('Sales Representative'):
+                return self.model.objects.filter(created_by=user)
+            elif user.is_role('Inventory Manager'):
+                return self.model.objects.filter(
+                    items__product__in=Product.objects.filter(managed_by=user)
+                ).distinct()
+            
+            return self.model.objects.all()
+        except Exception as e:
+            logger.error(f"Error in apply_role_based_filtering for user {user.id}: {str(e)}")
+            return self.model.objects.none()
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        
         try:
-            self.perform_create(serializer)
+            # Check permissions using has_role_permission instead of is_role
+            if not request.user.has_role_permission(self.create_permission):
+                logger.warning(f"Unauthorized order creation attempt by user {request.user.username}")
+                raise PermissionDenied("You are not authorized to create orders")
+
+            order = serializer.save(
+                user=request.user,
+                sales_rep=request.user
+            )
+
             headers = self.get_success_headers(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            
         except ValidationError as e:
             logger.error(f"Validation error in create: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
         except Exception as e:
             logger.error(f"Unexpected error in create: {str(e)}")
-            return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": "An unexpected error occurred"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
     @transaction.atomic
     def perform_create(self, serializer):
-        logger.debug(f"perform_create called with validated data: {serializer.validated_data}")
         try:
-            # Ensure only users with specific roles can create orders
-            allowed_roles = ['Sales Representative', 'Administrator']
-            if not self.request.user.role.name in allowed_roles:
-                logger.warning(f"Unauthorized order creation attempt by user {self.request.user.username}")
-                raise PermissionDenied("You are not authorized to create orders")
-
-            # Save the order and set user to the current user
-            order = serializer.save(user=self.request.user)
+            order = serializer.save(
+                user=self.request.user,
+                sales_rep=self.request.user
+            )
 
             logger.info(f"Order created successfully. ID: {order.id}")
-            logger.debug(f"Order {order.id} items: {list(order.items.all()) if hasattr(order, 'items') else 'No items related.'}")
 
-            # Generate an invoice for the order
             if hasattr(order, 'create_invoice'):
                 order.create_invoice()
             else:
                 logger.warning(f"Order {order.id} does not have a 'create_invoice' method implemented.")
 
-            # Create a transaction if the order's status warrants it
             if order.status in ['shipped', 'delivered']:
-                create_transaction_from_order(order)
+                try:
+                    create_transaction_from_order(order)
+                except PermissionDenied as e:
+                    logger.error(f"Permission error creating transaction for order {order.id}: {str(e)}")
+                    raise ValidationError(f"Order created but transaction creation failed: {str(e)}")
+                except Exception as e:
+                    logger.error(f"Error creating transaction for order {order.id}: {str(e)}")
+                    raise ValidationError("Order created but transaction creation failed")
 
         except ValidationError as e:
             logger.error(f"Error creating order: {str(e)}")
@@ -226,7 +242,6 @@ class OrderViewSet(BaseAccessControlViewSet):
             return queryset.prefetch_related('items__product')
         return queryset
 
-
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -248,8 +263,8 @@ class OrderViewSet(BaseAccessControlViewSet):
 
             # Implement more granular update permissions
             if not (
-                user.role.name in ['Sales Representative', 'Administrator'] or
-                (user.role.name == 'Sales Representative' and serializer.instance.user == user)
+                user.is_role('Administrator') or 
+                (user.is_role('Sales Representative') and serializer.instance.user == user)
             ):
                 logger.warning(f"Unauthorized order update attempt by user {user.username}")
                 raise PermissionDenied("You are not authorized to update this order")
@@ -357,6 +372,34 @@ class OrderViewSet(BaseAccessControlViewSet):
         except Promotion.DoesNotExist:
             return Response({"error": "Invalid or expired promotion code"}, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET'])
+def sales_representatives_view(request):
+    try:
+        User = get_user_model()
+        # Filter users who have the Sales Representative role
+        sales_reps = User.objects.filter(
+            roles__name='Sales Representative',
+            roles__is_active=True,
+            is_active=True
+        ).distinct()
+        
+        sales_reps_data = [{
+            'id': user.id,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'username': user.username
+        } for user in sales_reps]
+        
+        logger.info(f"Successfully retrieved {len(sales_reps_data)} sales representatives")
+        return Response(sales_reps_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error in sales_representatives_view: {str(e)}")
+        return Response(
+            {"error": "Failed to fetch sales representatives", "detail": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 class OrderItemViewSet(viewsets.ModelViewSet):
     queryset = OrderItem.objects.select_related('product').all()

@@ -20,6 +20,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER
 from datetime import datetime
 from users.views import BaseAccessControlViewSet
+from users.constants import PermissionConstants
 from users.models import CustomUser
 from django.db.models import Q
 import logging
@@ -52,6 +53,11 @@ class TransactionViewSet(BaseAccessControlViewSet):
 
     model = Transaction
     model_name = 'transaction'
+
+    view_permission = PermissionConstants.TRANSACTION_VIEW
+    create_permission = PermissionConstants.TRANSACTION_CREATE
+    edit_permission = PermissionConstants.TRANSACTION_EDIT
+    delete_permission = PermissionConstants.TRANSACTION_DELETE
 
     def apply_role_based_filtering(self):
         user = self.request.user
@@ -113,11 +119,10 @@ class TransactionViewSet(BaseAccessControlViewSet):
         return queryset.prefetch_related('order', 'invoice', 'customer')
 
     def perform_create(self, serializer):
-        # Additional role-based creation permission check
-        allowed_roles = ['Accountant', 'Administrator', 'Sales Representative']
         user = self.request.user
-
-        if not user.role.name in allowed_roles:
+        allowed_roles = ['Accountant', 'Administrator', 'Sales Representative']
+    
+        if not any(user.is_role(role) for role in allowed_roles):
             logger.warning(f"Unauthorized transaction creation attempt by user {user.username}")
             raise PermissionDenied("You are not authorized to create transactions")
 
@@ -126,28 +131,37 @@ class TransactionViewSet(BaseAccessControlViewSet):
 
     def perform_update(self, serializer):
         # Additional role-based update permission check
-        allowed_roles = ['Accountant', 'Administrator']
-        user = self.request.user
-
-        if not user.role.name in allowed_roles:
+        if not user.is_role('Administrator'):
             logger.warning(f"Unauthorized transaction update attempt by user {user.username}")
             raise PermissionDenied("You are not authorized to update transactions")
 
-        logger.info(f"Transaction update authorized for user {user.username}")
+        if not self.request.user.has_role_permission(self.edit_permission):
+            logger.warning(f"Unauthorized transaction update attempt by user {self.request.user.username}")
+            raise PermissionDenied("You are not authorized to update transactions")
+
+        logger.info(f"Transaction update authorized for user {self.request.user.username}")
         serializer.save()
 
     def perform_destroy(self, instance):
-        # Additional role-based deletion permission check
-        allowed_roles = ['Administrator']
         user = self.request.user
-
-        if not user.role.name in allowed_roles:
+    
+        # Check for Administrator role using the correct method
+        if not user.is_role('Administrator'):
             logger.warning(f"Unauthorized transaction deletion attempt by user {user.username}")
             raise PermissionDenied("You are not authorized to delete transactions")
-
-        logger.info(f"Transaction deletion authorized for user {user.username}")
-        instance.delete()
+        
+        # Also verify the user has the delete permission
+        if not user.has_role_permission(self.delete_permission):
+            logger.warning(f"User {user.username} lacks delete permission for transactions")
+            raise PermissionDenied("You don't have permission to delete transactions")
     
+        try:
+            logger.info(f"Transaction deletion authorized for user {user.username}")
+            instance.delete()
+        except Exception as e:
+            logger.error(f"Error deleting transaction {instance.id}: {str(e)}")
+            raise ValidationError("Unable to delete transaction")
+
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]

@@ -9,6 +9,7 @@ from transactions.models import Transaction
 from stock_adjustments.models import StockAdjustment
 from reports.models import Report
 from core.models import Order
+from users.constants import PermissionConstants
 import logging
 
 logger = logging.getLogger(__name__)
@@ -47,49 +48,62 @@ class SuperuserOrReadOnly(permissions.BasePermission):
 
 class RoleBasedPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        # Skip permission check for unauthenticated requests
-        if not request.user or not request.user.is_authenticated:
-            return False
+        try:
+            if not request.user or not request.user.is_authenticated:
+                return False
 
-        # Superusers have full access
-        if request.user.is_superuser:
-            return True
+            if request.user.is_superuser:
+                return True
 
-        # Check if view has model_name attribute before accessing
-        if not hasattr(view, 'model_name'):
-            return True  # Allow access to root views or views without specific model
-        permission_mapping = {
-            'list': f'{view.model_name}.view_{view.model_name}',
-            'retrieve': f'{view.model_name}.view_{view.model_name}',
-            'create': f'{view.model_name}.add_{view.model_name}',
-            'update': f'{view.model_name}.change_{view.model_name}',
-            'partial_update': f'{view.model_name}.change_{view.model_name}',
-            'destroy': f'{view.model_name}.delete_{view.model_name}'
-        }
-        
-        required_permission = permission_mapping.get(view.action)
-        if required_permission and not request.user.has_perm(required_permission):
+            if not hasattr(view, 'model_name'):
+                return True
+
+            permission_mapping = {
+                'list': getattr(view, 'view_permission', None),
+                'retrieve': getattr(view, 'view_permission', None),
+                'create': getattr(view, 'create_permission', None),
+                'update': getattr(view, 'edit_permission', None),
+                'partial_update': getattr(view, 'edit_permission', None),
+                'destroy': getattr(view, 'delete_permission', None)
+            }
+            required_permission = permission_mapping.get(view.action)
+            if not required_permission:
+                return True
+
+            return request.user.has_role_permission(required_permission)
+        except AttributeError as e:
+            logger.error(f"Permission check failed: {str(e)}")
             return False
-        return True
 
     def has_object_permission(self, request, view, obj):
-        """
-        Provides object-level permission checking
-        """
         if request.user.is_superuser:
             return True
+
+        # Check basic permission first
+        if not self.has_permission(request, view):
+            return False
+
+        # Handle delete operations
+        if request.method == 'DELETE':
+            # Check if user has delete permission
+            delete_permission = getattr(view, 'delete_permission', None)
+            if delete_permission and not request.user.has_role_permission(delete_permission):
+                return False
             
-        # Check if user is trying to modify the object
-        is_modify_request = request.method in ['PUT', 'PATCH', 'DELETE']
-        
-        if is_modify_request:
-            return obj.user == request.user or obj.customer == request.user
-    
+            # Additional role-based checks for deletion
+            allowed_roles = ['Administrator', 'Accountant']
+            return any(request.user.is_role(role) for role in allowed_roles)
+
+        # Handle other operations
+        if request.method in ['PUT', 'PATCH']:
+            return (getattr(obj, 'created_by', None) == request.user or 
+                   request.user.is_role('Administrator'))
+
         if request.method == 'GET':
             if request.user.is_role('Administrator'):
                 return True
-            return obj.user == request.user or obj.customer == request.user
-    
+            return getattr(obj, 'created_by', None) == request.user
+
         return False
 
 
