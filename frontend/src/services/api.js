@@ -236,6 +236,23 @@ export const fetchCustomers = async () => {
   }
 };
 
+
+// Function to fetch customers
+export const fetchSalesReps = async () => {
+  try {
+    const response = await axiosInstance.get('/core/sales-reps/');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching sales representatives:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+};
+
 // Function to create customers
 export const createCustomer = async (customer) => {
   try {
@@ -1377,6 +1394,44 @@ export async function updateReportSchedule(reportId, schedule) {
     throw error;
   }
 }
+
+// Function to fetch current user
+export async function fetchCurrentUser() {
+  try {
+    const response = await axiosInstance.get('/users/me/');
+    console.log('Current User API Response:', response.data);
+
+    // Normalize the response data
+    const user = response.data;
+
+    return {
+      id: user.id || null,
+      username: user.username || 'Unknown',
+      email: user.email || 'No Email',
+      first_name: user.first_name || '',
+      last_name: user.last_name || '',
+      firstName: user.first_name || '',
+      lastName: user.last_name || '',
+      displayName: user.first_name
+        ? `${user.first_name} ${user.last_name || ''}`.trim()
+        : user.username || 'Unknown User',
+    };
+  } catch (error) {
+    console.error('Error fetching current user:', error);
+    if (error.response) {
+      console.error('Server responded with:', error.response.data);
+      console.error('Status code:', error.response.status);
+      throw new Error(JSON.stringify(error.response.data));
+    } else if (error.request) {
+      console.error('No response received:', error.request);
+      throw new Error('No response received from server');
+    } else {
+      console.error('Error setting up request:', error.message);
+      throw error;
+    }
+  }
+}
+
 
 // Function to create user
 async function createUser(userData) {

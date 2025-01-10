@@ -9,12 +9,28 @@ const { Text } = Typography;
 
 const STATUS_OPTIONS = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
-const CreateOrderModal = ({ open, onClose, onOrderCreated, customers }) => {
+const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUser }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [orderItems, setOrderItems] = useState([]);
   const [products, setProducts] = useState([]);
   const [fetchingProducts, setFetchingProducts] = useState(false);
+
+  const TRANSACTION_CATEGORIES = [
+    { value: 'income', label: 'Income' },
+    { value: 'expense', label: 'Expense' },
+    { value: 'cost_of_services', label: 'Cost of Services' },
+  ];
+
+  useEffect(() => {
+    if (open && currentUser) {
+      form.setFieldsValue({
+        sales_rep_id: currentUser.id,
+	sales_rep_name: `${currentUser.firstName} ${currentUser.lastName}`
+      });
+    }
+  }, [open, currentUser, form]);
+
 
   const totalPrice = useMemo(() => {
     return orderItems.reduce((total, item) => total + (parseFloat(item.unit_price) * item.quantity), 0);
@@ -22,14 +38,11 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers }) => {
 
   useEffect(() => {
     if (open) {
-      console.log('Available products:', products);
-      console.log('CreateOrderModal opened');
-      console.log('Customers:', customers);
       form.resetFields();
       setOrderItems([]);
       fetchProductList();
     }
-  }, [open, form]);
+  }, [open]);
 
   const fetchProductList = async () => {
     setFetchingProducts(true);
@@ -64,9 +77,10 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers }) => {
     setLoading(true);
     try {
       const orderData = {
-        customer_id: values.customer_id,
-        shipping_address: `${values.shipping_street}, ${values.shipping_city}, ${values.shipping_state}, ${values.shipping_country}, ${values.shipping_postal_code}`,
-        billing_address: `${values.billing_street}, ${values.billing_city}, ${values.billing_state}, ${values.billing_country}, ${values.billing_postal_code}`,
+	sales_rep_id: currentUser.id,
+	sales_rep_name: `${currentUser.firstName} ${currentUser.lastName}`,
+        customer_id: values.customer_id || null,
+	transaction_category: values.transaction_category,
         special_instructions: values.special_instructions,
         items: orderItems.map(item => ({
           product: item.product_id,
@@ -208,16 +222,23 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers }) => {
     <Modal
       title="Create New Order"
       open={open}
-      onCancel={onClose}
+      onCancel={() => {
+        form.resetFields();
+        setOrderItems([]);
+        onClose();
+      }}
       footer={null}
       width={800}
     >
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
-        <Form.Item
-          name="customer_id"
-          label="Customer"
-          rules={[{ required: true, message: 'Please select a customer' }]}
-        >
+        <Form.Item name="sales_rep_name" label="Sales Representative">
+          <Input
+            disabled
+            value={currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'N/A'}
+          />
+        </Form.Item>
+
+        <Form.Item name="customer_id" label="Customer (Optional)">
           <Select placeholder="Select customer">
             {customers.map(customer => (
               <Option key={customer.id} value={customer.id}>
@@ -227,7 +248,21 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers }) => {
           </Select>
         </Form.Item>
 
-	<Form.Item
+        <Form.Item
+          name="transaction_category"
+          label="Transaction Category"
+          rules={[{ required: true, message: 'Please select a transaction category' }]}
+        >
+          <Select placeholder="Select transaction category">
+            {TRANSACTION_CATEGORIES.map(category => (
+              <Option key={category.value} value={category.value}>
+                {category.label}
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item
           name="status"
           label="Order Status"
           rules={[{ required: true, message: 'Please select an order status' }]}
@@ -248,48 +283,26 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers }) => {
             pagination={false}
             rowKey={(record, index) => index}
           />
-          <Button type="dashed" onClick={handleAddProduct} block icon={<PlusOutlined />} style={{ marginTop: 16 }}>
+          <Button
+            type="dashed"
+            onClick={handleAddProduct}
+            block
+            icon={<PlusOutlined />}
+            style={{ marginTop: 16 }}
+          >
             Add Product
           </Button>
-        </Form.Item>
-
-        <Typography.Title level={4}>Shipping Address</Typography.Title>
-        <Form.Item name="shipping_street" label="Street" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="shipping_city" label="City" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="shipping_state" label="State" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="shipping_country" label="Country" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="shipping_postal_code" label="Postal Code" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-
-        <Typography.Title level={4}>Billing Address</Typography.Title>
-        <Form.Item name="billing_street" label="Street" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="billing_city" label="City" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="billing_state" label="State" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="billing_country" label="Country" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="billing_postal_code" label="Postal Code" rules={[{ required: true }]}>
-          <Input />
         </Form.Item>
 
         <Form.Item name="special_instructions" label="Special Instructions">
           <TextArea rows={3} />
         </Form.Item>
+
+        <div style={{ marginBottom: 16 }}>
+          <Text type="secondary">
+            Sales Representative: {currentUser?.first_name} {currentUser?.last_name}
+          </Text>
+        </div>
 
         <Text strong>Total Price: ${totalPrice.toFixed(2)}</Text>
 

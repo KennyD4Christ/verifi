@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrders } from '../context/OrderContext';
-import { fetchProducts, fetchCustomers, fetchOrders } from '../services/api';
+import { fetchProducts, fetchCustomers, fetchOrders, fetchCurrentUser } from '../services/api';
 import CreateOrderModal from '../modals/CreateOrderModal';
 import OrderDetailsModal from '../modals/OrderDetailsModal';
 import { format } from 'date-fns';
@@ -47,19 +47,28 @@ const OrdersPage = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [sortField, setSortField] = useState('order_date');
   const [sortDirection, setSortDirection] = useState('descend');
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoadingData(true);
       try {
-        console.log('Fetching customers and products...');
-        const [customersData, productsData] = await Promise.all([
+        console.log('Fetching customers, products, and current user...');
+        const [customersData, productsData, userData] = await Promise.all([
           fetchCustomers(),
-          fetchProducts()
+          fetchProducts(),
+	  fetchCurrentUser()
         ]);
-        console.log('Customers data:', customersData);
-        console.log('Raw products data:', JSON.stringify(productsData, null, 2));
         
+        
+        console.log('Current user data structure:', {
+          hasData: !!userData,
+          properties: userData ? Object.keys(userData) : [],
+          fullData: userData
+        });
+
+        setCurrentUser(userData);
+
         setCustomers(customersData);
 
         // Format products data
@@ -140,8 +149,13 @@ const OrdersPage = () => {
   const handleAddNewOrder = () => {
     console.log('Customers:', customers);
     console.log('Products:', products);
+
+    if (!currentUser) {
+        message.error('Unable to create order: Current user information not available');
+        return;
+    }
     if (customers.length === 0 || products.length === 0) {
-      message.error('Unable to create order. Customer or product data is missing.');
+      message.error('Unable to create order: Current user information not available');
       return;
     }
     setIsCreateModalOpen(true);
@@ -149,18 +163,25 @@ const OrdersPage = () => {
 
   const handleOrderCreated = async (newOrder) => {
     try {
-      await addOrder(newOrder);
-      setIsCreateModalOpen(false);
-      message.success('Order created successfully');
-      setCurrentPage(1);
-      await fetchOrders({
-        page: 1,
-        search: searchTerm,
-        status: statusFilter,
-        ordering: `${sortDirection === 'descend' ? '-' : ''}${sortField}`
-      });
+        const orderWithSalesRep = {
+            ...newOrder,
+            sales_rep: currentUser.id
+        };
+
+        await addOrder(orderWithSalesRep);
+        setIsCreateModalOpen(false);
+        message.success('Order created successfully');
+        setCurrentPage(1);
+        
+        await fetchOrders({
+            page: 1,
+            search: searchTerm,
+            status: statusFilter,
+            ordering: `${sortDirection === 'descend' ? '-' : ''}${sortField}`
+        });
     } catch (error) {
-      message.error('Error creating order: ' + error.message);
+        console.error('Order creation error:', error);
+        message.error('Error creating order: ' + (error.message || 'An unexpected error occurred'));
     }
   };
 
@@ -226,10 +247,35 @@ const OrdersPage = () => {
       sorter: true,
     },
     {
+      title: 'Sales Representative',
+      dataIndex: 'sales_rep_name',
+      key: 'sales_rep_name',
+      render: (sales_rep_name, record) => {
+        // First try to use the sales_rep_name from the backend
+        if (sales_rep_name && sales_rep_name !== 'N/A') {
+          return sales_rep_name;
+        }
+    
+        // If no sales_rep_name, use the current user's information
+        if (currentUser) {
+          const name = `${currentUser.firstName} ${currentUser.lastName}`.trim();
+          return name || currentUser.username || 'N/A';
+        }
+    
+        return 'N/A';
+      }
+    },
+    {
       title: 'Customer Name',
       dataIndex: ['customer', 'first_name'],
       render: (_, record) => record.customer ? `${record.customer.first_name || ''} ${record.customer.last_name || ''}`.trim() || 'N/A' : 'N/A',
       sorter: true,
+    },
+    {
+      title: 'Transaction Category',
+      dataIndex: 'transaction_category',
+      key: 'transaction_category',
+      render: (text) => text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, ' '),
     },
     {
       title: 'Date',
@@ -371,6 +417,7 @@ const OrdersPage = () => {
         onOrderCreated={handleOrderCreated}
         customers={customers}
         products={products}
+	currentUser={currentUser}
       />
 
       {selectedOrder && (
