@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.contrib.auth.models import User
 from .models import Transaction
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
@@ -13,10 +14,14 @@ class TransactionSerializer(serializers.ModelSerializer):
         validators=[MinValueValidator(0.01)]
     )
 
+    created_by_id = serializers.IntegerField(source='created_by.id', read_only=True)
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+
     class Meta:
         model = Transaction
         fields = '__all__'
         ref_name = 'TransactionSerializer'
+        read_only_fields = ('created_by', 'created_by_username', 'created_by_id')
 
     def validate(self, data):
         # Simpler checks that don't require database queries
@@ -37,6 +42,10 @@ class TransactionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         logger.info(f"Creating transaction with data: {validated_data}")
         try:
+            request = self.context.get('request')
+            if request and hasattr(request, 'user'):
+                validated_data['created_by'] = request.user
+
             return super().create(validated_data)
         except ValidationError as e:
             logger.error(f"Validation error in create: {str(e)}")
@@ -47,6 +56,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         try:
+            validated_data.pop('created_by', None)
             return super().update(instance, validated_data)
         except ValidationError as e:
             raise serializers.ValidationError(str(e))

@@ -871,10 +871,10 @@ def create_category_pie_chart(data, width, height):
     pie = Pie()
     
     # Set chart position and dimensions
-    pie.x = width/2
-    pie.y = height/2
     pie.width = min(width, height) - 100
     pie.height = min(width, height) - 100
+    pie.x = (width - pie.width) / 2
+    pie.y = (height - pie.height) / 2
     
     # Process and validate data
     valid_categories = []
@@ -1426,8 +1426,8 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
 
     income_table = Table(income_table_data,
                         colWidths=[doc.width * 0.25, doc.width * 0.2,
-                                 doc.width * 0.2, doc.width * 0.15,
-                                 doc.width * 0.2])
+                                 doc.width * 0.25, doc.width * 0.2,
+                                 doc.width * 0.15])
     income_table.setStyle(enhanced_table_style)
     content.append(income_table)
     content.append(Spacer(1, 20))
@@ -1465,7 +1465,10 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
          'Analyze slow-moving items']
     ]
 
-    inventory_table = Table(inventory_metrics, colWidths=[doc.width * 0.25] * 4)
+    inventory_table = Table(
+        inventory_metrics, 
+        colWidths=[doc.width * 0.2, doc.width * 0.2, doc.width * 0.2, doc.width * 0.4]
+    )
     inventory_table.setStyle(enhanced_table_style)
     content.append(inventory_table)
     content.append(Spacer(1, 20))

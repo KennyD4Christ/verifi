@@ -5,6 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from products.models import Product
 from stock_adjustments.models import StockAdjustment
 from products.serializers import ProductSerializer
+from transactions.serializers import TransactionSerializer
 from transactions.models import Transaction
 from .models import Customer, Order, OrderItem, Address, CompanyInfo, Promotion
 import logging
@@ -257,7 +258,8 @@ class OrderSerializer(serializers.ModelSerializer):
                 date=order.shipped_date or order.order_date,
                 payment_method='other',
                 status='completed',
-                category='other'
+                category='income',
+                created_by=user
             )
             logger.info(f"Successfully created transaction {transaction.id} for order {order.id}")
             return transaction

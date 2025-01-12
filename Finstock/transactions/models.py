@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from core.models import TimeStampedModel, Customer, Order
 from invoices.models import Invoice
+from django.conf import settings
 
 
 class Transaction(TimeStampedModel):
@@ -31,6 +32,7 @@ class Transaction(TimeStampedModel):
     )
 
     CATEGORY_CHOICES = (
+        ('income', 'Income'),
         ('salary', 'Salary'),
         ('marketing_expenses', 'Marketing Expenses'),
         ('office_supplies', 'Office Supplies'),
@@ -53,6 +55,10 @@ class Transaction(TimeStampedModel):
     )
     transaction_type = models.CharField(
         max_length=20, choices=TRANSACTION_TYPES
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='created_transactions',
+        on_delete=models.SET_NULL, blank=True, null=True
     )
     category = models.CharField(
         max_length=50, choices=CATEGORY_CHOICES, blank=True, null=True

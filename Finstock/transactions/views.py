@@ -40,15 +40,15 @@ class TransactionViewSet(BaseAccessControlViewSet):
     """
     API endpoint for managing transactions
     """
-    queryset = Transaction.objects.all().order_by('-date', '-id')
+    queryset = Transaction.objects.all().select_related('customer', 'created_by').order_by('-date', '-id')
     serializer_class = TransactionSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [
         DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter
     ]
     filterset_fields = ['status', 'transaction_type', 'date', 'category', 'order']
-    search_fields = ['order__id', 'invoice__id', 'customer__id', 'amount']
-    ordering_fields = ['date', 'amount', 'id']
+    search_fields = ['order__id', 'invoice__id', 'customer__name', 'customer__first_name', 'customer__last_name', 'amount', 'created_by__username']
+    ordering_fields = ['date', 'amount', 'customer__name', 'customer__first_name', 'customer__last_name','id', 'created_by__username']
     ordering = ['-date', '-id']
 
     model = Transaction
@@ -127,7 +127,7 @@ class TransactionViewSet(BaseAccessControlViewSet):
             raise PermissionDenied("You are not authorized to create transactions")
 
         logger.info(f"Transaction creation authorized for user {user.username}")
-        serializer.save()
+        serializer.save(created_by=user)
 
     def perform_update(self, serializer):
         # Additional role-based update permission check
