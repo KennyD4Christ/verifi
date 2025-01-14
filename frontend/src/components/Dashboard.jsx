@@ -79,6 +79,13 @@ const darkTheme = {
   cardBackground: '#2D2D2D',
 };
 
+const DashboardRoot = styled.div`
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+`;
+
 const DateRangePickerContainer = styled.div`
   margin-bottom: 20px;
   display: flex;
@@ -98,24 +105,46 @@ const ChartDateRangePicker = styled(DateRangePickerContainer)`
   border-radius: 8px;
 `;
 
+const FixedElementsWrapper = styled.div`
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background-color: ${props => props.theme.backgroundColor};
+  padding: clamp(10px, 2vw, 20px);
+  width: 100%;
+`;
+
+const ContentWrapper = styled.div`
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
+  overflow-x: visible;
+`;
+
 const DashboardContainer = styled.div`
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: clamp(10px, 2vw, 20px);
   background-color: ${props => props.theme.backgroundColor};
   color: ${props => props.theme.textColor};
   min-height: 100vh;
+  width: 100%;
+  min-width: 32px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; // Smooth scrolling on iOS
+
+  & > * {
+    max-width: 100%;
+  }
 `;
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: clamp(10px, 2vw, 20px);
+  margin-bottom: clamp(10px, 2vw, 20px);
+  width: 100%;
+  min-width: min-content; // Prevents grid items from becoming too narrow
 `;
 
 const LoadingIndicatorContainer = styled.div`
@@ -134,8 +163,19 @@ const Card = styled.div`
   background-color: ${props => props.theme.cardBackground};
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 20px;
+  padding: clamp(10px, 2vw, 20px);
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+
+  // Horizontal scrolling for wide content
+  .scrollable-content {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
 `;
+
 
 const LoadingSpinner = styled.div`
   display: flex;
@@ -155,49 +195,130 @@ const ErrorMessage = styled.div`
 `;
 
 const PreferencesPanel = styled.div`
-  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: clamp(10px, 2vw, 20px);
+  width: 100%;
 `;
 
 const ToggleButton = styled.button`
-  margin-right: 10px;
-  padding: 5px 10px;
+  padding: clamp(5px, 1vw, 10px);
   background-color: ${props => props.active ? '#007bff' : '#f8f9fa'};
   color: ${props => props.active ? '#fff' : '#000'};
   border: 1px solid #007bff;
   border-radius: 4px;
   cursor: pointer;
+  font-size: clamp(0.875rem, 1vw, 1rem);
+  white-space: nowrap;
 `;
 
 const ThemeToggle = styled.button`
   position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 10px;
+  top: clamp(10px, 2vw, 20px);
+  right: clamp(10px, 2vw, 20px);
+  padding: clamp(5px, 1vw, 10px);
   background-color: ${props => props.theme.cardBackground};
   color: ${props => props.theme.textColor};
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  z-index: 1000;
+  font-size: clamp(0.875rem, 1vw, 1rem);
+
+  @media (max-width: 768px) {
+    position: static;
+    margin-bottom: 10px;
+    width: 100%;
+  }
 `;
 
 const SearchInput = styled.input`
-  width: 30%;
-  padding: 10px;
-  margin-bottom: 20px;
+  width: 100%;
+  max-width: 400px;
+  padding: clamp(5px, 1vw, 10px);
+  margin-bottom: clamp(10px, 2vw, 20px);
   border: 1px solid #ddd;
   border-radius: 4px;
+  font-size: clamp(0.875rem, 1vw, 1rem);
 `;
 
 const AdvancedSearchContainer = styled.div`
   display: flex;
-  padding: 10px;
-  gap: 30px;
-  margin-bottom: 20px;
+  flex-wrap: wrap;
+  padding: clamp(10px, 2vw, 20px);
+  gap: clamp(10px, 2vw, 30px);
+  margin-bottom: clamp(10px, 2vw, 20px);
   background-color: #87CEEB;
+  border-radius: 8px;
+  width: 100%;
+  min-width: min-content;
+  overflow-x: auto;
+
+  & > * {
+    flex: 1 1 auto;
+    min-width: 200px; // Minimum width before wrapping
+  }
 `;
 
 const StyledSelect = styled(Select)`
   min-width: 120px;
+  width: 100%;
+  max-width: 300px;
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+  }
+
+  .select__control {
+    font-size: clamp(0.875rem, 1vw, 1rem);
+  }
+`;
+
+const DateRangeContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: clamp(10px, 2vw, 20px);
+  width: 100%;
+
+  h3 {
+    width: 100%;
+    font-size: clamp(1rem, 1.5vw, 1.25rem);
+  }
+
+  .date-picker {
+    flex: 1;
+    min-width: 200px;
+  }
+`;
+
+const TransactionList = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  table {
+    width: 100%;
+    min-width: 600px;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    padding: clamp(5px, 1vw, 10px);
+    text-align: left;
+    font-size: clamp(0.875rem, 1vw, 1rem);
+  }
+`;
+
+const ChartContainer = styled.div`
+  width: 100%;
+  min-height: 300px;
+  overflow: hidden;
+
+  .recharts-responsive-container {
+    min-height: inherit;
+  }
 `;
 
 const SafeMetricDisplay = ({ value, formatter = (v) => v, defaultValue = 'N/A' }) => {
@@ -1002,7 +1123,9 @@ const Dashboard = () => {
   return (
     <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
       <ErrorBoundary FallbackComponent={ErrorFallback} onReset={handleErrorReset}>
+	<DashboardRoot>
         <DashboardContainer>
+	  <FixedElementsWrapper>
           <ThemeToggle onClick={toggleTheme}>
             {isDarkMode ? 'Light Mode' : 'Dark Mode'}
           </ThemeToggle>
@@ -1053,8 +1176,10 @@ const Dashboard = () => {
               Conversion Rate
             </ToggleButton>
           </PreferencesPanel>
+	  </FixedElementsWrapper>
 
-          <DateRangePicker>
+          <ContentWrapper>
+	  <DateRangePicker>
             <h3>Date Range</h3>
             <DatePicker.RangePicker
               value={currentDateRange}
@@ -1189,7 +1314,9 @@ const Dashboard = () => {
           </AdvancedSearchContainer>
 
           <Card>
+	    <div className="scrollable-content">
             <h3>Data Visualization</h3>
+	    <ChartContainer>
             <StyledSelect defaultValue="revenue" onChange={(value) => setSelectedMetric(value)}>
               <Option value="revenue">Revenue</Option>
               <Option value="inventory">Inventory Levels</Option>
@@ -1203,6 +1330,8 @@ const Dashboard = () => {
               <Option value="pie">Pie Chart</Option>
             </StyledSelect>
             {renderChart()}
+	  </ChartContainer>
+          </div>
           </Card>
 
           <Card>
@@ -1237,7 +1366,9 @@ const Dashboard = () => {
             />
             <RecentTransactionsList transactions={filteredTransactions} />
           </Card>
+	  </ContentWrapper>
         </DashboardContainer>
+      </DashboardRoot>
       </ErrorBoundary>
     </ThemeProvider>
   );

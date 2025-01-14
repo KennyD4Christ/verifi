@@ -4,6 +4,7 @@ import { fetchProducts, fetchCustomers, fetchOrders, fetchCurrentUser } from '..
 import CreateOrderModal from '../modals/CreateOrderModal';
 import OrderDetailsModal from '../modals/OrderDetailsModal';
 import { format } from 'date-fns';
+import styled from 'styled-components';
 import { debounce } from 'lodash';
 import {
   Table,
@@ -15,11 +16,89 @@ import {
   message,
   Space,
   Spin,
+  Col,
+  Row
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons';
 
 const { Search } = Input;
 const { Option } = Select;
+
+const PageContainer = styled.div`
+  padding: clamp(12px, 3vw, 24px);
+  max-width: 100%;
+  overflow-x: hidden;
+`;
+
+const PageHeader = styled.h1`
+  font-size: clamp(20px, 4vw, 24px);
+  font-weight: bold;
+  margin-bottom: clamp(12px, 3vw, 16px);
+`;
+
+const ActionBar = styled(Row)`
+  margin-bottom: 16px;
+  gap: 8px;
+
+  @media (max-width: 576px) {
+    .ant-space {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .ant-btn {
+      width: 100%;
+    }
+  }
+`;
+
+const FilterBar = styled(Row)`
+  margin-bottom: 16px;
+  gap: 8px;
+
+  @media (max-width: 576px) {
+    .ant-space {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .ant-input-search,
+    .ant-select {
+      width: 100% !important;
+    }
+  }
+`;
+
+const ResponsiveTable = styled(Table)`
+  .ant-table {
+    overflow-x: auto;
+    &-content {
+      overflow-x: auto;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .ant-table-cell {
+      padding: 8px;
+      white-space: nowrap;
+
+      &::before {
+        min-width: 80px;
+        display: inline-block;
+      }
+    }
+  }
+`;
+
+const PaginationContainer = styled.div`
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+
+  @media (max-width: 576px) {
+    justify-content: center;
+  }
+`;
 
 const OrdersPage = () => {
   const {
@@ -346,50 +425,58 @@ const OrdersPage = () => {
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '16px' }}>Orders</h1>
+    <PageContainer>
+      <PageHeader>Orders</PageHeader>
+      
+      <ActionBar>
+        <Col xs={24} sm={24} md={24}>
+          <Space wrap>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddNewOrder}
+              disabled={loadingData || customers.length === 0 || products.length === 0}
+            >
+              Add New Order
+            </Button>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              onClick={handleBulkDelete}
+              disabled={selectedRowKeys.length === 0}
+            >
+              Delete Selected
+            </Button>
+          </Space>
+        </Col>
+      </ActionBar>
 
-      <Space style={{ marginBottom: '16px' }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleAddNewOrder}
-          disabled={loadingData || customers.length === 0 || products.length === 0}
-        >
-          Add New Order
-        </Button>
-        <Button
-          danger
-          icon={<DeleteOutlined />}
-          onClick={handleBulkDelete}
-          disabled={selectedRowKeys.length === 0}
-        >
-          Delete Selected
-        </Button>
-      </Space>
+      <FilterBar>
+        <Col xs={24} sm={24} md={24}>
+          <Space wrap>
+            <Search
+              placeholder="Search orders..."
+              onSearch={handleSearchChange}
+              style={{ minWidth: '200px' }}
+            />
+            <Select
+              style={{ minWidth: '200px' }}
+              placeholder="Filter by status"
+              onChange={handleStatusFilterChange}
+              value={statusFilter}
+            >
+              <Option value="">All Statuses</Option>
+              <Option value="pending">Pending</Option>
+              <Option value="processing">Processing</Option>
+              <Option value="shipped">Shipped</Option>
+              <Option value="delivered">Delivered</Option>
+              <Option value="cancelled">Cancelled</Option>
+            </Select>
+          </Space>
+        </Col>
+      </FilterBar>
 
-      <Space style={{ marginBottom: '16px' }}>
-        <Search
-          placeholder="Search orders..."
-          onSearch={handleSearchChange}
-          style={{ width: 200 }}
-        />
-        <Select
-          style={{ width: 200 }}
-          placeholder="Filter by status"
-          onChange={handleStatusFilterChange}
-          value={statusFilter}
-        >
-          <Option value="">All Statuses</Option>
-          <Option value="pending">Pending</Option>
-          <Option value="processing">Processing</Option>
-          <Option value="shipped">Shipped</Option>
-          <Option value="delivered">Delivered</Option>
-          <Option value="cancelled">Cancelled</Option>
-        </Select>
-      </Space>
-
-      <Table
+      <ResponsiveTable
         dataSource={orders}
         columns={columns}
         rowSelection={{
@@ -400,16 +487,18 @@ const OrdersPage = () => {
         pagination={false}
         loading={loading}
         rowKey={(record) => record.id}
+        scroll={{ x: 'max-content' }}
       />
 
-      <Pagination
-        current={currentPage}
-        total={totalOrders}
-        pageSize={10}
-        onChange={(page) => setCurrentPage(page)}
-        style={{ marginTop: '16px', textAlign: 'right' }}
-	showSizeChanger={false}
-      />
+      <PaginationContainer>
+        <Pagination
+          current={currentPage}
+          total={totalOrders}
+          pageSize={10}
+          onChange={(page) => setCurrentPage(page)}
+          showSizeChanger={false}
+        />
+      </PaginationContainer>
 
       <CreateOrderModal
         open={isCreateModalOpen}
@@ -417,9 +506,9 @@ const OrdersPage = () => {
         onOrderCreated={handleOrderCreated}
         customers={customers}
         products={products}
-	currentUser={currentUser}
+        currentUser={currentUser}
       />
-
+      
       {selectedOrder && (
         <OrderDetailsModal
           open={isDetailsModalOpen}
@@ -428,7 +517,7 @@ const OrdersPage = () => {
           onApplyPromotion={handleApplyPromotion}
         />
       )}
-    </div>
+    </PageContainer>
   );
 };
 

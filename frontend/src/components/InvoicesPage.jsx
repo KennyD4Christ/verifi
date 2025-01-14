@@ -8,26 +8,41 @@ import { generateInvoicePDF, markInvoiceAsPaid, fetchInvoices, createInvoice, up
 import { Button, Table, Form, Container, Row, Col, Spinner, Alert, Modal, ButtonGroup } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
+
 const InvoicesContainer = styled(Container)`
-  padding: 20px;
-  height: 100%;
+  padding: clamp(10px, 3vw, 20px);
   min-height: calc(100vh - 60px);
-  overflow-x: auto;
-  overflow-y: visible;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  
+  @media (max-width: 768px) {
+    padding: 10px;
+    overflow-x: hidden;
+  }
 `;
 
 const ContentWrapper = styled.div`
-  padding: 20px;
-  min-width: min(100%, 1200px); // Ensures minimum width while allowing expansion
-  max-width: 100%;
+  padding: clamp(10px, 3vw, 20px);
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  
+  @media (max-width: 768px) {
+    padding: 10px;
+  }
 `;
 
 const Heading = styled.h1`
-  font-size: 2em;
-  margin-bottom: 20px;
-  white-space: nowrap;
+  font-size: clamp(1.5em, 4vw, 2em);
+  margin-bottom: clamp(10px, 3vw, 20px);
+  color: #2c3e50;
+  font-weight: 600;
+  
+  @media (max-width: 768px) {
+    white-space: normal;
+    text-align: center;
+  }
 `;
 
 const TableWrapper = styled.div`
@@ -35,8 +50,16 @@ const TableWrapper = styled.div`
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: white;
+  
+  @media (max-width: 768px) {
+    margin: 0 -10px;
+    width: calc(100% + 20px);
+    border-radius: 0;
+  }
 
-  /* Custom scrollbar styling */
   &::-webkit-scrollbar {
     height: 8px;
   }
@@ -49,7 +72,7 @@ const TableWrapper = styled.div`
   &::-webkit-scrollbar-thumb {
     background: #888;
     border-radius: 4px;
-
+    
     &:hover {
       background: #555;
     }
@@ -58,147 +81,131 @@ const TableWrapper = styled.div`
 
 const StyledTable = styled.table`
   width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
   min-width: 800px;
-  border-collapse: collapse;
-  margin-bottom: 20px;
+  margin-bottom: 0;
   background-color: #ffffff;
+  
+  @media (max-width: 1024px) {
+    font-size: 14px;
+  }
 `;
 
 const Th = styled.th`
-  background-color: #f5f5f5;
-  padding: 10px;
-  border: 1px solid #ddd;
+  background-color: #f8f9fa;
+  padding: clamp(8px, 2vw, 10px);
+  border: 1px solid #dee2e6;
   cursor: pointer;
   white-space: nowrap;
   min-width: 100px;
-
+  color: #495057;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  
   &:hover {
     background-color: #e9ecef;
+  }
+
+  @media (max-width: 768px) {
+    padding: 8px;
+    font-size: 13px;
   }
 `;
 
 const Td = styled.td`
-  padding: 10px;
-  border: 1px solid #ddd;
+  padding: clamp(8px, 2vw, 10px);
+  border: 1px solid #dee2e6;
   white-space: nowrap;
+  color: #495057;
+  
+  @media (max-width: 768px) {
+    padding: 8px;
+    font-size: 13px;
+  }
 `;
 
 const Filters = styled.div`
-  margin-bottom: 20px;
+  margin-bottom: clamp(15px, 3vw, 20px);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: clamp(0.5rem, 2vw, 1rem);
   align-items: center;
-
+  background: #f8f9fa;
+  padding: clamp(10px, 2vw, 15px);
+  border-radius: 8px;
+  
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 `;
 
 const StyledFormControl = styled(Form.Control)`
   height: 38px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  width: 100%;
+  
   &::placeholder {
     color: #6c757d;
   }
-`;
 
-const Pagination = styled.div`
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-`;
-
-const PaginationButton = styled.button`
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin: 0 5px;
-  cursor: pointer;
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-    background-color: ${props => (props.disabled ? '#f0f0f0' : '#4CAF50')};
-    color: ${props => (props.disabled ? '#888' : 'white')};
-    transition: all 0.3s ease;
-  }
-
-  &:hover:not(:disabled) {
-    background-color: #0645AD;
-  }
-`;
-
-const PaginationInfo = styled.div`
-  margin: 0 15px;
-  font-size: 14px;
-  color: #555;
-`;
-
-const PaginationContainer = styled.div`
-  width: 100%;
-  overflow-x: auto;
-  padding-bottom: 10px;
-
-  /* Custom scrollbar styling */
-  &::-webkit-scrollbar {
-    height: 6px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 3px;
-  }
-`;
-
-const AddInvoiceButton = styled.button`
-  background-color: #007bff;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-bottom: 20px;
-
-  &:hover {
-    background-color: #0056b3;
+  &:focus {
+    border-color: #0645AD;
+    box-shadow: 0 0 0 0.2rem rgba(6, 69, 173, 0.25);
   }
 `;
 
 const StatusBadge = styled.span`
-  padding: 5px 10px;
+  padding: 6px 12px;
   border-radius: 20px;
-  font-size: 0.8em;
-  font-weight: bold;
+  font-size: clamp(0.75em, 2vw, 0.8em);
+  font-weight: 600;
+  display: inline-block;
+  text-align: center;
+  min-width: 80px;
+  
   ${({ status }) => {
     switch (status) {
       case 'PAID':
-        return 'background-color: #28a745; color: white;';
+        return 'background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;';
       case 'PENDING':
-        return 'background-color: #ffc107; color: black;';
+        return 'background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba;';
       case 'OVERDUE':
-        return 'background-color: #dc3545; color: white;';
+        return 'background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;';
       default:
-        return 'background-color: #6c757d; color: white;';
+        return 'background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db;';
     }
   }}
 `;
 
 const ActionButtonContainer = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: clamp(0.5rem, 2vw, 1rem);
+  margin-bottom: clamp(15px, 3vw, 20px);
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
 `;
 
 const ActionButton = styled(Button)`
   background-color: #0645AD;
   color: white;
   border: none;
-  padding: 10px 20px;
-  font-weight: bold;
+  padding: clamp(8px, 2vw, 10px) clamp(15px, 3vw, 20px);
+  font-weight: 600;
   transition: all 0.3s ease;
-
-  &:hover {
-    background-color: #f5f5f5;
+  width: 100%;
+  font-size: clamp(14px, 2vw, 16px);
+  
+  &:hover:not(:disabled) {
+    background-color: #052c65;
     transform: translateY(-2px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
@@ -207,18 +214,86 @@ const ActionButton = styled(Button)`
     opacity: 0.5;
     transform: none;
     box-shadow: none;
+    cursor: not-allowed;
   }
+
+  @media (max-width: 768px) {
+    padding: 8px 15px;
+  }
+`;
+
+const PaginationContainer = styled.div`
+  width: 100%;
+  margin-top: auto;
+  padding: clamp(10px, 2vw, 15px);
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  
+  @media (max-width: 768px) {
+    border-radius: 0;
+    padding: 10px;
+  }
+`;
+
+const Pagination = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: clamp(3px, 1vw, 5px);
+  
+  @media (max-width: 768px) {
+    gap: 3px;
+  }
+`;
+
+const PaginationButton = styled.button`
+  padding: clamp(6px, 2vw, 10px);
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-weight: 500;
+  min-width: 40px;
+  background-color: ${props => props.disabled ? '#f8f9fa' : 'white'};
+  color: ${props => props.disabled ? '#6c757d' : '#0645AD'};
+  transition: all 0.2s ease;
+  
+  &:disabled {
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    background-color: #0645AD;
+    color: white;
+    border-color: #0645AD;
+  }
+
+  @media (max-width: 768px) {
+    padding: 6px;
+    min-width: 36px;
+    font-size: 14px;
+  }
+`;
+
+const PaginationInfo = styled.div`
+  margin: 0 clamp(10px, 2vw, 15px);
+  font-size: clamp(13px, 2vw, 14px);
+  color: #495057;
 `;
 
 const AnimatedTableRow = styled.tr`
   transition: all 0.3s ease;
-
+  
   &:hover {
-    background-color: #f0f8ff;
-    transform: scale(1.01);
+    background-color: #f8f9fa;
+    transform: scale(1.005);
+  }
+
+  @media (max-width: 768px) {
+    &:hover {
+      transform: none;
+    }
   }
 `;
-
 
 const InvoicesPage = () => {
   const { isAuthenticated } = useAuth();
