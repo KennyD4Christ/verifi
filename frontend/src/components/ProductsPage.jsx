@@ -57,7 +57,7 @@ const ActionButtonContainer = styled.div`
 `;
 
 const ActionButton = styled(Button)`
-  background-color: #0645AD; // Egyptian blue
+  background-color: #1a365d; // Egyptian blue
   color: white;
   border: none;
   padding: 10px 20px;

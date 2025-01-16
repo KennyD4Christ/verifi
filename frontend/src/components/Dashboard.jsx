@@ -14,6 +14,7 @@ import { enUS } from 'date-fns/locale';
 import { FixedSizeList as List } from 'react-window';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { debounce } from 'lodash';
+import { transparentize, rgba, darken, lighten } from 'polished';
 import {
   Chart as ChartJS,
   TimeScale,
@@ -67,23 +68,55 @@ ChartJS.register(
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-const lightTheme = {
-  backgroundColor: '#FFFFFF',
-  textColor: '#333333',
-  cardBackground: '#F5F5F5',
+export const lightTheme = {
+  primary: '#0066CC',
+  secondary: '#4A5568',
+  background: '#FFFFFF',
+  surface: '#F8FAFC',
+  text: {
+    primary: '#1A202C',
+    secondary: '#4A5568',
+  },
+  border: '#E2E8F0',
+  shadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+  card: {
+    background: '#FFFFFF',
+    shadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+  },
 };
 
-const darkTheme = {
-  backgroundColor: '#1E1E1E',
-  textColor: '#FFFFFF',
-  cardBackground: '#2D2D2D',
+export const darkTheme = {
+  primary: '#60A5FA',
+  secondary: '#A0AEC0',
+  background: '#1A202C',
+  surface: '#2D3748',
+  text: {
+    primary: '#F7FAFC',
+    secondary: '#A0AEC0',
+  },
+  border: '#4A5568',
+  shadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+  card: {
+    background: '#2D3748',
+    shadow: '0 4px 6px rgba(0, 0, 0, 0.2)',
+  },
 };
 
-const DashboardRoot = styled.div`
+const SIDEBAR_WIDTHS = {
+  expanded: '280px',
+  collapsed: '72px',
+  mobile: '280px',
+};
+
+// Root Layout Components
+export const DashboardRoot = styled.div`
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
+  background-color: ${props => props.theme.background};
+  color: ${props => props.theme.text.primary};
+  transition: background-color 0.3s ease, color 0.3s ease;
 `;
 
 const DateRangePickerContainer = styled.div`
@@ -109,8 +142,10 @@ const FixedElementsWrapper = styled.div`
   position: sticky;
   top: 0;
   z-index: 1000;
-  background-color: ${props => props.theme.backgroundColor};
-  padding: clamp(10px, 2vw, 20px);
+  background-color: ${props => rgba(props.theme.background, 0.95)};
+  backdrop-filter: blur(8px);
+  padding: clamp(16px, 2vw, 24px);
+  border-bottom: 1px solid ${props => props.theme.border};
   width: 100%;
 `;
 
@@ -118,7 +153,11 @@ const ContentWrapper = styled.div`
   width: 100%;
   max-width: 1920px;
   margin: 0 auto;
-  overflow-x: visible;
+  padding: clamp(16px, 3vw, 32px);
+  
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
 `;
 
 const DashboardContainer = styled.div`
@@ -140,11 +179,15 @@ const DashboardContainer = styled.div`
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-  gap: clamp(10px, 2vw, 20px);
-  margin-bottom: clamp(10px, 2vw, 20px);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr));
+  gap: clamp(16px, 2.5vw, 32px);
+  margin-bottom: clamp(24px, 3vw, 40px);
   width: 100%;
-  min-width: min-content; // Prevents grid items from becoming too narrow
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 `;
 
 const LoadingIndicatorContainer = styled.div`
@@ -161,18 +204,35 @@ const LoadingIndicatorContainer = styled.div`
 
 const Card = styled.div`
   background-color: ${props => props.theme.cardBackground};
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: clamp(10px, 2vw, 20px);
+  border-radius: 12px;
+  box-shadow: ${props => props.theme.card.shadow};
+  padding: clamp(16px, 2.5vw, 24px);
   width: 100%;
   min-width: 0;
-  overflow: hidden;
+  border: 1px solid ${props => props.theme.border};
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 
-  // Horizontal scrolling for wide content
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: ${props => props.elevated ? 
+      '0 8px 16px rgba(0, 0, 0, 0.1)' : 
+      props.theme.card.shadow};
+  }
+
   .scrollable-content {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     width: 100%;
+    scrollbar-width: thin;
+    
+    &::-webkit-scrollbar {
+      height: 6px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background-color: ${props => props.theme.secondary};
+      border-radius: 3px;
+    }
   }
 `;
 
@@ -181,66 +241,141 @@ const LoadingSpinner = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  font-size: 24px;
+  height: 100%;
+  min-height: 200px;
+  color: ${props => props.theme.primary};
+  font-size: clamp(16px, 2vw, 24px);
 `;
 
-const ErrorMessage = styled.div`
-  color: #ff4444;
-  background-color: #ffe5e5;
-  border: 1px solid #ff4444;
-  border-radius: 4px;
-  padding: 10px;
-  margin-bottom: 20px;
+export const ErrorMessage = styled.div`
+  color: #DC2626;
+  background-color: ${props => rgba('#DC2626', 0.1)};
+  border: 1.5px solid ${props => rgba('#DC2626', 0.2)};
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+  font-weight: 500;
 `;
 
 const PreferencesPanel = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: clamp(10px, 2vw, 20px);
+  gap: clamp(8px, 1.5vw, 16px);
+  margin-bottom: clamp(16px, 2.5vw, 32px);
   width: 100%;
-`;
-
-const ToggleButton = styled.button`
-  padding: clamp(5px, 1vw, 10px);
-  background-color: ${props => props.active ? '#007bff' : '#f8f9fa'};
-  color: ${props => props.active ? '#fff' : '#000'};
-  border: 1px solid #007bff;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: clamp(0.875rem, 1vw, 1rem);
-  white-space: nowrap;
-`;
-
-const ThemeToggle = styled.button`
-  position: fixed;
-  top: clamp(10px, 2vw, 20px);
-  right: clamp(10px, 2vw, 20px);
-  padding: clamp(5px, 1vw, 10px);
-  background-color: ${props => props.theme.cardBackground};
-  color: ${props => props.theme.textColor};
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  z-index: 1000;
-  font-size: clamp(0.875rem, 1vw, 1rem);
-
+  
+  /* Ensure proper spacing on smaller screens */
   @media (max-width: 768px) {
-    position: static;
-    margin-bottom: 10px;
-    width: 100%;
+    gap: 12px;
+    margin-bottom: 20px;
   }
 `;
 
-const SearchInput = styled.input`
+const ToggleButton = styled.button`
+  /* Core styles */
+  padding: clamp(8px, 1.5vw, 16px) clamp(12px, 2vw, 24px);
+  font-size: clamp(14px, 1.2vw, 16px);
+  line-height: 1.5;
+  font-weight: 500;
+  white-space: nowrap;
+  
+  /* Colors and transitions */
+  background-color: ${props => props.active ? 
+    props.theme.primary || '#0066CC' : 
+    props.theme.background || '#FFFFFF'};
+  color: ${props => props.active ? 
+    props.theme.primaryText || '#FFFFFF' : 
+    props.theme.textColor || '#2C3E50'};
+  border: 1.5px solid ${props => props.active ?
+    props.theme.primary || '#0066CC' :
+    props.theme.border || '#E2E8F0'};
+  border-radius: 6px;
+  
+  /* Interactive states */
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  
+  &:hover {
+    background-color: ${props => props.active ?
+      transparentize(0.1, props.theme.primary || '#0066CC') :
+      props.theme.hoverBackground || '#F8FAFC'};
+    transform: translateY(-1px);
+  }
+  
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px ${props => 
+      transparentize(0.6, props.theme.primary || '#0066CC')};
+  }
+  
+  &:active {
+    transform: translateY(1px);
+  }
+  
+  /* Disabled state */
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+`;
+
+export const ThemeToggle = styled.button`
+  position: fixed;
+  top: clamp(16px, 2vw, 24px);
+  right: clamp(16px, 2vw, 24px);
+  padding: 12px 16px;
+  background-color: ${props => props.theme.surface};
+  color: ${props => props.theme.text.primary};
+  border: 1.5px solid ${props => props.theme.border};
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 1001;
+  font-size: clamp(14px, 1.2vw, 16px);
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: ${props => props.theme.card.background};
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(1px);
+  }
+  
+  @media (max-width: 768px) {
+    position: static;
+    width: 100%;
+    margin-bottom: 16px;
+  }
+`;
+
+export const SearchInput = styled.input`
   width: 100%;
   max-width: 400px;
-  padding: clamp(5px, 1vw, 10px);
-  margin-bottom: clamp(10px, 2vw, 20px);
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: clamp(0.875rem, 1vw, 1rem);
+  padding: 12px 16px;
+  border: 1.5px solid ${props => props.theme.border};
+  border-radius: 8px;
+  font-size: clamp(14px, 1.2vw, 16px);
+  color: ${props => props.theme.text.primary};
+  background-color: ${props => props.theme.surface};
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: ${props => props.theme.primary};
+    box-shadow: 0 0 0 3px ${props => rgba(props.theme.primary, 0.2)};
+  }
+
+  &::placeholder {
+    color: ${props => props.theme.text.secondary};
+  }
 `;
 
 const AdvancedSearchContainer = styled.div`
@@ -261,17 +396,45 @@ const AdvancedSearchContainer = styled.div`
   }
 `;
 
-const StyledSelect = styled(Select)`
-  min-width: 120px;
+export const StyledSelect = styled(Select)`
+  min-width: 160px;
   width: 100%;
   max-width: 300px;
-
-  @media (max-width: 768px) {
-    max-width: 100%;
-  }
+  font-size: clamp(14px, 1.2vw, 16px);
 
   .select__control {
-    font-size: clamp(0.875rem, 1vw, 1rem);
+    border: 1.5px solid ${props => props.theme.border};
+    border-radius: 8px;
+    background-color: ${props => props.theme.surface};
+    min-height: 42px;
+    
+    &:hover {
+      border-color: ${props => props.theme.primary};
+    }
+    
+    &--is-focused {
+      border-color: ${props => props.theme.primary};
+      box-shadow: 0 0 0 3px ${props => rgba(props.theme.primary, 0.2)};
+    }
+  }
+
+  .select__menu {
+    background-color: ${props => props.theme.card.background};
+    border: 1px solid ${props => props.theme.border};
+    border-radius: 8px;
+    box-shadow: ${props => props.theme.card.shadow};
+  }
+
+  .select__option {
+    padding: 10px 16px;
+    
+    &--is-selected {
+      background-color: ${props => props.theme.primary};
+    }
+    
+    &--is-focused {
+      background-color: ${props => rgba(props.theme.primary, 0.1)};
+    }
   }
 `;
 
@@ -293,31 +456,55 @@ const DateRangeContainer = styled.div`
   }
 `;
 
-const TransactionList = styled.div`
+export const TransactionList = styled.div`
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 
   table {
     width: 100%;
-    min-width: 600px;
-    border-collapse: collapse;
-  }
-
-  th, td {
-    padding: clamp(5px, 1vw, 10px);
-    text-align: left;
-    font-size: clamp(0.875rem, 1vw, 1rem);
+    min-width: 700px;
+    border-collapse: separate;
+    border-spacing: 0;
+    
+    th {
+      background-color: ${props => props.theme.surface};
+      padding: 12px 16px;
+      font-weight: 600;
+      text-align: left;
+      border-bottom: 2px solid ${props => props.theme.border};
+    }
+    
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid ${props => props.theme.border};
+      transition: background-color 0.2s ease;
+    }
+    
+    tbody tr:hover td {
+      background-color: ${props => rgba(props.theme.primary, 0.05)};
+    }
   }
 `;
 
-const ChartContainer = styled.div`
+export const ChartContainer = styled.div`
   width: 100%;
-  min-height: 300px;
-  overflow: hidden;
-
+  min-height: 350px;
+  padding: 16px;
+  background-color: ${props => props.theme.card.background};
+  border-radius: 12px;
+  border: 1px solid ${props => props.theme.border};
+  
   .recharts-responsive-container {
     min-height: inherit;
+  }
+  
+  .recharts-text {
+    fill: ${props => props.theme.text.primary};
+  }
+  
+  .recharts-cartesian-grid line {
+    stroke: ${props => rgba(props.theme.border, 0.5)};
   }
 `;
 
@@ -1354,8 +1541,8 @@ const Dashboard = () => {
               data={transformChartData(salesData, 'line', { xKey: 'date', yKey: 'amount', colorKey: 'date' })}
             />
           </Card>
-
-          <Card>
+          
+	  <Card>
             <h3>Recent Transactions</h3>
             <SearchInput
               type="text"
@@ -1364,7 +1551,26 @@ const Dashboard = () => {
               onChange={e => setFilter(e.target.value)}
               aria-label="Search transactions"
             />
-            <RecentTransactionsList transactions={filteredTransactions} />
+            <TransactionList>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTransactions.map(transaction => (
+                    <tr key={transaction.id}>
+                      <td>{transaction.date}</td>
+                      <td>{transaction.description}</td>
+                      <td>{transaction.amount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TransactionList>
           </Card>
 	  </ContentWrapper>
         </DashboardContainer>

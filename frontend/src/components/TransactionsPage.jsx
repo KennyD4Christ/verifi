@@ -155,7 +155,7 @@ const ExportButton = styled.button`
   border-radius: 4px;
   cursor: pointer;
   margin-right: 10px;
-  background-color: #f0f0f0;
+  background-color: #1a365d;
 `;
 
 const BulkUpdateButton = styled.button`

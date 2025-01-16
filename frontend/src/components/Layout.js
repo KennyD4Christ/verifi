@@ -4,6 +4,8 @@ import { useLocation } from 'react-router-dom';
 import Navbar from './common/Navbar';
 import Sidebar from './common/Sidebar';
 import Footer from './common/Footer';
+import { DashboardDateProvider } from '../context/DashboardDateContext';
+import Dashboard from './Dashboard';
 
 // Breakpoints for consistent responsive design
 const breakpoints = {
@@ -129,8 +131,9 @@ const Layout = ({ children }) => {
         <Navbar 
           onMenuClick={toggleSidebar}
           isMobile={isMobile}
-          headerHeight={headerHeight}
+          collapsed={sidebarCollapsed}
           setHeaderHeight={setHeaderHeight}
+	  setIsSidebarOpen={setIsSidebarOpen}
         />
         <MainContent headerHeight={headerHeight}>
           {children}

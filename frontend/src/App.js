@@ -26,6 +26,9 @@ import Layout from './components/Layout';
 import GlobalStyles from './assets/styles/globalStyles';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { ThemeProvider } from 'styled-components';
+import { theme } from './theme';
+
 
 const App = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -35,37 +38,39 @@ const App = () => {
   }
 
   return (
-    <AuthProvider>
-      <Router>
-        <GlobalStyles />
-        <Layout>
-	<ToastContainer position="top-right" />
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/stock-levels" element={<StockLevels />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/user-roles" element={<UserRoles />} />
-	    <Route path="/user-management/*" element={<UserManagementLayout />} />
-            <Route path="/preferences" element={<UserPreferences />} />
-            <Route path="/:type/:id" element={<DetailView />} />
-            <Route path="/products/:id" element={<ProductDetails />} />
-          </Route>
-          <Route path="*" element={<Navigate to={isAuthenticated() ? "/dashboard" : "/"} replace />} />
-        </Routes>
-        </Layout>
-      </Router>
-    </AuthProvider>
+    <ThemeProvider theme={theme}>
+      <AuthProvider>
+        <Router>
+          <GlobalStyles />
+          <Layout>
+            <ToastContainer position="top-right" />
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/customers" element={<Customers />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/invoices" element={<Invoices />} />
+                <Route path="/transactions" element={<Transactions />} />
+                <Route path="/stock-levels" element={<StockLevels />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/user-roles" element={<UserRoles />} />
+                <Route path="/user-management/*" element={<UserManagementLayout />} />
+                <Route path="/preferences" element={<UserPreferences />} />
+                <Route path="/:type/:id" element={<DetailView />} />
+                <Route path="/products/:id" element={<ProductDetails />} />
+              </Route>
+              <Route path="*" element={<Navigate to={isAuthenticated() ? "/dashboard" : "/"} replace />} />
+            </Routes>
+          </Layout>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

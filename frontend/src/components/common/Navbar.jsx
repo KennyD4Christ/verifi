@@ -6,16 +6,36 @@ import VerifiLogo from './VerifiLogo';
 import { FaBars, FaTimes, FaHome, FaExchangeAlt, FaFileInvoiceDollar, FaBox, 
          FaLayerGroup, FaShoppingCart, FaUsers, FaUserShield, FaChartBar } from 'react-icons/fa';
 
+
+const SIDEBAR_WIDTHS = {
+  expanded: '280px',
+  collapsed: '72px',
+  mobile: '280px',
+};
+
+const BREAKPOINTS = {
+  mobile: '768px',
+  tablet: '1024px',
+};
+
 const NavbarContainer = styled.header`
   position: fixed;
   top: 0;
   right: 0;
-  left: 0;
   z-index: 998;
   background-color: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: width 0.3s ease;
-  width: ${props => props.isMobile ? '100%' : props.sidebarOpen ? 'calc(100% - 240px)' : 'calc(100% - 80px)'};
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  width: ${props =>
+    props.isMobile
+      ? '100%'
+      : `calc(100% - ${props.collapsed ? SIDEBAR_WIDTHS.collapsed : SIDEBAR_WIDTHS.expanded})`};
+  left: ${props =>
+    props.isMobile
+      ? '0'
+      : props.collapsed
+      ? SIDEBAR_WIDTHS.collapsed
+      : SIDEBAR_WIDTHS.expanded};
 `;
 
 const NavbarInner = styled.nav`
@@ -23,6 +43,15 @@ const NavbarInner = styled.nav`
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
+  height: 64px;
+  transition: all 0.3s ease;
+`;
+
+const NavbarContent = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
 `;
 
 const MenuButton = styled.button`
@@ -31,12 +60,20 @@ const MenuButton = styled.button`
   color: #4a5568;
   cursor: pointer;
   padding: 0.5rem;
-  font-size: 1.5rem;
   display: flex;
   align-items: center;
-  
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  margin-right: 1rem;
+
   &:hover {
-    color: #2b6cb0;
+    background-color: rgba(74, 85, 104, 0.1);
+  }
+
+  svg {
+    width: 24px;
+    height: 24px;
   }
 `;
 
@@ -63,12 +100,12 @@ const NavigationLink = styled(Link)`
   color: #4a5568;
   text-decoration: none;
   transition: all 0.2s ease;
-  
+
   svg {
     margin-right: 0.75rem;
     font-size: 1.25rem;
   }
-  
+
   &:hover, &.active {
     background-color: #ebf8ff;
     color: #2b6cb0;
@@ -103,7 +140,7 @@ const LogoutButton = styled.button`
   border-radius: 0.375rem;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  
+
   &:hover {
     background-color: #2c5282;
   }
@@ -122,7 +159,7 @@ const navigationItems = [
   { path: '/invoices', label: 'Invoices', icon: FaFileInvoiceDollar },
 ];
 
-const Navbar = ({ onMenuClick, isMobile, setHeaderHeight }) => {
+const Navbar = ({ onMenuClick, isMobile, collapsed, setHeaderHeight, setIsSidebarOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, logout } = useAuth();
@@ -141,6 +178,9 @@ const Navbar = ({ onMenuClick, isMobile, setHeaderHeight }) => {
 
   const handleMenuClick = () => {
     setIsNavOpen(!isNavOpen);
+    if (isMobile) {
+      setIsSidebarOpen(true); // Open the sidebar when menu is clicked on mobile
+    }
     if (onMenuClick) {
       onMenuClick();
     }
@@ -154,18 +194,20 @@ const Navbar = ({ onMenuClick, isMobile, setHeaderHeight }) => {
 
   return (
     <>
-      <NavbarContainer ref={headerRef} isMobile={isMobile}>
-        <NavbarInner>
+      <NavbarContainer 
+        ref={headerRef} 
+        isMobile={isMobile}
+        collapsed={collapsed}
+      >
+        <NavbarInner sidebarOpen={!collapsed}>
           {isAuthenticated() && (
             <MenuButton onClick={handleMenuClick} aria-label="Toggle navigation">
               {isNavOpen ? <FaTimes /> : <FaBars />}
             </MenuButton>
           )}
-
           <Link to="/">
             <VerifiLogo src="/Logo 10.png" alt="Verifi Logo" />
           </Link>
-
           {!isAuthenticated() && (
             <div style={{ display: 'flex', gap: '1rem' }}>
               <Link to="/login" className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">
@@ -192,15 +234,13 @@ const Navbar = ({ onMenuClick, isMobile, setHeaderHeight }) => {
                 {item.label}
               </NavigationLink>
             ))}
-            
             <AuthSection>
               <LogoutButton onClick={handleLogout}>
                 Logout
               </LogoutButton>
             </AuthSection>
           </MobileNavigation>
-
-          <Overlay 
+          <Overlay
             headerHeight={headerRef.current?.offsetHeight || 0}
             isOpen={isNavOpen}
             onClick={() => setIsNavOpen(false)}

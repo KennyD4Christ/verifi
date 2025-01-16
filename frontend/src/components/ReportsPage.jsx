@@ -5,6 +5,7 @@ import ReportNameModal from '../modals/ReportNameModal';
 import EmailReportModal from '../modals/EmailReportModal';
 import styled, { keyframes } from 'styled-components';
 import { ToastContainer, toast } from 'react-toastify';
+import { ThemeProvider } from "styled-components";
 import 'react-toastify/dist/ReactToastify.css';
 import DateRangeSelector from '../modals/DateRangeModal';
 import { 
@@ -51,27 +52,51 @@ const ExportConfirmationModal = ({ show, onHide, onConfirm, dateRange, isExporti
   </Modal>
 );
 
+const getThemeValue = (path, fallback) => props => {
+  const value = path.split('.').reduce((acc, part) => {
+    if (acc && acc[part] !== undefined) return acc[part];
+    return undefined;
+  }, props.theme);
+
+  return value !== undefined ? value : fallback;
+};
+
+const StyledTable = styled.table`
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 2rem;
+  background-color: ${getThemeValue('colors.background', '#0645AD')};
+  border: 1px solid ${getThemeValue('colors.border', '#0645AD')};
+  border-radius: 4px;
+  overflow: hidden;
+`;
+
 const ActionButton = styled.button`
-  background-color: #0645AD;
+  background-color: ${getThemeValue('colors.primary', '#1a365d')};
   color: white;
   border: none;
-  padding: 10px 20px;
-  font-weight: bold;
-  border-radius: 4px;
+  padding: 12px 24px;
+  font-weight: 500;
+  border-radius: 3px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: ${getThemeValue('transitions.standard', 'all 0.2s ease-in-out')};
+  font-size: 0.875rem;
+  letter-spacing: 0.025em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
   &:hover {
-    background-color: #052c65;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: ${getThemeValue('colors.secondary', '#2c5282')};
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   }
 
   &:disabled {
+    background-color: #cbd5e0;
     cursor: not-allowed;
-    opacity: 0.5;
+    opacity: 0.7;
   }
 `;
+
 
 const StyledActionButton = styled(ActionButton)`
   &:disabled {
@@ -96,102 +121,97 @@ const ActionCell = styled.td`
 `;
 
 const ReportsContainer = styled.div`
-  padding: 20px;
+  padding: 2rem;
   height: 100%;
-  min-height: calc(100vh - 60px);
-  overflow-y: visible;
-  display: flex;
-  flex-direction: column;
+  min-height: calc(100vh - var(--header-height, 64px));
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+  }
 `;
 
 const StyledToastContainer = styled(ToastContainer)`
   .Toastify__toast {
-    background-color: #f5f5f5;
-    color: #333;
-    border: 1px solid #ddd;
-    font-size: 14px;
-    border-radius: 5px;
-    padding: 8px;
+    background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+    color: ${getThemeValue('colors.text.primary', '#2d3748')};
+    border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+    font-size: 0.875rem;
+    border-radius: 3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
   .Toastify__toast--success {
-    background-color: #d4edda;
-    color: #155724;
+    background-color: #f0fff4;
+    color: #2f855a;
+    border-color: #c6f6d5;
   }
 
   .Toastify__toast--error {
-    background-color: #f8d7da;
-    color: #721c24;
-  }
-
-  .Toastify__toast-container {
-    width: 300px;
-  }
-
-  .Toastify__close-button {
-    color: #555;
-  }
-
-  .Toastify__progress-bar {
-    background-color: #17a2b8;
+    background-color: #fff5f5;
+    color: #c53030;
+    border-color: #fed7d7;
   }
 `;
 
 const TemplateSelect = styled.select`
   width: 100%;
   max-width: 300px;
-  padding: 0.5rem;
+  padding: 0.75rem;
   margin-bottom: 2rem;
-  border: 1px solid #dce0e3;
-  border-radius: 4px;
-  background-color: white;
-  color: #2c3e50;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  border-radius: 3px;
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  font-size: 0.875rem;
+  transition: ${getThemeValue('transitions.standard', 'all 0.2s ease-in-out')};
 
   &:focus {
     outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    border-color: ${getThemeValue('colors.accent', '#2b6cb0')};
+    box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
   }
 `;
 
 const Heading = styled.h1`
-  color: #2c3e50;
-  margin-bottom: 2rem;
-  font-size: 2.5rem;
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  margin-bottom: 2.5rem;
+  font-size: 2rem;
   font-weight: 600;
-`;
-
-const StyledTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 20px;
-  background-color: #ffffff;
+  letter-spacing: -0.025em;
+  border-bottom: 2px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  padding-bottom: 1rem;
 `;
 
 const Th = styled.th`
-  background-color: #f5f5f5;
-  padding: 10px;
-  border: 1px solid #ddd;
-  cursor: pointer;
-
-  &:hover {
-    background-color: #e9ecef;
-  }
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  color: ${getThemeValue('colors.text.secondary', '#4a5568')};
+  padding: 1rem;
+  font-weight: 600;
+  text-align: left;
+  border-bottom: 2px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 `;
 
 const Td = styled.td`
-  padding: 10px;
-  border: 1px solid #ddd;
+  padding: 1rem;
+  border-bottom: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  font-size: 0.875rem;
 `;
 
 const ActionButtonContainer = styled.div`
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  align-items: center;
 
   @media (max-width: 768px) {
     flex-direction: column;
+    align-items: stretch;
   }
 `;
 
@@ -201,15 +221,12 @@ const fadeIn = keyframes`
 `;
 
 const AnimatedTableRow = styled.tr`
-  animation: ${fadeIn} 0.3s ease;
+  transition: ${getThemeValue('transitions.standard', 'all 0.2s ease-in-out')};
 
   &:hover {
-    transition: all 0.3s ease;
-    background-color: #f0f8ff;
-    transform: scale(1.01);
+    background-color: ${getThemeValue('colors.surface', '#f7fafc')};
   }
 `;
-
 
 
 const ReportsPage = () => {
