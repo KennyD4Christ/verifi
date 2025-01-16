@@ -8,13 +8,25 @@ import { debounce } from 'lodash';
 import AddTransactionModal from '../modals/AddTransactionModal';
 import EditTransactionModal from '../modals/EditTransactionModal';
 import { deleteTransaction, fetchCustomers } from '../services/api';
+import { ThemeProvider } from "styled-components";
 
+
+const getThemeValue = (path, fallback) => props => {
+  const value = path.split('.').reduce((acc, part) => {
+    if (acc && acc[part] !== undefined) return acc[part];
+    return undefined;
+  }, props.theme);
+
+  return value !== undefined ? value : fallback;
+};
 
 const TransactionsContainer = styled(Container)`
   padding: clamp(10px, 3vw, 20px);
   min-height: calc(100vh - 60px);
   display: flex;
   flex-direction: column;
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
   width: 100%;
   max-width: 100%;
   
@@ -47,22 +59,38 @@ const StyledTable = styled(Table)`
   }
 `;
 
-const Filters = styled(Form)`
-  margin-bottom: 20px;
+const Filters = styled.div`
+  margin-bottom: 1.5rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1rem;
   align-items: center;
+  background-color: ${getThemeValue('colors.surface', '#1a365d')};
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 `;
 
 const StyledFormControl = styled(Form.Control)`
-  height: 38px;
+  height: 2.5rem;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  border-radius: 3px;
+  width: 100%;
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
+
   &::placeholder {
-    color: #6c757d;
+    color: ${getThemeValue('colors.text.secondary', '#4a5568')};
+  }
+
+  &:focus {
+    border-color: ${getThemeValue('colors.accent', '#2b6cb0')};
+    box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
   }
 `;
 
@@ -179,7 +207,7 @@ const ActionButtonContainer = styled.div`
 `;
 
 const ActionButton = styled(Button)`
-  background-color: #0645AD;
+  background-color: ${getThemeValue('colors.primary', '#1a365d')};
   color: white;
   border: none;
   padding: 10px;
@@ -188,9 +216,10 @@ const ActionButton = styled(Button)`
   width: 100%;
   white-space: nowrap;
   font-size: clamp(0.875rem, 2vw, 1rem);
+  border-radius: 12px;
 
   &:hover {
-    background-color: #f5f5f5;
+    background-color: #04296a;
     transform: translateY(-2px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }

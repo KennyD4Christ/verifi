@@ -68,6 +68,15 @@ ChartJS.register(
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
+const getThemeValue = (path, fallback) => props => {
+  const value = path.split('.').reduce((acc, part) => {
+    if (acc && acc[part] !== undefined) return acc[part];
+    return undefined;
+  }, props.theme);
+
+  return value !== undefined ? value : fallback;
+};
+
 export const lightTheme = {
   primary: '#0066CC',
   secondary: '#4A5568',
@@ -154,6 +163,7 @@ const ContentWrapper = styled.div`
   max-width: 1920px;
   margin: 0 auto;
   padding: clamp(16px, 3vw, 32px);
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
   
   @media (max-width: 768px) {
     padding: 16px;
@@ -209,7 +219,7 @@ const Card = styled.div`
   padding: clamp(16px, 2.5vw, 24px);
   width: 100%;
   min-width: 0;
-  border: 1px solid ${props => props.theme.border};
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 
   &:hover {
@@ -263,6 +273,7 @@ const PreferencesPanel = styled.div`
   gap: clamp(8px, 1.5vw, 16px);
   margin-bottom: clamp(16px, 2.5vw, 32px);
   width: 100%;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
   
   /* Ensure proper spacing on smaller screens */
   @media (max-width: 768px) {
@@ -360,7 +371,7 @@ export const SearchInput = styled.input`
   width: 100%;
   max-width: 400px;
   padding: 12px 16px;
-  border: 1.5px solid ${props => props.theme.border};
+  border: 1.5px solid ${getThemeValue('colors.border', '#e2e8f0')};
   border-radius: 8px;
   font-size: clamp(14px, 1.2vw, 16px);
   color: ${props => props.theme.text.primary};
@@ -472,7 +483,7 @@ export const TransactionList = styled.div`
       padding: 12px 16px;
       font-weight: 600;
       text-align: left;
-      border-bottom: 2px solid ${props => props.theme.border};
+      border: 1.5px solid ${getThemeValue('colors.border', '#e2e8f0')};
     }
     
     td {

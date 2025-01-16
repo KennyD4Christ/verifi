@@ -3,44 +3,51 @@ import { useAuth } from '../context/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 import { useInvoices } from '../context/InvoiceContext';
 import styled from 'styled-components';
+import { ThemeProvider } from "styled-components";
 import EditInvoiceModal from '../modals/EditInvoiceModal';
 import { generateInvoicePDF, markInvoiceAsPaid, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, bulkDeleteInvoices } from '../services/api';
 import { Button, Table, Form, Container, Row, Col, Spinner, Alert, Modal, ButtonGroup } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
 
-const InvoicesContainer = styled(Container)`
-  padding: clamp(10px, 3vw, 20px);
-  min-height: calc(100vh - 60px);
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  
+const getThemeValue = (path, fallback) => props => {
+  const value = path.split('.').reduce((acc, part) => {
+    if (acc && acc[part] !== undefined) return acc[part];
+    return undefined;
+  }, props.theme);
+
+  return value !== undefined ? value : fallback;
+};
+
+const InvoicesContainer = styled.div`
+  padding: 2rem;
+  height: 100%;
+  min-height: calc(100vh - var(--header-height, 64px));
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+
   @media (max-width: 768px) {
-    padding: 10px;
-    overflow-x: hidden;
+    padding: 1.5rem;
   }
 `;
 
 const ContentWrapper = styled.div`
-  padding: clamp(10px, 3vw, 20px);
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  
-  @media (max-width: 768px) {
-    padding: 10px;
-  }
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
 `;
 
 const Heading = styled.h1`
-  font-size: clamp(1.5em, 4vw, 2em);
-  margin-bottom: clamp(10px, 3vw, 20px);
-  color: #2c3e50;
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  margin-bottom: 2.5rem;
+  font-size: 2rem;
   font-weight: 600;
-  
+  letter-spacing: -0.025em;
+  border-bottom: 2px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  padding-bottom: 1rem;
+
   @media (max-width: 768px) {
-    white-space: normal;
     text-align: center;
   }
 `;
@@ -49,14 +56,15 @@ const TableWrapper = styled.div`
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  margin-bottom: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  background: white;
-  
+  margin-bottom: 1.5rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+
   @media (max-width: 768px) {
-    margin: 0 -10px;
-    width: calc(100% + 20px);
+    margin: 0 -1.5rem;
+    width: calc(100% + 3rem);
     border-radius: 0;
   }
 
@@ -65,16 +73,16 @@ const TableWrapper = styled.div`
   }
 
   &::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: ${getThemeValue('colors.surface', '#f7fafc')};
     border-radius: 4px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #888;
+    background: ${getThemeValue('colors.border', '#e2e8f0')};
     border-radius: 4px;
-    
+
     &:hover {
-      background: #555;
+      background: ${getThemeValue('colors.text.secondary', '#4a5568')};
     }
   }
 `;
@@ -84,59 +92,51 @@ const StyledTable = styled.table`
   border-collapse: separate;
   border-spacing: 0;
   min-width: 800px;
-  margin-bottom: 0;
-  background-color: #ffffff;
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
   
   @media (max-width: 1024px) {
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 `;
 
 const Th = styled.th`
-  background-color: #f8f9fa;
-  padding: clamp(8px, 2vw, 10px);
-  border: 1px solid #dee2e6;
-  cursor: pointer;
-  white-space: nowrap;
-  min-width: 100px;
-  color: #495057;
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  color: ${getThemeValue('colors.text.secondary', '#4a5568')};
+  padding: 1rem;
   font-weight: 600;
+  text-align: left;
+  border-bottom: 2px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
   position: sticky;
   top: 0;
   z-index: 1;
-  
-  &:hover {
-    background-color: #e9ecef;
-  }
 
-  @media (max-width: 768px) {
-    padding: 8px;
-    font-size: 13px;
+  &:hover {
+    background-color: ${getThemeValue('colors.surface', '#f1f5f9')};
   }
 `;
 
 const Td = styled.td`
-  padding: clamp(8px, 2vw, 10px);
-  border: 1px solid #dee2e6;
-  white-space: nowrap;
-  color: #495057;
-  
-  @media (max-width: 768px) {
-    padding: 8px;
-    font-size: 13px;
-  }
+  padding: 1rem;
+  border-bottom: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  font-size: 0.875rem;
 `;
 
 const Filters = styled.div`
-  margin-bottom: clamp(15px, 3vw, 20px);
+  margin-bottom: 1.5rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: clamp(0.5rem, 2vw, 1rem);
+  gap: 1rem;
   align-items: center;
-  background: #f8f9fa;
-  padding: clamp(10px, 2vw, 15px);
-  border-radius: 8px;
-  
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 0.75rem;
@@ -144,94 +144,113 @@ const Filters = styled.div`
 `;
 
 const StyledFormControl = styled(Form.Control)`
-  height: 38px;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
+  height: 2.5rem;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  border-radius: 3px;
   width: 100%;
-  
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
+
   &::placeholder {
-    color: #6c757d;
+    color: ${getThemeValue('colors.text.secondary', '#4a5568')};
   }
 
   &:focus {
-    border-color: #0645AD;
-    box-shadow: 0 0 0 0.2rem rgba(6, 69, 173, 0.25);
+    border-color: ${getThemeValue('colors.accent', '#2b6cb0')};
+    box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
   }
 `;
 
 const StatusBadge = styled.span`
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: clamp(0.75em, 2vw, 0.8em);
+  padding: 0.5rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
   font-weight: 600;
   display: inline-block;
   text-align: center;
   min-width: 80px;
-  
+
   ${({ status }) => {
     switch (status) {
       case 'PAID':
-        return 'background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;';
+        return `
+          background-color: ${getThemeValue('colors.success.light', '#d4edda')};
+          color: ${getThemeValue('colors.success.dark', '#155724')};
+          border: 1px solid ${getThemeValue('colors.success.border', '#c3e6cb')};
+        `;
       case 'PENDING':
-        return 'background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba;';
+        return `
+          background-color: ${getThemeValue('colors.warning.light', '#fff3cd')};
+          color: ${getThemeValue('colors.warning.dark', '#856404')};
+          border: 1px solid ${getThemeValue('colors.warning.border', '#ffeeba')};
+        `;
       case 'OVERDUE':
-        return 'background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;';
+        return `
+          background-color: ${getThemeValue('colors.error.light', '#f8d7da')};
+          color: ${getThemeValue('colors.error.dark', '#721c24')};
+          border: 1px solid ${getThemeValue('colors.error.border', '#f5c6cb')};
+        `;
       default:
-        return 'background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db;';
+        return `
+          background-color: ${getThemeValue('colors.neutral.light', '#e2e3e5')};
+          color: ${getThemeValue('colors.neutral.dark', '#383d41')};
+          border: 1px solid ${getThemeValue('colors.neutral.border', '#d6d8db')};
+        `;
     }
   }}
 `;
 
 const ActionButtonContainer = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: clamp(0.5rem, 2vw, 1rem);
-  margin-bottom: clamp(15px, 3vw, 20px);
-  
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: center;
+
   @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
+    flex-direction: column;
+    align-items: stretch;
   }
 `;
 
-const ActionButton = styled(Button)`
-  background-color: #0645AD;
+const ActionButton = styled.button`
+  background-color: ${getThemeValue('colors.primary', '#1a365d')};
   color: white;
   border: none;
-  padding: clamp(8px, 2vw, 10px) clamp(15px, 3vw, 20px);
-  font-weight: 600;
-  transition: all 0.3s ease;
-  width: 100%;
-  font-size: clamp(14px, 2vw, 16px);
-  
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: ${getThemeValue('transitions.standard', 'all 0.2s ease-in-out')};
+  font-size: 0.875rem;
+  letter-spacing: 0.025em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
   &:hover:not(:disabled) {
-    background-color: #052c65;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: ${getThemeValue('colors.secondary', '#2c5282')};
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
   }
 
   &:disabled {
-    opacity: 0.5;
-    transform: none;
-    box-shadow: none;
+    background-color: ${getThemeValue('colors.neutral.light', '#cbd5e0')};
     cursor: not-allowed;
-  }
-
-  @media (max-width: 768px) {
-    padding: 8px 15px;
+    opacity: 0.7;
+    transform: none;
   }
 `;
 
 const PaginationContainer = styled.div`
   width: 100%;
   margin-top: auto;
-  padding: clamp(10px, 2vw, 15px);
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  
+  padding: 1rem;
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  border-radius: 4px;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+
   @media (max-width: 768px) {
     border-radius: 0;
-    padding: 10px;
+    margin: 0 -1.5rem;
+    width: calc(100% + 3rem);
   }
 `;
 
@@ -240,52 +259,46 @@ const Pagination = styled.div`
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
-  gap: clamp(3px, 1vw, 5px);
-  
-  @media (max-width: 768px) {
-    gap: 3px;
-  }
+  gap: 0.25rem;
 `;
 
 const PaginationButton = styled.button`
-  padding: clamp(6px, 2vw, 10px);
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  border-radius: 3px;
   font-weight: 500;
   min-width: 40px;
-  background-color: ${props => props.disabled ? '#f8f9fa' : 'white'};
-  color: ${props => props.disabled ? '#6c757d' : '#0645AD'};
-  transition: all 0.2s ease;
-  
+  background-color: ${props => props.disabled ? 
+    getThemeValue('colors.surface', '#f7fafc') : 
+    getThemeValue('colors.background', '#ffffff')};
+  color: ${props => props.disabled ? 
+    getThemeValue('colors.text.secondary', '#4a5568') : 
+    getThemeValue('colors.primary', '#1a365d')};
+  transition: ${getThemeValue('transitions.standard', 'all 0.2s ease-in-out')};
+
   &:disabled {
     cursor: not-allowed;
   }
 
   &:hover:not(:disabled) {
-    background-color: #0645AD;
+    background-color: ${getThemeValue('colors.primary', '#1a365d')};
     color: white;
-    border-color: #0645AD;
-  }
-
-  @media (max-width: 768px) {
-    padding: 6px;
-    min-width: 36px;
-    font-size: 14px;
+    border-color: ${getThemeValue('colors.primary', '#1a365d')};
   }
 `;
 
 const PaginationInfo = styled.div`
-  margin: 0 clamp(10px, 2vw, 15px);
-  font-size: clamp(13px, 2vw, 14px);
-  color: #495057;
+  margin: 0 0.75rem;
+  font-size: 0.875rem;
+  color: ${getThemeValue('colors.text.secondary', '#4a5568')};
 `;
 
 const AnimatedTableRow = styled.tr`
-  transition: all 0.3s ease;
-  
+  transition: ${getThemeValue('transitions.standard', 'all 0.2s ease-in-out')};
+
   &:hover {
-    background-color: #f8f9fa;
-    transform: scale(1.005);
+    background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+    transform: scale(1.002);
   }
 
   @media (max-width: 768px) {
