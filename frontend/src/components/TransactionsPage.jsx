@@ -97,7 +97,7 @@ const StyledFormControl = styled(Form.Control)`
 const Th = styled.th`
   background-color: #f5f5f5;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 3px solid ${getThemeValue('colors.border', '#e2e8f0')};
   white-space: nowrap;
 `;
 

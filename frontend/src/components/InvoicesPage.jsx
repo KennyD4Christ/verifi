@@ -120,10 +120,9 @@ const Th = styled.th`
 `;
 
 const Td = styled.td`
-  padding: 1rem;
-  border-bottom: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
-  color: ${getThemeValue('colors.text.primary', '#2d3748')};
-  font-size: 0.875rem;
+  padding: 10px;
+  border: 1px solid #ddd;
+  white-space: nowrap;
 `;
 
 const Filters = styled.div`
@@ -213,29 +212,50 @@ const ActionButtonContainer = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background-color: ${getThemeValue('colors.primary', '#1a365d')};
+  background-color: ${props => {
+    switch (props.variant) {
+      case 'danger':
+        return getThemeValue('colors.danger', '#e53e3e');
+      case 'info':
+        return getThemeValue('colors.info', '#3182ce');
+      case 'warning':
+        return getThemeValue('colors.warning', '#dd6b20');
+      default:
+        return getThemeValue('colors.primary', '#1a365d');
+    }
+  }};
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
+  border-radius: ${props => (props.size === 'sm' ? '8px' : '12px')};
+  padding: ${props =>
+    props.size === 'sm' ? '0.5rem 1rem' : '0.75rem 1.5rem'};
   font-weight: 500;
-  border-radius: 3px;
   cursor: pointer;
   transition: ${getThemeValue('transitions.standard', 'all 0.2s ease-in-out')};
-  font-size: 0.875rem;
+  font-size: ${props => (props.size === 'sm' ? '0.75rem' : '0.875rem')};
   letter-spacing: 0.025em;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
   &:hover:not(:disabled) {
-    background-color: ${getThemeValue('colors.secondary', '#2c5282')};
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    background-color: ${props => {
+      switch (props.variant) {
+        case 'danger':
+          return getThemeValue('colors.dangerHover', '#c53030');
+        case 'info':
+          return getThemeValue('colors.infoHover', '#3182ce');
+        case 'warning':
+          return getThemeValue('colors.warningHover', '#c05621');
+        default:
+          return getThemeValue('colors.secondary', '#87CEFA');
+      }
+    }};
     transform: translateY(-1px);
   }
 
   &:disabled {
-    background-color: ${getThemeValue('colors.neutral.light', '#cbd5e0')};
-    cursor: not-allowed;
-    opacity: 0.7;
+    opacity: 0.5;
     transform: none;
+    box-shadow: none;
   }
 `;
 
@@ -676,10 +696,26 @@ const InvoicesPage = () => {
       />
     </Filters>
 
+
     <ActionButtonContainer>
-      <ActionButton onClick={() => handleOpenEditModal()}>Add Invoice</ActionButton>
-      <ActionButton onClick={handleBulkDelete} disabled={selectedInvoices.length === 0}>Delete Selected</ActionButton>
-      <ActionButton as={Link} to="/invoices/export/pdf">Export PDF</ActionButton>
+      {/* Default or primary button */}
+      <ActionButton onClick={() => handleOpenEditModal()}>
+        Add Invoice
+      </ActionButton>
+  
+      {/* Delete button with "delete" variant */}
+      <ActionButton
+        variant="delete"
+        onClick={handleBulkDelete}
+        disabled={selectedInvoices.length === 0}
+      >
+        Delete Selected
+      </ActionButton>
+  
+      {/* Default style for export PDF */}
+      <ActionButton as={Link} to="/invoices/export/pdf">
+        Export PDF
+      </ActionButton>
     </ActionButtonContainer>
 
     {loading ? (
@@ -716,19 +752,32 @@ const InvoicesPage = () => {
                 <Td className="text-center">
                   <StatusBadge status={invoice.status}>{invoice.status}</StatusBadge>
                 </Td>
-                <Td className="text-center">
-                  <ActionButton primary onClick={() => handleGeneratePDF(invoice.id)}>
+		<Td className="text-center">
+                  {/* PDF Button - Default Style */}
+                  <ActionButton onClick={() => handleGeneratePDF(invoice.id)}>
                     PDF
                   </ActionButton>
+
+                  {/* Mark Paid Button - Default Style */}
                   {invoice.status !== 'PAID' && (
                     <ActionButton onClick={() => handleMarkAsPaid(invoice.id)}>
                       Mark Paid
                     </ActionButton>
                   )}
-                  <ActionButton onClick={() => handleOpenEditModal(invoice)}>
+
+                    <ActionButton
+                    variant="info"
+                    size="sm"
+                    className="me-2"
+                    onClick={() => handleOpenEditModal(invoice)}
+                  >
                     Edit
                   </ActionButton>
-                  <ActionButton onClick={() => handleDeleteInvoice(invoice.id)}>
+                  <ActionButton
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleDeleteInvoice(invoice.id)}
+                  >
                     Delete
                   </ActionButton>
                 </Td>

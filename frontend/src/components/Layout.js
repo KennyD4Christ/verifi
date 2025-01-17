@@ -138,7 +138,11 @@ const Layout = ({ children }) => {
         <MainContent headerHeight={headerHeight}>
           {children}
         </MainContent>
-        <Footer />
+        <Footer 
+          isSidebarOpen={isSidebarOpen && !isMobile}
+          sidebarWidth={sidebarWidth}
+          breakpoints={breakpoints}
+        />
       </ContentWrapper>
     </LayoutWrapper>
   );

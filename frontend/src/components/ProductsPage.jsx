@@ -11,7 +11,17 @@ import { Button, Table, Form, Container, Row, Col, Spinner, Alert } from 'react-
 import UpdateProductModal from '../modals/UpdateProductModal';
 import FlippingModal from './FlippingModal';
 import { CSSTransition, TransitionGroup } from 'react-transition-group';
+import { ThemeProvider } from "styled-components";
 
+
+const getThemeValue = (path, fallback) => props => {
+  const value = path.split('.').reduce((acc, part) => {
+    if (acc && acc[part] !== undefined) return acc[part];
+    return undefined;
+  }, props.theme);
+
+  return value !== undefined ? value : fallback;
+};
 
 const ProductsContainer = styled(Container)`
   padding: 20px;
@@ -20,6 +30,8 @@ const ProductsContainer = styled(Container)`
   overflow-y: visible;
   display: flex;
   flex-direction: column;
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
 `;
 
 const Heading = styled.h1`
@@ -31,15 +43,20 @@ const StyledTable = styled(Table)`
   margin-bottom: 20px;
 `;
 
-const Filters = styled(Form)`
-  margin-bottom: 20px;
+const Filters = styled.div`
+  margin-bottom: 1.5rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1rem;
   align-items: center;
+  background-color: ${getThemeValue('colors.surface', '#1a365d')};
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 `;
 
@@ -51,23 +68,39 @@ const StyledFormControl = styled(Form.Control)`
 `;
 
 const ActionButtonContainer = styled.div`
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
   margin-bottom: 20px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
 `;
 
 const ActionButton = styled(Button)`
-  background-color: #1a365d; // Egyptian blue
+  background-color: ${getThemeValue('colors.primary', '#1a365d')};
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 10px;
   font-weight: bold;
   transition: all 0.3s ease;
+  width: 100%;
+  white-space: nowrap;
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  border-radius: 12px;
 
   &:hover {
-    background-color: #043584;
+    background-color: #04296a;
     transform: translateY(-2px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    transform: none;
+    box-shadow: none;
   }
 `;
 
@@ -332,10 +365,10 @@ const ProductsPage = () => {
       </Filters>
 
       <ActionButtonContainer>
-        <Button onClick={() => setShowAddModal(true)}>Add Product</Button>
-        <Button onClick={handleBulkDelete} disabled={selectedProducts.length === 0}>Delete Selected</Button>
-        <Button onClick={handleExportCsv}>Export CSV</Button>
-        <Button onClick={handleExportPdf}>Export PDF</Button>
+        <ActionButton onClick={() => setShowAddModal(true)}>Add Product</ActionButton>
+        <ActionButton onClick={handleBulkDelete} disabled={selectedProducts.length === 0}>Delete Selected</ActionButton>
+        <ActionButton onClick={handleExportCsv}>Export CSV</ActionButton>
+        <ActionButton onClick={handleExportPdf}>Export PDF</ActionButton>
       </ActionButtonContainer>
 
       {loading ? (

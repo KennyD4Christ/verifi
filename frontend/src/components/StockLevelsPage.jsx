@@ -4,8 +4,19 @@ import styled from 'styled-components';
 import { fetchStockAdjustments, updateStockAdjustment, deleteStockAdjustment, bulkDeleteStockAdjustments, exportStockAdjustmentsCsv, exportStockAdjustmentsPdf } from '../services/api';
 import AddAdjustmentModal from '../modals/AddAdjustmentModal';
 import EditAdjustmentModal from '../modals/EditAdjustmentModal';
-import { Alert, Button, Form, Spinner } from 'react-bootstrap';
+import { Alert, Table, Button, Form, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { ThemeProvider } from "styled-components";
+
+
+const getThemeValue = (path, fallback) => props => {
+  const value = path.split('.').reduce((acc, part) => {
+    if (acc && acc[part] !== undefined) return acc[part];
+    return undefined;
+  }, props.theme);
+
+  return value !== undefined ? value : fallback;
+};
 
 const StockLevelsContainer = styled.div`
   padding: clamp(10px, 3vw, 20px);
@@ -13,6 +24,8 @@ const StockLevelsContainer = styled.div`
   display: flex;
   flex-direction: column;
   width: 100%;
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
   
   @media (max-width: 768px) {
     padding: 10px;
@@ -40,13 +53,17 @@ const Heading = styled.h1`
   }
 `;
 
-const Filters = styled(Form)`
-  margin-bottom: 20px;
+const Filters = styled.div`
+  margin-bottom: 1.5rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: clamp(0.5rem, 2vw, 1rem);
+  gap: 1rem;
   align-items: center;
-  
+  background-color: ${getThemeValue('colors.surface', '#1a365d')};
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 0.75rem;
@@ -85,35 +102,41 @@ const TableWrapper = styled.div`
   }
 `;
 
-const StyledTable = styled.table`
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  background-color: #ffffff;
-  min-width: 800px;
-  
-  @media (max-width: 1024px) {
+const StyledTable = styled(Table)`
+  margin-bottom: 20px;
+  min-width: 800px; // Ensures table doesn't collapse too much
+
+  @media (max-width: 768px) {
     font-size: 14px;
+
+    ${Td}, ${Th} {
+      padding: 8px 4px;
+    }
   }
 `;
 
 const StyledFormControl = styled(Form.Control)`
-  height: 38px;
+  height: 2.5rem;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  border-radius: 3px;
   width: 100%;
-  
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
+
   &::placeholder {
-    color: #6c757d;
+    color: ${getThemeValue('colors.text.secondary', '#4a5568')};
   }
 
-  @media (max-width: 768px) {
-    font-size: 14px;
+  &:focus {
+    border-color: ${getThemeValue('colors.accent', '#2b6cb0')};
+    box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
   }
 `;
 
 const Th = styled.th`
   background-color: #f5f5f5;
   padding: clamp(8px, 2vw, 10px);
-  border: 1px solid #ddd;
+  border: 3px solid ${getThemeValue('colors.border', '#e2e8f0')};
   cursor: pointer;
   white-space: nowrap;
   position: sticky;
@@ -142,6 +165,20 @@ const Td = styled.td`
   }
 `;
 
+const TableContainer = styled.div`
+  width: 100%;
+  margin: 0 auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+
+  @media (max-width: 768px) {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+`;
+
 const ActionButtonContainer = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -156,17 +193,19 @@ const ActionButtonContainer = styled.div`
 `;
 
 const ActionButton = styled(Button)`
-  background-color: #0645AD;
+  background-color: ${getThemeValue('colors.primary', '#1a365d')};
   color: white;
   border: none;
-  padding: clamp(8px, 2vw, 10px) clamp(15px, 3vw, 20px);
+  padding: 10px;
   font-weight: bold;
   transition: all 0.3s ease;
   width: 100%;
-  font-size: clamp(14px, 2vw, 16px);
-  
+  white-space: nowrap;
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  border-radius: 12px;
+
   &:hover {
-    background-color: #052c65;
+    background-color: #04296a;
     transform: translateY(-2px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
@@ -176,24 +215,14 @@ const ActionButton = styled(Button)`
     transform: none;
     box-shadow: none;
   }
-
-  @media (max-width: 768px) {
-    padding: 8px 15px;
-  }
 `;
 
 const AnimatedTableRow = styled.tr`
   transition: all 0.3s ease;
-  
+
   &:hover {
     background-color: #f0f8ff;
-    transform: scale(1.005);
-  }
-
-  @media (max-width: 768px) {
-    &:hover {
-      transform: none;
-    }
+    transform: scale(1.01);
   }
 `;
 
@@ -508,6 +537,7 @@ const StockLevelsPage = () => {
         <ActionButton onClick={handleExportPdf}>Export PDF</ActionButton>
       </ActionButtonContainer>
 
+      <TableContainer>
       {loading ? (
         <Spinner animation="border" role="status" className="d-block mx-auto" />
       ) : (
@@ -644,6 +674,7 @@ const StockLevelsPage = () => {
           setSuccess={setSuccess}
           setError={setError}
         />
+        </TableContainer>	
       </ContentWrapper>
     </StockLevelsContainer>
   );

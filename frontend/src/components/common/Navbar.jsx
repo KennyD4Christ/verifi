@@ -8,7 +8,7 @@ import { FaBars, FaTimes, FaHome, FaExchangeAlt, FaFileInvoiceDollar, FaBox,
 
 
 const SIDEBAR_WIDTHS = {
-  expanded: '280px',
+  expanded: '270px',
   collapsed: '72px',
   mobile: '280px',
 };

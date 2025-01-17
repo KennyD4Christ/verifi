@@ -50,6 +50,7 @@ import {
 } from '../utils/dataTransformations';
 
 import 'chartjs-adapter-date-fns';
+import Sidebar from './common/Sidebar';
 
 ChartJS.register(
   TimeScale,
@@ -112,9 +113,14 @@ export const darkTheme = {
 };
 
 const SIDEBAR_WIDTHS = {
-  expanded: '280px',
+  expanded: '270px',
   collapsed: '72px',
   mobile: '280px',
+};
+
+const BREAKPOINTS = {
+  mobile: '768px',
+  tablet: '1024px',
 };
 
 // Root Layout Components
