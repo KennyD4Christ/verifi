@@ -2,13 +2,27 @@ import React from 'react';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 
+
+const SIDEBAR_WIDTHS = {
+  expanded: '270px',
+  collapsed: '72px',
+  mobile: '280px',
+};
+
+const breakpoints = {
+  mobile: '480px',
+  tablet: '768px',
+  laptop: '1024px',
+  desktop: '1200px'
+};
+
 const FooterContainer = styled.footer`
   background-color: #2d3748;
   color: #a0aec0;
   bottom: 0;
   padding: 3rem 1rem;
   margin-top: auto;
-  
+
   @media (max-width: 768px) {
     padding: 2rem 1rem;
   }

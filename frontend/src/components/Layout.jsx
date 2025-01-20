@@ -20,7 +20,7 @@ const LayoutWrapper = styled.div`
   flex-direction: column;
   min-height: 100vh;
   position: relative;
-  
+
   @media (min-width: ${breakpoints.tablet}) {
     flex-direction: row;
   }
@@ -33,7 +33,7 @@ const ContentWrapper = styled.div`
   width: 100%;
   min-height: 100vh;
   transition: margin-left 0.3s ease, width 0.3s ease;
-  
+
   @media (min-width: ${breakpoints.tablet}) {
     margin-left: ${props => (props.isSidebarOpen ? props.sidebarWidth : '0')};
     width: ${props => (props.isSidebarOpen ? `calc(100% - ${props.sidebarWidth})` : '100%')};
@@ -45,7 +45,7 @@ const MainContent = styled.main`
   padding: clamp(1rem, 3vw, 2rem);
   overflow-y: auto;
   margin-top: ${props => props.headerHeight}px;
-  
+
   @media (max-width: ${breakpoints.mobile}) {
     padding: 0.75rem;
   }
@@ -70,18 +70,18 @@ const Layout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [headerHeight, setHeaderHeight] = useState(0);
   const location = useLocation();
-  
+
   const sidebarWidth = sidebarCollapsed ? '80px' : '240px';
 
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < parseInt(breakpoints.tablet);
       setIsMobile(mobile);
-      
+
       if (mobile && isSidebarOpen) {
         setIsSidebarOpen(false);
       }
-      
+
       // Update header height for main content positioning
       const header = document.querySelector('header');
       if (header) {
@@ -118,27 +118,27 @@ const Layout = ({ children }) => {
         isOpen={isSidebarOpen}
         width={sidebarWidth}
       />
-      
-      <Overlay 
+
+      <Overlay
         show={isMobile && isSidebarOpen}
         onClick={() => setIsSidebarOpen(false)}
       />
-      
-      <ContentWrapper 
+
+      <ContentWrapper
         sidebarWidth={sidebarWidth}
         isSidebarOpen={isSidebarOpen && !isMobile}
       >
-        <Navbar 
+        <Navbar
           onMenuClick={toggleSidebar}
           isMobile={isMobile}
           collapsed={sidebarCollapsed}
           setHeaderHeight={setHeaderHeight}
-	  setIsSidebarOpen={setIsSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
         />
         <MainContent headerHeight={headerHeight}>
           {children}
         </MainContent>
-        <Footer 
+        <Footer
           isSidebarOpen={isSidebarOpen && !isMobile}
           sidebarWidth={sidebarWidth}
           breakpoints={breakpoints}

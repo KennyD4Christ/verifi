@@ -35,8 +35,13 @@ const ProductsContainer = styled(Container)`
 `;
 
 const Heading = styled.h1`
-  font-size: 2em;
-  margin-bottom: 20px;
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  margin-bottom: 2.5rem;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  border-bottom: 2px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  padding-bottom: 1rem;
 `;
 
 const StyledTable = styled(Table)`
@@ -119,6 +124,56 @@ const AnimatedTableRow = styled.tr`
   &:hover {
     background-color: #f0f8ff;
     transform: scale(1.01);
+  }
+`;
+
+const PaginationContainer = styled.div`
+  width: 100%;
+  margin-top: auto;
+  padding: 1rem;
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  border-radius: 4px;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+
+  @media (max-width: 768px) {
+    border-radius: 0;
+    margin: 0 -1.5rem;
+    width: calc(100% + 3rem);
+  }
+`;
+
+const TableWrapper = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1.5rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+
+  @media (max-width: 768px) {
+    margin: 0 -1.5rem;
+    width: calc(100% + 3rem);
+    border-radius: 0;
+  }
+
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: ${getThemeValue('colors.surface', '#f7fafc')};
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${getThemeValue('colors.border', '#e2e8f0')};
+    border-radius: 4px;
+
+    &:hover {
+      background: ${getThemeValue('colors.text.secondary', '#4a5568')};
+    }
   }
 `;
 
@@ -375,6 +430,7 @@ const ProductsPage = () => {
         <Spinner animation="border" role="status" className="d-block mx-auto" />
       ) : (
         <>
+	  <TableWrapper>
           <StyledTable striped bordered hover>
             <thead>
               <tr>
@@ -402,7 +458,9 @@ const ProductsPage = () => {
               ))}
             </tbody>
           </StyledTable>
+	  </TableWrapper>
 
+	  <PaginationContainer>
           <div>
             {Array.from({ length: totalPages }, (_, index) => (
               <Button key={index + 1} onClick={() => paginate(index + 1)} disabled={currentPage === index + 1}>
@@ -410,6 +468,7 @@ const ProductsPage = () => {
               </Button>
             ))}
           </div>
+	  </PaginationContainer>
         </>
       )}
 

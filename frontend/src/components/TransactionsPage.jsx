@@ -42,8 +42,13 @@ const TransactionsContent = styled.div`
 `;
 
 const Heading = styled.h1`
-  font-size: clamp(1.5em, 4vw, 2em);
-  margin-bottom: clamp(10px, 3vw, 20px);
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  margin-bottom: 2.5rem;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  border-bottom: 2px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  padding-bottom: 1rem;
 `;
 
 const StyledTable = styled(Table)`
@@ -121,6 +126,41 @@ const TableContainer = styled.div`
   }
 `;
 
+const TableWrapper = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1.5rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+
+  @media (max-width: 768px) {
+    margin: 0 -1.5rem;
+    width: calc(100% + 3rem);
+    border-radius: 0;
+  }
+
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: ${getThemeValue('colors.surface', '#f7fafc')};
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${getThemeValue('colors.border', '#e2e8f0')};
+    border-radius: 4px;
+
+    &:hover {
+      background: ${getThemeValue('colors.text.secondary', '#4a5568')};
+    }
+  }
+`;
+
 const FilterInput = styled.input`
   padding: 10px;
   border: 1px solid #ddd;
@@ -175,6 +215,21 @@ const PaginationInfo = styled.div`
   margin: 0 15px;
   font-size: 14px;
   color: #555;
+`;
+
+const PaginationContainer = styled.div`
+  width: 100%;
+  margin-top: auto;
+  padding: 1rem;
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  border-radius: 4px;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+
+  @media (max-width: 768px) {
+    border-radius: 0;
+    margin: 0 -1.5rem;
+    width: calc(100% + 3rem);
+  }
 `;
 
 const ExportButton = styled.button`
@@ -570,7 +625,7 @@ const TransactionsPage = () => {
             onChange={(e) => handleFilterChange('category', e.target.value)}
           >
             <option value="">All Categories</option>
-	    <option value="income">Income</option>
+            <option value="income">Income</option>
             <option value="salary">Salary</option>
             <option value="marketing_expenses">Marketing Expenses</option>
             <option value="office_supplies">Office Supplies</option>
@@ -604,146 +659,148 @@ const TransactionsPage = () => {
           </ActionButton>
         </ActionButtonContainer>
 
-        <TableContainer>
-          {loading ? (
-            <Spinner animation="border" role="status" className="d-block mx-auto" />
-          ) : (
-            <StyledTable striped bordered hover>
-              <thead>
-                <tr>
-                  <Th>
-                    <Form.Check
-                      type="checkbox"
-                      onChange={handleSelectAll}
-                      checked={selectedTransactions.length === filteredTransactions.length}
-                    />
-                  </Th>
-                  <Th>Date</Th>
-                  <Th>Amount</Th>
-                  <Th>Transaction Type</Th>
-                  <Th>Status</Th>
-                  <Th>Category</Th>
-		  <Th>Created By</Th>
-                  <Th>Actions</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.length > 0 ? (
-                  filteredTransactions.map(transaction => (
-                    <AnimatedTableRow key={transaction.id}>
-                      <Td>
-                        <Form.Check
-                          type="checkbox"
-                          checked={selectedTransactions.includes(transaction.id)}
-                          onChange={() => handleCheckboxChange(transaction.id)}
-                        />
-                      </Td>
-                      <Td>{transaction.date || 'N/A'}</Td>
-                      <Td>{transaction.amount || 'N/A'}</Td>
-                      <Td>{transaction.transaction_type || 'N/A'}</Td>
-                      <Td>{transaction.status || 'N/A'}</Td>
-                      <Td>{transaction.category || 'N/A'}</Td>
-		      <Td>{transaction.created_by_username || transaction.created_by?.username || 'N/A'}</Td>
-                      <Td>
-                        <Button
-                          variant="info"
-                          size="sm"
-                          className="me-2"
-                          onClick={() => handleEditTransaction(transaction)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleDeleteTransaction(transaction.id)}
-                        >
-                          Delete
-                        </Button>
-                      </Td>
-                    </AnimatedTableRow>
-                  ))
-                ) : (
+        {loading ? (
+          <Spinner animation="border" role="status" className="d-block mx-auto" />
+        ) : (
+          <>
+            <TableWrapper>
+              <StyledTable striped bordered hover>
+                <thead>
                   <tr>
-                    <Td colSpan="8" className="text-center">
-                      No transactions found for the current filters.
-                    </Td>
+                    <Th>
+                      <Form.Check
+                        type="checkbox"
+                        onChange={handleSelectAll}
+                        checked={selectedTransactions.length === filteredTransactions.length}
+                      />
+                    </Th>
+                    <Th>Date</Th>
+                    <Th>Amount</Th>
+                    <Th>Transaction Type</Th>
+                    <Th>Status</Th>
+                    <Th>Category</Th>
+                    <Th>Created By</Th>
+                    <Th>Actions</Th>
                   </tr>
-                )}
-              </tbody>
-            </StyledTable>
-          )}
-        </TableContainer>
-      </TransactionsContainer>
-
-      {pagination.totalPages > 1 && (
-	<PaginationWrapper>
-        <Pagination>
-          <PaginationButton
-            onClick={() => handlePageChange(1)}
-            disabled={pagination.currentPage === 1}
-          >
-            First
-          </PaginationButton>
-
-          <PaginationButton
-            onClick={() => handlePageChange(pagination.currentPage - 1)}
-            disabled={pagination.currentPage === 1}
-          >
-            Previous
-          </PaginationButton>
-
-          {[...Array(pagination.totalPages).keys()]
-            .filter(number => {
-              const page = number + 1;
-              return (
-                page === 1 ||
-                page === pagination.totalPages ||
-                Math.abs(page - pagination.currentPage) <= 1
-              );
-            })
-            .map(number => {
-              const page = number + 1;
-              return (
-                <React.Fragment key={page}>
-                  {page > 1 &&
-                   Math.abs(page - [...Array(pagination.totalPages).keys()]
-                     .filter(n => {
-                       const p = n + 1;
-                       return (
-                         p === 1 ||
-                         p === pagination.totalPages ||
-                         Math.abs(p - pagination.currentPage) <= 1
-                       );
-                     })[number - 1] - 1) > 1 && (
-                    <span>...</span>
+                </thead>
+                <tbody>
+                  {filteredTransactions.length > 0 ? (
+                    filteredTransactions.map(transaction => (
+                      <AnimatedTableRow key={transaction.id}>
+                        <Td>
+                          <Form.Check
+                            type="checkbox"
+                            checked={selectedTransactions.includes(transaction.id)}
+                            onChange={() => handleCheckboxChange(transaction.id)}
+                          />
+                        </Td>
+                        <Td>{transaction.date || 'N/A'}</Td>
+                        <Td>{transaction.amount || 'N/A'}</Td>
+                        <Td>{transaction.transaction_type || 'N/A'}</Td>
+                        <Td>{transaction.status || 'N/A'}</Td>
+                        <Td>{transaction.category || 'N/A'}</Td>
+                        <Td>{transaction.created_by_username || transaction.created_by?.username || 'N/A'}</Td>
+                        <Td>
+                          <Button
+                            variant="info"
+                            size="sm"
+                            className="me-2"
+                            onClick={() => handleEditTransaction(transaction)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleDeleteTransaction(transaction.id)}
+                          >
+                            Delete
+                          </Button>
+                        </Td>
+                      </AnimatedTableRow>
+                    ))
+                  ) : (
+                    <tr>
+                      <Td colSpan="8" className="text-center">
+                        No transactions found for the current filters.
+                      </Td>
+                    </tr>
                   )}
+                </tbody>
+              </StyledTable>
+            </TableWrapper>
+
+            {pagination.totalPages > 1 && (
+              <PaginationContainer>
+                <Pagination>
                   <PaginationButton
-                    onClick={() => handlePageChange(page)}
-                    disabled={pagination.currentPage === page}
+                    onClick={() => handlePageChange(1)}
+                    disabled={pagination.currentPage === 1}
                   >
-                    {page}
+                    First
                   </PaginationButton>
-                </React.Fragment>
-              );
-            })}
 
-          <PaginationButton
-            onClick={() => handlePageChange(pagination.currentPage + 1)}
-            disabled={pagination.currentPage === pagination.totalPages}
-          >
-            Next
-          </PaginationButton>
+                  <PaginationButton
+                    onClick={() => handlePageChange(pagination.currentPage - 1)}
+                    disabled={pagination.currentPage === 1}
+                  >
+                    Previous
+                  </PaginationButton>
 
-          <PaginationButton
-            onClick={() => handlePageChange(pagination.totalPages)}
-            disabled={pagination.currentPage === pagination.totalPages}
-          >
-            Last
-          </PaginationButton>
-        </Pagination>
-	</PaginationWrapper>
-      )}
+                  {[...Array(pagination.totalPages).keys()]
+                    .filter(number => {
+                      const page = number + 1;
+                      return (
+                        page === 1 ||
+                        page === pagination.totalPages ||
+                        Math.abs(page - pagination.currentPage) <= 1
+                      );
+                    })
+                    .map(number => {
+                      const page = number + 1;
+                      return (
+                        <React.Fragment key={page}>
+                          {page > 1 &&
+                           Math.abs(page - [...Array(pagination.totalPages).keys()]
+                             .filter(n => {
+                               const p = n + 1;
+                               return (
+                                 p === 1 ||
+                                 p === pagination.totalPages ||
+                                 Math.abs(p - pagination.currentPage) <= 1
+                               );
+                             })[number - 1] - 1) > 1 && (
+                            <span>...</span>
+                          )}
+                          <PaginationButton
+                            onClick={() => handlePageChange(page)}
+                            disabled={pagination.currentPage === page}
+                          >
+                            {page}
+                          </PaginationButton>
+                        </React.Fragment>
+                      );
+                    })}
+
+                  <PaginationButton
+                    onClick={() => handlePageChange(pagination.currentPage + 1)}
+                    disabled={pagination.currentPage === pagination.totalPages}
+                  >
+                    Next
+                  </PaginationButton>
+
+                  <PaginationButton
+                    onClick={() => handlePageChange(pagination.totalPages)}
+                    disabled={pagination.currentPage === pagination.totalPages}
+                  >
+                    Last
+                  </PaginationButton>
+                </Pagination>
+              </PaginationContainer>
+            )}
+          </>
+        )}
+      </TransactionsContainer>
 
       {error && <div>Error: {error}</div>}
 

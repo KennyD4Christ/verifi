@@ -4,7 +4,7 @@ import { fetchProducts, fetchCustomers, fetchOrders, fetchCurrentUser } from '..
 import CreateOrderModal from '../modals/CreateOrderModal';
 import OrderDetailsModal from '../modals/OrderDetailsModal';
 import { format } from 'date-fns';
-import styled from 'styled-components';
+import styled, { ThemeProvider } from 'styled-components';
 import { debounce } from 'lodash';
 import {
   Table,
@@ -24,16 +24,39 @@ import { PlusOutlined, DeleteOutlined, ReloadOutlined, EyeOutlined } from '@ant-
 const { Search } = Input;
 const { Option } = Select;
 
+const getThemeValue = (path, fallback) => props => {
+  const value = path.split('.').reduce((acc, part) => {
+    if (acc && acc[part] !== undefined) return acc[part];
+    return undefined;
+  }, props.theme);
+
+  return value !== undefined ? value : fallback;
+};
+
 const PageContainer = styled.div`
-  padding: clamp(12px, 3vw, 24px);
-  max-width: 100%;
-  overflow-x: hidden;
+  padding: 2rem;
+  height: 100%;
+  min-height: calc(100vh - var(--header-height, 64px));
+  background-color: ${getThemeValue('colors.background', '#ffffff')};
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+  }
 `;
 
 const PageHeader = styled.h1`
-  font-size: clamp(20px, 4vw, 24px);
-  font-weight: bold;
-  margin-bottom: clamp(12px, 3vw, 16px);
+  color: ${getThemeValue('colors.text.primary', '#2d3748')};
+  margin-bottom: 2.5rem;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  border-bottom: 2px solid ${getThemeValue('colors.border', '#e2e8f0')};
+  padding-bottom: 1rem;
+
+  @media (max-width: 768px) {
+    text-align: center;
+  }
 `;
 
 const ActionBar = styled(Row)`
@@ -52,19 +75,102 @@ const ActionBar = styled(Row)`
   }
 `;
 
-const FilterBar = styled(Row)`
-  margin-bottom: 16px;
-  gap: 8px;
-
-  @media (max-width: 576px) {
-    .ant-space {
-      flex-direction: column;
-      width: 100%;
+const ActionButton = styled.button`
+  background-color: ${props => {
+    switch (props.variant) {
+      case 'danger':
+        return getThemeValue('colors.danger', '#e53e3e');
+      case 'info':
+        return getThemeValue('colors.info', '#3182ce');
+      case 'warning':
+        return getThemeValue('colors.warning', '#dd6b20');
+      default:
+        return getThemeValue('colors.primary', '#1a365d');
     }
+  }};
+  color: white;
+  border: none;
+  border-radius: ${props => (props.size === 'sm' ? '8px' : '12px')};
+  padding: ${props =>
+    props.size === 'sm' ? '0.5rem 1rem' : '0.75rem 1.5rem'};
+  font-weight: 500;
+  cursor: pointer;
+  transition: ${getThemeValue('transitions.standard', 'all 0.2s ease-in-out')};
+  font-size: ${props => (props.size === 'sm' ? '0.75rem' : '0.875rem')};
+  letter-spacing: 0.025em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
-    .ant-input-search,
-    .ant-select {
-      width: 100% !important;
+  &:hover:not(:disabled) {
+    background-color: ${props => {
+      switch (props.variant) {
+        case 'danger':
+          return getThemeValue('colors.dangerHover', '#c53030');
+        case 'info':
+          return getThemeValue('colors.infoHover', '#3182ce');
+        case 'warning':
+          return getThemeValue('colors.warningHover', '#c05621');
+        default:
+          return getThemeValue('colors.secondary', '#87CEFA');
+      }
+    }};
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    transform: none;
+    box-shadow: none;
+  }
+`;
+
+const FilterBar = styled.div`
+  margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  align-items: center;
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+`;
+
+const TableWrapper = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1.5rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
+
+  @media (max-width: 768px) {
+    margin: 0 -1.5rem;
+    width: calc(100% + 3rem);
+    border-radius: 0;
+  }
+
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: ${getThemeValue('colors.surface', '#f7fafc')};
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${getThemeValue('colors.border', '#e2e8f0')};
+    border-radius: 4px;
+
+    &:hover {
+      background: ${getThemeValue('colors.text.secondary', '#4a5568')};
     }
   }
 `;
@@ -91,12 +197,17 @@ const ResponsiveTable = styled(Table)`
 `;
 
 const PaginationContainer = styled.div`
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
+    width: 100%;
+  margin-top: auto;
+  padding: 1rem;
+  background-color: ${getThemeValue('colors.surface', '#f7fafc')};
+  border-radius: 4px;
+  border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
 
-  @media (max-width: 576px) {
-    justify-content: center;
+  @media (max-width: 768px) {
+    border-radius: 0;
+    margin: 0 -1.5rem;
+    width: calc(100% + 3rem);
   }
 `;
 
@@ -431,22 +542,22 @@ const OrdersPage = () => {
       <ActionBar>
         <Col xs={24} sm={24} md={24}>
           <Space wrap>
-            <Button
+            <ActionButton
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleAddNewOrder}
               disabled={loadingData || customers.length === 0 || products.length === 0}
             >
               Add New Order
-            </Button>
-            <Button
+            </ActionButton>
+            <ActionButton
               danger
               icon={<DeleteOutlined />}
               onClick={handleBulkDelete}
               disabled={selectedRowKeys.length === 0}
             >
               Delete Selected
-            </Button>
+            </ActionButton>
           </Space>
         </Col>
       </ActionBar>
@@ -476,6 +587,7 @@ const OrdersPage = () => {
         </Col>
       </FilterBar>
 
+      <TableWrapper>
       <ResponsiveTable
         dataSource={orders}
         columns={columns}
@@ -489,6 +601,7 @@ const OrdersPage = () => {
         rowKey={(record) => record.id}
         scroll={{ x: 'max-content' }}
       />
+      </TableWrapper>
 
       <PaginationContainer>
         <Pagination
