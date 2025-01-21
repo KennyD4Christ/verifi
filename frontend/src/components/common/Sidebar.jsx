@@ -72,20 +72,24 @@ const SidebarContainer = styled.aside`
       : props.collapsed
         ? SIDEBAR_WIDTHS.collapsed
         : SIDEBAR_WIDTHS.expanded};
-  height: 100vh;
-  top: 0;
   position: fixed;
-  display: flex;
-  flex-direction: column;
+  top: 0; // Changed from headerHeight
+  height: 100vh; // Changed to full viewport height
+  left: ${props => props.isOpen ? '0' : `-${SIDEBAR_WIDTHS.expanded}`};
   background-color: ${props => props.theme.background.main};
   color: ${props => props.theme.text.primary};
   box-shadow: ${props => props.theme.shadow};
-  transition: width ${props => props.theme.transition?.slower || '0.3s'};
-  will-change: width, left;
-  overflow: hidden;
+  transition: all ${props => props.theme.transition?.slower || '0.3s'};
+  overflow-y: auto;
+  z-index: 1000; // Increased z-index
 
-  /* Mobile-specific styles */
-  ${mobileStyles}
+  // Add padding-top to account for header
+  padding-top: ${props => props.headerHeight}px;
+  
+  @media (max-width: ${BREAKPOINTS.mobile}) {
+    width: ${SIDEBAR_WIDTHS.mobile};
+    transform: translateX(${props => props.isOpen ? '0' : '-100%'});
+  }
 `;
 
 const SidebarHeader = styled.div`

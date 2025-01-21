@@ -96,30 +96,20 @@ const Td = styled.td`
 `;
 
 const ButtonContainer = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  
-  @media (max-width: 640px) {
-    flex-direction: column;
-    width: 100%;
-  }
+  width: 100%;
+  margin-bottom: 1rem;
 `;
 
 const Button = styled.button`
-  padding: clamp(0.5rem, 2vw, 1rem);
+  padding: 0.75rem 1.5rem;
   background-color: ${getThemeValue('colors.primary', '#1a365d')};
   color: #fff;
   border: none;
   border-radius: 1.5rem;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  width: 20%;
-  margin-bottom: 10px;
   min-width: 120px;
-  margin-left: 0;
-  margin-right: 0;
-
+  
   &:hover {
     background-color: #0056b3;
   }
@@ -127,8 +117,6 @@ const Button = styled.button`
   @media (max-width: 640px) {
     width: 100%;
   }
-
-  transform: scale(0.9);
 `;
 
 const EditButton = styled(Button)`
@@ -229,7 +217,11 @@ const CustomersPage = () => {
     <CustomersContainer>
       <Heading>Customers</Heading>
 
-      <Button onClick={() => setIsAddModalOpen(true)}>Add New Customer</Button>
+      <ButtonContainer>
+        <Button onClick={() => setIsAddModalOpen(true)}>
+          Add New Customer
+        </Button>
+      </ButtonContainer>
 
       <TableWrapper>
         <StyledTable>

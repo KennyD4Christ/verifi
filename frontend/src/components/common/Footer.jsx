@@ -19,9 +19,14 @@ const breakpoints = {
 const FooterContainer = styled.footer`
   background-color: #2d3748;
   color: #a0aec0;
-  bottom: 0;
   padding: 3rem 1rem;
+  width: 100%;
   margin-top: auto;
+  margin-bottom: 0px
+
+  @media (min-width: ${breakpoints.tablet}) {
+    width: 100%;
+  }
 
   @media (max-width: 768px) {
     padding: 2rem 1rem;
