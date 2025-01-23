@@ -28,6 +28,7 @@ from smtplib import (
     SMTPConnectError,
     SMTPResponseException
 )
+import math
 import csv
 from django.utils.html import strip_tags
 import operator as op
@@ -61,6 +62,7 @@ from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from reportlab.graphics.charts.legends import Legend
 from reportlab.graphics.charts.piecharts import Pie
+from calendar import month_name
 
 
 logger = logging.getLogger(__name__)
@@ -788,69 +790,167 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
 
 def create_revenue_trend_chart(financial_data, width, height):
     """
-    Create a line chart showing revenue trends from financial overview data.
-
-    Args:
-        financial_data (dict): Financial overview data containing revenue information
-        width (int): Width of the chart
-        height (int): Height of the chart
-
-    Returns:
-        Drawing: A ReportLab drawing object containing the revenue trend chart
+    Create an enhanced line chart showing revenue trends with legends and value labels.
     """
-    # Initialize the drawing
     drawing = Drawing(width, height)
     chart = HorizontalLineChart()
-    chart.x = 50
+    
+    chart.x = 60
     chart.y = 50
-    chart.width = width - 100
+    chart.width = width - 120
     chart.height = height - 100
 
-    # Extract and process revenue data
     try:
-        if 'monthly_revenue' in financial_data:
-            revenue_data = financial_data['monthly_revenue']
+        revenue_data = financial_data.get('monthly_revenue', [])
+        
+        if not revenue_data:
+            chart.data = [[0, 0]]
+            chart.categoryAxis.categoryNames = ['No Data', '']
+            chart.valueAxis.valueMin = 0
+            chart.valueAxis.valueMax = 100
+            drawing.add(chart)
+            return drawing
+            
+        def sort_key(x):
+            date = datetime.strptime(f"{x['month']} {x['year']}", '%B %Y')
+            return date
+            
+        sorted_data = sorted(revenue_data, key=sort_key)
+        
+        if len(sorted_data) == 1:
+            sorted_data.append(sorted_data[0].copy())
+            
+        revenue_values = [float(entry['revenue']) for entry in sorted_data]
+        
+        months = []
+        prev_year = None
+        for entry in sorted_data:
+            current_year = entry['year']
+            if prev_year is None or current_year != prev_year:
+                months.append(f"{entry['month'][:3]} {str(current_year)[2:]}")
+            else:
+                months.append(entry['month'][:3])
+            prev_year = current_year
+
+        if len(revenue_values) >= 3:
+            window_size = 3
+            moving_averages = []
+            for i in range(len(revenue_values)):
+                if i < window_size - 1:
+                    moving_averages.append(revenue_values[i])
+                else:
+                    avg = sum(revenue_values[i-(window_size-1):i+1]) / window_size
+                    moving_averages.append(avg)
+            chart.data = [revenue_values, moving_averages]
         else:
-            revenue_data = [{
-                'month': datetime.now().strftime('%B'),
-                'revenue': financial_data['total_revenue']
-            }]
-
-        # Sort data by month and separate into lists
-        sorted_data = sorted(revenue_data, key=lambda x: datetime.strptime(x['month'], '%B'))
-        revenue_values = [float(entry['revenue']) for entry in sorted_data]  # Convert Decimal to float
-        months = [entry['month'][:3] for entry in sorted_data]
-
-        # Configure chart data
-        chart.data = [revenue_values]
+            chart.data = [revenue_values]
+            
         chart.categoryAxis.categoryNames = months
 
-        # Style the chart
+        min_value = min(revenue_values) if revenue_values else 0
+        max_value = max(revenue_values) if revenue_values else 100
+        padding = (max_value - min_value) * 0.15 if max_value > min_value else 10
+
+        chart.valueAxis.valueMin = float(min_value - padding)
+        chart.valueAxis.valueMax = float(max_value + padding)
+
+        # Enhanced styling
         chart.categoryAxis.labels.boxAnchor = 'ne'
         chart.categoryAxis.labels.angle = 30
         chart.categoryAxis.labels.fontSize = 8
+        chart.categoryAxis.labels.fontName = 'Helvetica'
+        chart.categoryAxis.labels.dy = -8
+        chart.categoryAxis.strokeWidth = 1
+        chart.categoryAxis.strokeColor = colors.HexColor('#424242')
+
+        x_axis_label = String(
+            width / 2, 20, 'Month',
+            fontSize=10, fontName='Helvetica',
+            textAnchor='middle'
+        )
+        drawing.add(x_axis_label)
+
+        chart.valueAxis.labels.fontSize = 8
+        chart.valueAxis.labels.fontName = 'Helvetica'
+        chart.valueAxis.strokeWidth = 1
+        chart.valueAxis.strokeColor = colors.HexColor('#424242')
+
+        # Add y-axis label
+        y_axis_label = String(
+            15, height / 2, 'Revenue',
+            fontSize=10, fontName='Helvetica',
+            textAnchor='middle',
+            angle=90
+        )
+        drawing.add(y_axis_label)
+
+        # Format currency values
+        def format_value(value):
+            if value >= 1_000_000:
+                return f'${value/1_000_000:.1f}M'
+            elif value >= 1_000:
+                return f'${value/1_000:.0f}K'
+            else:
+                return f'${value:,.0f}'
+
+        chart.valueAxis.labelTextFormat = format_value
+
+        # Line styling
         chart.lines[0].strokeWidth = 3
         chart.lines[0].strokeColor = colors.HexColor('#1a237e')
-        chart.fillColor = colors.white
+        if len(chart.data) > 1:
+            chart.lines[1].strokeWidth = 2
+            chart.lines[1].strokeColor = colors.HexColor('#43a047')
 
-        # Calculate value range using float values
-        min_value = min(revenue_values) if revenue_values else 0
-        max_value = max(revenue_values) if revenue_values else 100
+        # Add value labels on the chart
+        for i, value in enumerate(revenue_values):
+            label = String(
+                chart.x + (i + 0.5) * (chart.width / len(revenue_values)),
+                chart.y + chart.height * (value - chart.valueAxis.valueMin) / 
+                (chart.valueAxis.valueMax - chart.valueAxis.valueMin),
+                format_value(value),
+                fontSize=8,
+                fontName='Helvetica',
+                textAnchor='middle'
+            )
+            drawing.add(label)
+
+        # Add legend
+        legend_y = height - 25
         
-        # Set value axis range
-        chart.valueAxis.valueMin = float(min_value * 0.9)
-        chart.valueAxis.valueMax = float(max_value * 1.1)
-        chart.valueAxis.labelTextFormat = lambda x: f'${x:,.0f}'
+        # Legend for actual revenue
+        drawing.add(Line(
+            width - 220, legend_y, width - 190, legend_y,
+            strokeWidth=3,
+            strokeColor=colors.HexColor('#1a237e')
+        ))
+        drawing.add(String(
+            width - 180, legend_y,
+            'Actual Revenue',
+            fontSize=8,
+            fontName='Helvetica'
+        ))
 
-        # Add grid lines for better readability
-        chart.valueAxis.gridStrokeWidth = 0.5
-        chart.valueAxis.gridStrokeColor = colors.HexColor('#e0e0e0')
+        # Legend for trend line (if exists)
+        if len(chart.data) > 1:
+            drawing.add(Line(
+                width - 120, legend_y, width - 90, legend_y,
+                strokeWidth=2,
+                strokeColor=colors.HexColor('#43a047')
+            ))
+            drawing.add(String(
+                width - 80, legend_y,
+                '3-Month Trend',
+                fontSize=8,
+                fontName='Helvetica'
+            ))
 
     except Exception as e:
-        # If there's any error, create a simple placeholder chart
-        chart.data = [[0]]
-        chart.categoryAxis.categoryNames = ['No Data']
         print(f"Error creating revenue chart: {str(e)}")
+        chart.data = [[0, 0]]
+        chart.categoryAxis.categoryNames = ['Error', '']
+        chart.valueAxis.valueMin = 0
+        chart.valueAxis.valueMax = 100
 
     drawing.add(chart)
     return drawing
@@ -858,32 +958,32 @@ def create_revenue_trend_chart(financial_data, width, height):
 def create_category_pie_chart(data, width, height):
     """
     Create a pie chart showing revenue distribution by category.
-    
+
     Args:
         data (list): List of dictionaries containing category revenue data
         width (int): Width of the chart
         height (int): Height of the chart
-        
+
     Returns:
         Drawing: A ReportLab drawing object containing the pie chart
     """
     drawing = Drawing(width, height)
     pie = Pie()
-    
+
     # Set chart position and dimensions
-    pie.width = min(width, height) - 100
-    pie.height = min(width, height) - 100
+    pie.width = min(width, height) - 120  # Allow margin
+    pie.height = min(width, height) - 120
     pie.x = (width - pie.width) / 2
     pie.y = (height - pie.height) / 2
-    
+
     # Process and validate data
     valid_categories = []
     for category in data:
-        if (category.get('total_amount', 0) > 0 and 
-            category.get('category') and 
-            isinstance(category['category'], str)):
+        if (category.get('total_amount', 0) > 0 and
+                category.get('category') and
+                isinstance(category['category'], str)):
             valid_categories.append(category)
-    
+
     if not valid_categories:
         # Create a placeholder chart if no valid data
         pie.data = [100]
@@ -892,34 +992,39 @@ def create_category_pie_chart(data, width, height):
         # Prepare valid data for the chart
         pie.data = [category['total_amount'] for category in valid_categories]
         pie.labels = [category['category'] for category in valid_categories]
-    
+
     # Style the pie chart
-    pie.slices.strokeWidth = 0.5
-    pie.slices.strokeColor = colors.white
-    
-    # Add custom colors for slices
+    pie.slices.strokeWidth = 1
+    pie.slices.strokeColor = colors.white  # White borders between slices
+
+    # Add custom colors for slices (modern and vibrant palette)
     chart_colors = [
-        colors.HexColor('#1a237e'),  # Deep Blue
-        colors.HexColor('#303f9f'),  # Medium Blue
-        colors.HexColor('#3949ab'),  # Light Blue
-        colors.HexColor('#5c6bc0'),  # Lighter Blue
-        colors.HexColor('#7986cb'),  # Very Light Blue
+        colors.HexColor('#1976d2'),  # Deep Blue
+        colors.HexColor('#26c6da'),  # Cyan
+        colors.HexColor('#66bb6a'),  # Green
+        colors.HexColor('#ffa726'),  # Orange
+        colors.HexColor('#ff7043'),  # Red
+        colors.HexColor('#ab47bc'),  # Purple
+        colors.HexColor('#ec407a'),  # Pink
     ]
-    
     for i in range(len(pie.data)):
         pie.slices[i].fillColor = chart_colors[i % len(chart_colors)]
-    
+
     # Configure labels
     pie.sideLabels = True  # Place labels outside the pie
-    pie.simpleLabels = False
-    pie.labels = [f'{label} ({value:,.0f})' for label, value in zip(pie.labels, pie.data)]
-    
-    # Add percentage values
+    pie.simpleLabels = False  # Use detailed labels
+    pie.slices.popout = 10  # Slight pop-out effect for better separation
+
+    # Format labels with percentages
     total = sum(pie.data)
     if total > 0:
-        percentages = [(value/total) * 100 for value in pie.data]
-        pie.labels = [f'{label} ({perc:.1f}%)' for label, perc in zip(pie.labels, percentages)]
-    
+        percentages = [(value / total) * 100 for value in pie.data]
+        pie.labels = [
+            f'{label} ({value:,.0f}) - {perc:.1f}%' 
+            for label, value, perc in zip(pie.labels, pie.data, percentages)
+        ]
+
+    # Add a title (optional for better presentation)
     drawing.add(pie)
     return drawing
 
@@ -931,7 +1036,7 @@ def create_inventory_bar_chart(data, width, height):
     chart.x = 50
     chart.y = 50
     chart.width = width - 100
-    chart.height = height - 100
+    chart.height = height - 150
     
     # Configure chart
     chart.data = [data['stock_levels']]
@@ -940,9 +1045,31 @@ def create_inventory_bar_chart(data, width, height):
     chart.categoryAxis.labels.angle = 30
     
     # Style the chart
-    chart.bars[0].fillColor = colors.HexColor('#303f9f')
-    chart.valueAxis.valueMin = 0
-    
+    # Bar colors with a gradient effect
+    chart.bars[0].fillColor = colors.HexColor('#1e88e5')  # Blue
+    chart.bars[0].strokeWidth = 0.5
+    chart.bars[0].strokeColor = colors.HexColor('#1565c0')  # Darker outline
+
+    # Gridlines
+    chart.valueAxis.gridStrokeWidth = 0.5
+    chart.valueAxis.gridStrokeColor = colors.HexColor('#e0e0e0')
+
+    # Configure axes
+    chart.valueAxis.valueMin = 0  # Start from 0
+    chart.valueAxis.labels.fontSize = 10  # Value labels font size
+    chart.valueAxis.labelTextFormat = lambda x: f'{x:,.0f}'  # Format values as numbers
+    chart.categoryAxis.labels.boxAnchor = 'ne'
+    chart.categoryAxis.labels.angle = 45  # Rotate category names
+    chart.categoryAxis.labels.fontSize = 9  # Font size for categories
+    chart.categoryAxis.labels.fillColor = colors.HexColor('#424242')  # Dark Gray
+
+    # Add a legend
+    legend_label = String(
+        width - 150, height - 50, "Stock Levels", fontSize=12, fillColor=colors.HexColor('#1e88e5')
+    )
+    drawing.add(legend_label)
+
+    # Add the chart to the drawing
     drawing.add(chart)
     return drawing
 
@@ -1214,13 +1341,34 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
         try:
             monthly_data = []
             cash_flow = financial_overview.get('monthly_cash_flow', [])
+        
             for entry in cash_flow:
                 if entry['transaction_type'] == 'income':
+                    # Directly use the month field from the entry
+                    transaction_date = entry['month']
+                
                     monthly_data.append({
-                        'month': entry['month'].strftime('%B'),
+                        'month_year': transaction_date,
+                        'month': transaction_date.strftime('%B'),
+                        'year': transaction_date.year,
                         'revenue': float(entry['total_amount'])
                     })
-            return {'monthly_revenue': monthly_data}
+
+            # Sort the data by the datetime object
+            monthly_data.sort(key=lambda x: x['month_year'])
+
+            # Prepare the final response, keeping the year information
+            formatted_data = [
+                {
+                    'month': data['month'],
+                    'year': data['year'],
+                    'revenue': data['revenue']
+                }
+                for data in monthly_data
+            ]
+        
+            return {'monthly_revenue': formatted_data}
+        
         except Exception as e:
             logger.error(f"Error preparing revenue chart data: {str(e)}")
             return {'monthly_revenue': []}

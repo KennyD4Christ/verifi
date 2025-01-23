@@ -75,6 +75,11 @@ class ProductViewSet(BaseAccessControlViewSet):
     model = Product
     model_name = 'product'
 
+    view_permission = PermissionConstants.PRODUCT_VIEW
+    create_permission = PermissionConstants.PRODUCT_CREATE
+    edit_permission = PermissionConstants.PRODUCT_EDIT
+    delete_permission = PermissionConstants.PRODUCT_DELETE
+
     def apply_role_based_filtering(self):
         user = self.request.user
 

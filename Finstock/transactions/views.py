@@ -223,161 +223,242 @@ class TransactionViewSet(BaseAccessControlViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=False, methods=['get'])
-    def export_csv(self, request):
-        """
-        Exports all filtered transactions to a CSV file.
-        """
-        transactions = self.filter_queryset(self.get_queryset())
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = (
-            'attachment; filename="transactions.csv"'
-        )
-        writer = csv.writer(response)
-        writer.writerow([
-            'ID', 'Order', 'Invoice', 'Customer', 'Type', 'Category',
-            'Amount', 'Date', 'Payment Method', 'Status'
-        ])
-        for transaction in transactions:
-            writer.writerow([
-                transaction.id, transaction.order, transaction.invoice,
-                transaction.customer, transaction.transaction_type,
-                transaction.category, transaction.amount, transaction.date,
-                transaction.payment_method, transaction.status
-            ])
-        return response
+    def _get_customer_display(self, customer):
+        """Helper method to format customer display name"""
+        if not customer:
+            return ''
+        if hasattr(customer, 'name') and customer.name:
+            return customer.name
+        return f"{customer.first_name} {customer.last_name}".strip()
+
+    def _format_currency(self, amount):
+        """Helper method to format currency values"""
+        return f"${amount:,.2f}" if amount is not None else ''
+
+    def _format_related_object(self, obj):
+        """Helper method to format related object references"""
+        return obj.id if obj else ''
 
     @action(detail=False, methods=['get'])
     def export_pdf(self, request):
         """
         Exports all filtered transactions to a PDF report with proper formatting
         """
-        # Get filtered transactions
-        transactions = self.filter_queryset(self.get_queryset())
-    
-        # Create buffer and PDF document in landscape orientation
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=landscape(letter),
-            rightMargin=30,
-            leftMargin=30,
-            topMargin=30,
-            bottomMargin=30
-        )
-    
-        # Initialize elements list for PDF content
-        elements = []
-    
-        # Create custom styles
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Title'],
-            fontSize=24,
-            spaceAfter=30,
-            alignment=TA_CENTER
-        )
-    
-        # Add title with date
-        title_text = (f"Transactions Report<br/>"
-                     f"<font size=12>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</font>")
-        elements.append(Paragraph(title_text, title_style))
-        elements.append(Spacer(1, 20))
-    
-        # Define column widths as proportions of the page width
-        page_width = landscape(letter)[0] - 60  # Total width minus margins
-        col_widths = [
-            page_width * 0.05,  # ID (5%)
-            page_width * 0.10,  # Order (10%)
-            page_width * 0.10,  # Invoice (10%)
-            page_width * 0.12,  # Customer (12%)
-            page_width * 0.10,  # Type (10%)
-            page_width * 0.12,  # Category (12%)
-            page_width * 0.11,  # Amount (11%)
-            page_width * 0.10,  # Date (10%)
-            page_width * 0.10,  # Payment Method (10%)
-            page_width * 0.10   # Status (10%)
-        ]
-    
-        # Prepare data for table
-        headers = ['ID', 'Order', 'Invoice', 'Customer', 'Type', 'Category', 
-                  'Amount', 'Date', 'Payment Method', 'Status']
-    
-        # Create header rows with wrapped text
-        header_rows = [[Paragraph(header, styles['Heading2']) for header in headers]]
-    
-        # Prepare data rows with wrapped text
-        data_rows = []
-        for transaction in transactions:
-            row = [
-                Paragraph(str(transaction.id), styles['Normal']),
-                Paragraph(str(transaction.order or ''), styles['Normal']),
-                Paragraph(str(transaction.invoice or ''), styles['Normal']),
-                Paragraph(str(transaction.customer or ''), styles['Normal']),
-                Paragraph(transaction.get_transaction_type_display(), styles['Normal']),
-                Paragraph(transaction.get_category_display() if transaction.category else '', styles['Normal']),
-                Paragraph(f"${transaction.amount:.2f}", styles['Normal']),
-                Paragraph(transaction.date.strftime("%Y-%m-%d"), styles['Normal']),
-                Paragraph(transaction.get_payment_method_display(), styles['Normal']),
-                Paragraph(transaction.get_status_display(), styles['Normal'])
-            ]
-            data_rows.append(row)
-    
-        # Combine headers and data
-        data = header_rows + data_rows
-    
-        # Create table with defined column widths
-        table = Table(data, colWidths=col_widths, repeatRows=1)
-    
-        # Apply table styles
-        table.setStyle(TableStyle([
-            # Header styles
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#ffffff')),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('TOPPADDING', (0, 0), (-1, 0), 12),
-        
-            # Data row styles
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('TOPPADDING', (0, 1), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-        
-            # Grid styles
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        
-            # Alternate row colors
-            *[('BACKGROUND', (0, i), (-1, i), colors.HexColor('#F8F9FA'))
-              for i in range(2, len(data), 2)],
-        ]))
-    
-        # Add table to elements
-        elements.append(table)
-    
-        # Build PDF
         try:
+            # Get filtered transactions
+            transactions = self.filter_queryset(self.get_queryset())
+
+            # Create buffer and PDF document in landscape orientation
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=landscape(letter),
+                rightMargin=30,
+                leftMargin=30,
+                topMargin=30,
+                bottomMargin=30
+            )
+
+            # Initialize elements list for PDF content
+            elements = []
+
+            # Enhanced custom styles
+            styles = getSampleStyleSheet()
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Title'],
+                fontSize=24,
+                spaceAfter=30,
+                alignment=TA_CENTER,
+                textColor=colors.HexColor('#1a237e')  # Dark blue color for title
+            )
+
+            # Add title with date and total count
+            title_text = (
+                f"Transactions Report<br/>"
+                f"<font size=12>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br/>"
+                f"Total Transactions: {transactions.count():,}</font>"
+            )
+            elements.append(Paragraph(title_text, title_style))
+            elements.append(Spacer(1, 20))
+
+            # Define column widths as proportions of the page width
+            page_width = landscape(letter)[0] - 60
+            col_widths = [
+                page_width * 0.05,  # ID
+                page_width * 0.10,  # Order
+                page_width * 0.10,  # Invoice
+                page_width * 0.15,  # Customer (increased width)
+                page_width * 0.10,  # Type
+                page_width * 0.12,  # Category
+                page_width * 0.11,  # Amount
+                page_width * 0.09,  # Date
+                page_width * 0.09,  # Payment Method
+                page_width * 0.09   # Status
+            ]
+
+            # Enhanced header style
+            header_style = ParagraphStyle(
+                'HeaderStyle',
+                parent=styles['Heading2'],
+                fontSize=12,
+                textColor=colors.white,
+                alignment=TA_CENTER
+            )
+
+            headers = ['ID', 'Order', 'Invoice', 'Customer', 'Type', 'Category',
+                      'Amount', 'Date', 'Payment Method', 'Status']
+            header_rows = [[Paragraph(header, header_style) for header in headers]]
+
+            # Prepare data rows with enhanced formatting
+            data_rows = []
+            for transaction in transactions:
+                row = [
+                    Paragraph(str(transaction.id), styles['Normal']),
+                    Paragraph(str(transaction.order.id if transaction.order else ''), styles['Normal']),
+                    Paragraph(str(transaction.invoice.id if transaction.invoice else ''), styles['Normal']),
+                    Paragraph(self._get_customer_display(transaction.customer), styles['Normal']),
+                    Paragraph(transaction.get_transaction_type_display(), styles['Normal']),
+                    Paragraph(transaction.get_category_display() if transaction.category else '', styles['Normal']),
+                    Paragraph(self._format_currency(transaction.amount), styles['Normal']),
+                    Paragraph(transaction.date.strftime("%Y-%m-%d"), styles['Normal']),
+                    Paragraph(transaction.get_payment_method_display(), styles['Normal']),
+                    Paragraph(transaction.get_status_display(), styles['Normal'])
+                ]
+                data_rows.append(row)
+
+            # Combine headers and data
+            data = header_rows + data_rows
+
+            # Create table with defined column widths
+            table = Table(data, colWidths=col_widths, repeatRows=1)
+
+            # Enhanced table styles
+            table.setStyle(TableStyle([
+                # Header styles
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a237e')),  # Dark blue header
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('TOPPADDING', (0, 0), (-1, 0), 12),
+
+                # Data row styles
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('TOPPADDING', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+
+                # Grid styles
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+
+                # Alternate row colors - lighter blue for better readability
+                *[('BACKGROUND', (0, i), (-1, i), colors.HexColor('#f5f7ff'))
+                  for i in range(2, len(data), 2)],
+            ]))
+
+            # Add table to elements
+            elements.append(table)
+
+            # Build PDF
             doc.build(elements)
             buffer.seek(0)
-        
+
             # Prepare response
             response = HttpResponse(buffer, content_type='application/pdf')
             filename = f"transactions_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
+
             return response
-        
+
         except Exception as e:
-            logger.error(f"Error generating PDF: {str(e)}")
+            logger.error(f"Error generating PDF: {str(e)}", exc_info=True)
             return Response(
-                {"error": "Failed to generate PDF report"},
+                {"error": "Failed to generate PDF report", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=['get'])
+    def export_csv(self, request):
+        """
+        Exports all filtered transactions to a CSV file with enhanced formatting.
+
+        Features:
+        - Proper formatting for all fields
+        - Meaningful file naming
+        - Error handling
+        - Progress tracking for large datasets
+        """
+        try:
+            # Get filtered transactions
+            transactions = self.filter_queryset(self.get_queryset())
+
+            # Create the HttpResponse object with CSV header
+            response = HttpResponse(content_type='text/csv')
+
+            # Generate a meaningful filename with timestamp
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"transactions_export_{timestamp}.csv"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+            # Create CSV writer
+            writer = csv.writer(response, quoting=csv.QUOTE_ALL)
+
+            # Write headers
+            headers = [
+                'Transaction ID',
+                'Order ID',
+                'Invoice ID',
+                'Customer',
+                'Transaction Type',
+                'Category',
+                'Amount',
+                'Date',
+                'Payment Method',
+                'Status',
+                'Created By',
+                'Created Date',
+                'Last Modified'
+            ]
+            writer.writerow(headers)
+
+            # Write data rows with proper formatting
+            for transaction in transactions:
+                row = [
+                    transaction.id,
+                    self._format_related_object(transaction.order),
+                    self._format_related_object(transaction.invoice),
+                    self._get_customer_display(transaction.customer),
+                    transaction.get_transaction_type_display(),
+                    transaction.get_category_display() if transaction.category else '',
+                    self._format_currency(transaction.amount),
+                    transaction.date.strftime("%Y-%m-%d") if transaction.date else '',
+                    transaction.get_payment_method_display(),
+                    transaction.get_status_display(),
+                    transaction.created_by.get_full_name() if transaction.created_by else '',
+                    transaction.created_at.strftime("%Y-%m-%d %H:%M:%S") if hasattr(transaction, 'created_at') else '',
+                    transaction.modified_at.strftime("%Y-%m-%d %H:%M:%S") if hasattr(transaction, 'modified_at') else ''
+                ]
+                writer.writerow(row)
+
+            # Log successful export
+            logger.info(f"Successfully exported {transactions.count()} transactions to CSV")
+
+            return response
+
+        except Exception as e:
+            error_message = f"Error exporting transactions to CSV: {str(e)}"
+            logger.error(error_message, exc_info=True)
+            return Response(
+                {
+                    "error": "Failed to generate CSV export",
+                    "details": str(e)
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

@@ -4077,3 +4077,985 @@ INFO 2025-01-11 17:08:55,801 utils 95395 140224733861440 Formatted category data
 WARNING 2025-01-11 17:08:55,809 utils 95395 140224733861440 No low stock products found
 INFO 2025-01-11 17:08:55,810 utils 95395 140224733861440 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
 ERROR 2025-01-11 17:49:44,021 log 95395 140224499803712 Internal Server Error: /api/transactions/transactions/export_pdf/
+DEBUG 2025-01-12 15:01:54,916 views 15265 140028796941888 Base queryset count: 196
+INFO 2025-01-12 15:02:55,629 views 15265 140028796941888 Create Report Request Details:
+INFO 2025-01-12 15:02:55,629 views 15265 140028796941888 User: kennyd
+INFO 2025-01-12 15:02:55,630 views 15265 140028796941888 Request Data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/12/2025, 4:02:55 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 15:02:55,656 views 15265 140028796941888 User Permissions: {'core.add_product', 'core.change_promotion', 'invoices.view_invoice', 'core.delete_customer', 'reports.delete_calculatedfield', 'reports.add_reportaccesslog', 'users.view', 'users.analytics_access', 'auth.change_permission', 'users.delete', 'users.view_customuser', 'authtoken.view_token', 'products.view_productimage', 'reports.view_reportfile', 'core.change_order', 'core.add_orderpromotion', 'transactions.add_transaction', 'admin.view_logentry', 'invoices.add_invoice', 'core.view_orderpromotion', 'authtoken.change_tokenproxy', 'invoices.view_invoiceitem', 'users.delete_permissionauditlog', 'invoices.change_invoiceitem', 'invoices.delete_invoiceitem', 'core.change_customer', 'users.change_permissionchangelog', 'contenttypes.view_contenttype', 'products.delete_productimage', 'reports.view_calculatedfield', 'core.change_orderpromotion', 'users.view_permission', 'core.change_companyinfo', 'products.add_category', 'contenttypes.change_contenttype', 'products.change_review', 'reports.add_calculatedfield', 'core.change_address', 'users.view_permissionauditlog', 'core.add_companyinfo', 'core.view_promotion', 'core.delete_companyinfo', 'core.view_orderitem', 'reports.change_reportfile', 'users.change_role', 'core.add_order', 'auth.view_permission', 'reports.add_reportentry', 'users.change_permission', 'users.full_access', 'auth.delete_group', 'core.delete_address', 'auth.add_group', 'admin.delete_logentry', 'products.view_product', 'users.view_all', 'reports.delete_reportaccesslog', 'users.delete_userpreference', 'sessions.view_session', 'core.view_customer', 'reports.change_report', 'users.view_userpreference', 'transactions.view_transaction', 'users.add_role', 'core.add_orderitem', 'auth.change_group', 'reports.change_calculatedfield', 'auth.add_permission', 'products.view_category', 'reports.add_reportfile', 'products.delete_category', 'contenttypes.add_contenttype', 'transactions.change_transaction', 'users.add_customuser', 'users.create', 'core.delete_product', 'products.change_product', 'users.delete_customuser', 'reports.delete_report', 'core.view_companyinfo', 'products.change_category', 'auth.view_group', 'reports.view_report', 'authtoken.add_tokenproxy', 'reports.delete_reportentry', 'invoices.delete_invoice', 'reports.view_reportentry', 'users.change_insight', 'users.delete_insight', 'users.change_permissionauditlog', 'authtoken.change_token', 'sessions.delete_session', 'invoices.change_invoice', 'users.view_insight', 'core.add_promotion', 'sessions.add_session', 'users.change_customuser', 'products.add_productimage', 'core.delete_orderpromotion', 'sessions.change_session', 'stock_adjustments.delete_stockadjustment', 'admin.add_logentry', 'authtoken.delete_token', 'users.add_insight', 'core.view_visit', 'contenttypes.delete_contenttype', 'users.add_permission', 'users.change_userpreference', 'stock_adjustments.change_stockadjustment', 'products.add_product', 'reports.change_reportaccesslog', 'reports.add_report', 'authtoken.add_token', 'invoices.add_invoiceitem', 'core.delete_order', 'reports.delete_reportfile', 'core.view_order', 'products.delete_review', 'stock_adjustments.view_stockadjustment', 'core.view_address', 'stock_adjustments.add_stockadjustment', 'users.view_permissionchangelog', 'core.delete_promotion', 'admin.change_logentry', 'core.change_product', 'reports.view_reportaccesslog', 'products.change_productimage', 'core.view_product', 'products.delete_product', 'users.delete_permissionchangelog', 'auth.delete_permission', 'users.view_role', 'users.edit', 'core.change_orderitem', 'users.delete_permission', 'users.add_permissionchangelog', 'authtoken.delete_tokenproxy', 'core.delete_visit', 'core.add_address', 'core.change_visit', 'users.delete_role', 'authtoken.view_tokenproxy', 'products.view_review', 'users.add_userpreference', 'products.add_review', 'core.add_visit', 'transactions.delete_transaction', 'core.add_customer', 'core.delete_orderitem', 'users.add_permissionauditlog', 'reports.change_reportentry'}
+INFO 2025-01-12 15:02:55,657 serializers 15265 140028796941888 Original input data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/12/2025, 4:02:55 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 15:02:55,657 serializers 15265 140028796941888 Processed data: {'name': 'Oct 2024 to Jan 2025 Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-11'}
+INFO 2025-01-12 15:02:55,660 serializers 15265 140028796941888 Final validation passed for report: Oct 2024 to Jan 2025 Report
+DEBUG 2025-01-12 15:02:55,894 views 15265 140028796941888 Base queryset count: 197
+DEBUG 2025-01-12 15:05:02,852 views 15265 140028796941888 Starting PDF generation for report 197
+DEBUG 2025-01-12 15:05:02,852 views 15265 140028796941888 User: kennyd
+DEBUG 2025-01-12 15:05:02,853 views 15265 140028796941888 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-11']}>
+DEBUG 2025-01-12 15:05:02,859 views 15265 140028796941888 Base queryset count: 197
+DEBUG 2025-01-12 15:05:02,884 views 15265 140028796941888 Base queryset count: 197
+DEBUG 2025-01-12 15:05:02,891 views 15265 140028796941888 Retrieved report: 197
+DEBUG 2025-01-12 15:05:02,892 views 15265 140028796941888 Date range: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 15:05:02,902 utils 15265 140028796941888 Generating report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 15:05:03,097 utils 15265 140028796941888 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 15:05:03,098 utils 15265 140028796941888 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 15:05:03,098 utils 15265 140028796941888 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 15:05:03,133 utils 15265 140028796941888 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 15:05:03,134 utils 15265 140028796941888 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-12 15:05:03,157 utils 15265 140028796941888 No low stock products found
+INFO 2025-01-12 15:05:03,158 utils 15265 140028796941888 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-12 15:37:24,816 views 23848 140072127063616 Base queryset count: 197
+INFO 2025-01-12 15:37:57,893 views 23848 140072127063616 Create Report Request Details:
+INFO 2025-01-12 15:37:57,894 views 23848 140072127063616 User: kennyd
+INFO 2025-01-12 15:37:57,894 views 23848 140072127063616 Request Data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/12/2025, 4:37:57 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 15:37:57,902 views 23848 140072127063616 User Permissions: {'products.delete_category', 'invoices.change_invoiceitem', 'auth.view_permission', 'core.view_order', 'core.view_product', 'products.change_review', 'users.add_permissionchangelog', 'users.view_permissionauditlog', 'auth.change_permission', 'reports.change_reportentry', 'products.change_productimage', 'products.delete_review', 'sessions.delete_session', 'users.view_role', 'core.add_product', 'users.view', 'core.delete_promotion', 'auth.view_group', 'reports.delete_report', 'stock_adjustments.view_stockadjustment', 'admin.delete_logentry', 'core.delete_customer', 'stock_adjustments.delete_stockadjustment', 'core.delete_orderpromotion', 'products.change_product', 'authtoken.delete_token', 'users.create', 'reports.delete_reportentry', 'reports.view_reportaccesslog', 'reports.change_report', 'sessions.add_session', 'invoices.view_invoiceitem', 'reports.view_report', 'sessions.change_session', 'users.change_insight', 'users.edit', 'authtoken.delete_tokenproxy', 'invoices.view_invoice', 'core.view_customer', 'reports.change_reportfile', 'users.add_permission', 'products.view_category', 'reports.add_reportfile', 'users.add_insight', 'users.delete_permissionchangelog', 'auth.add_permission', 'core.delete_orderitem', 'reports.delete_calculatedfield', 'users.add_customuser', 'core.delete_address', 'reports.view_calculatedfield', 'users.change_permissionauditlog', 'core.change_order', 'core.add_orderitem', 'admin.add_logentry', 'auth.add_group', 'invoices.delete_invoiceitem', 'core.view_orderpromotion', 'core.add_companyinfo', 'users.change_customuser', 'authtoken.change_token', 'transactions.change_transaction', 'users.analytics_access', 'auth.delete_permission', 'core.add_promotion', 'authtoken.add_token', 'users.change_userpreference', 'products.delete_productimage', 'core.change_address', 'sessions.view_session', 'reports.delete_reportaccesslog', 'users.delete_insight', 'contenttypes.view_contenttype', 'invoices.add_invoice', 'users.delete_permission', 'auth.change_group', 'products.change_category', 'core.add_visit', 'invoices.delete_invoice', 'users.view_userpreference', 'users.add_permissionauditlog', 'invoices.add_invoiceitem', 'users.change_permissionchangelog', 'products.add_productimage', 'invoices.change_invoice', 'core.delete_product', 'core.change_orderitem', 'users.change_permission', 'users.view_all', 'users.view_customuser', 'reports.add_calculatedfield', 'users.delete', 'core.change_visit', 'authtoken.add_tokenproxy', 'admin.change_logentry', 'core.change_orderpromotion', 'reports.add_report', 'core.delete_companyinfo', 'authtoken.change_tokenproxy', 'users.delete_permissionauditlog', 'authtoken.view_token', 'reports.add_reportaccesslog', 'core.view_visit', 'core.view_promotion', 'products.add_review', 'products.view_review', 'reports.change_calculatedfield', 'users.delete_role', 'core.delete_order', 'products.view_productimage', 'products.delete_product', 'core.change_product', 'core.view_orderitem', 'stock_adjustments.change_stockadjustment', 'core.add_orderpromotion', 'authtoken.view_tokenproxy', 'users.full_access', 'core.change_promotion', 'admin.view_logentry', 'core.add_address', 'users.add_userpreference', 'products.add_category', 'reports.add_reportentry', 'stock_adjustments.add_stockadjustment', 'contenttypes.delete_contenttype', 'core.delete_visit', 'reports.change_reportaccesslog', 'core.add_customer', 'users.view_permission', 'products.view_product', 'products.add_product', 'transactions.add_transaction', 'auth.delete_group', 'core.change_companyinfo', 'core.view_address', 'core.add_order', 'transactions.view_transaction', 'users.delete_userpreference', 'contenttypes.add_contenttype', 'reports.view_reportentry', 'users.add_role', 'transactions.delete_transaction', 'users.view_insight', 'core.view_companyinfo', 'core.change_customer', 'reports.delete_reportfile', 'users.change_role', 'users.delete_customuser', 'reports.view_reportfile', 'users.view_permissionchangelog', 'contenttypes.change_contenttype'}
+INFO 2025-01-12 15:37:57,905 serializers 23848 140072127063616 Original input data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/12/2025, 4:37:57 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 15:37:57,906 serializers 23848 140072127063616 Processed data: {'name': 'Oct 2024 to Jan 2025 Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-11'}
+INFO 2025-01-12 15:37:57,910 serializers 23848 140072127063616 Final validation passed for report: Oct 2024 to Jan 2025 Report
+DEBUG 2025-01-12 15:37:58,134 views 23848 140072127063616 Base queryset count: 198
+DEBUG 2025-01-12 15:38:04,922 views 23848 140072127063616 Starting PDF generation for report 198
+DEBUG 2025-01-12 15:38:04,922 views 23848 140072127063616 User: kennyd
+DEBUG 2025-01-12 15:38:04,922 views 23848 140072127063616 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-11']}>
+DEBUG 2025-01-12 15:38:04,927 views 23848 140072127063616 Base queryset count: 198
+DEBUG 2025-01-12 15:38:04,938 views 23848 140072127063616 Base queryset count: 198
+DEBUG 2025-01-12 15:38:04,941 views 23848 140072127063616 Retrieved report: 198
+DEBUG 2025-01-12 15:38:04,942 views 23848 140072127063616 Date range: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 15:38:04,946 utils 23848 140072127063616 Generating report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 15:38:05,025 utils 23848 140072127063616 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 15:38:05,026 utils 23848 140072127063616 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 15:38:05,026 utils 23848 140072127063616 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 15:38:05,042 utils 23848 140072127063616 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 15:38:05,042 utils 23848 140072127063616 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-12 15:38:05,055 utils 23848 140072127063616 No low stock products found
+INFO 2025-01-12 15:38:05,056 utils 23848 140072127063616 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-12 15:47:47,850 views 26501 139878875743808 Base queryset count: 198
+INFO 2025-01-12 15:48:32,227 views 26501 139878875743808 Create Report Request Details:
+INFO 2025-01-12 15:48:32,227 views 26501 139878875743808 User: kennyd
+INFO 2025-01-12 15:48:32,228 views 26501 139878875743808 Request Data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/12/2025, 4:48:31 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 15:48:32,234 views 26501 139878875743808 User Permissions: {'transactions.add_transaction', 'invoices.change_invoice', 'reports.change_report', 'reports.view_report', 'core.change_product', 'reports.change_reportaccesslog', 'users.delete_permission', 'core.change_orderitem', 'core.change_address', 'core.change_visit', 'sessions.change_session', 'core.delete_address', 'authtoken.add_tokenproxy', 'sessions.view_session', 'admin.add_logentry', 'core.view_orderitem', 'products.change_review', 'core.add_customer', 'core.add_product', 'sessions.add_session', 'invoices.view_invoiceitem', 'users.view_userpreference', 'products.add_category', 'core.change_order', 'contenttypes.view_contenttype', 'reports.delete_reportaccesslog', 'authtoken.view_tokenproxy', 'products.change_category', 'core.view_product', 'users.add_customuser', 'users.delete', 'core.view_orderpromotion', 'transactions.change_transaction', 'auth.view_group', 'products.add_productimage', 'authtoken.change_token', 'users.change_insight', 'admin.view_logentry', 'users.add_role', 'users.change_permissionauditlog', 'core.change_companyinfo', 'invoices.add_invoiceitem', 'stock_adjustments.delete_stockadjustment', 'users.view_role', 'core.delete_customer', 'products.view_product', 'users.change_permission', 'users.delete_role', 'core.add_visit', 'invoices.change_invoiceitem', 'products.add_product', 'core.change_customer', 'core.change_orderpromotion', 'invoices.delete_invoice', 'core.view_companyinfo', 'products.add_review', 'products.delete_category', 'core.delete_product', 'products.change_productimage', 'core.change_promotion', 'users.add_permission', 'reports.view_calculatedfield', 'reports.add_reportentry', 'users.delete_userpreference', 'core.delete_visit', 'products.delete_productimage', 'auth.change_group', 'core.delete_orderitem', 'reports.add_report', 'users.view_all', 'users.change_permissionchangelog', 'reports.delete_report', 'reports.view_reportentry', 'users.create', 'reports.delete_reportentry', 'stock_adjustments.change_stockadjustment', 'users.view_permission', 'reports.change_reportentry', 'core.add_address', 'users.add_permissionchangelog', 'invoices.add_invoice', 'users.full_access', 'core.delete_order', 'products.delete_review', 'users.view', 'authtoken.delete_token', 'auth.delete_permission', 'reports.delete_reportfile', 'reports.add_reportfile', 'users.change_customuser', 'stock_adjustments.add_stockadjustment', 'invoices.delete_invoiceitem', 'transactions.delete_transaction', 'core.view_promotion', 'contenttypes.add_contenttype', 'core.view_address', 'contenttypes.change_contenttype', 'reports.delete_calculatedfield', 'transactions.view_transaction', 'admin.delete_logentry', 'users.change_userpreference', 'auth.delete_group', 'reports.add_calculatedfield', 'users.view_insight', 'authtoken.view_token', 'core.delete_companyinfo', 'sessions.delete_session', 'reports.change_reportfile', 'products.change_product', 'products.view_review', 'authtoken.delete_tokenproxy', 'reports.view_reportfile', 'core.view_visit', 'users.delete_permissionauditlog', 'users.delete_permissionchangelog', 'reports.view_reportaccesslog', 'users.edit', 'users.add_userpreference', 'products.delete_product', 'reports.change_calculatedfield', 'core.add_orderpromotion', 'users.delete_customuser', 'contenttypes.delete_contenttype', 'core.add_order', 'users.delete_insight', 'core.delete_promotion', 'authtoken.change_tokenproxy', 'users.view_permissionauditlog', 'users.add_insight', 'products.view_productimage', 'core.add_promotion', 'stock_adjustments.view_stockadjustment', 'users.analytics_access', 'auth.add_group', 'core.add_orderitem', 'core.add_companyinfo', 'auth.change_permission', 'invoices.view_invoice', 'users.change_role', 'core.view_order', 'reports.add_reportaccesslog', 'auth.view_permission', 'core.view_customer', 'users.view_permissionchangelog', 'core.delete_orderpromotion', 'admin.change_logentry', 'authtoken.add_token', 'users.add_permissionauditlog', 'users.view_customuser', 'products.view_category', 'auth.add_permission'}
+INFO 2025-01-12 15:48:32,235 serializers 26501 139878875743808 Original input data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/12/2025, 4:48:31 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 15:48:32,235 serializers 26501 139878875743808 Processed data: {'name': 'Oct 2024 to Jan 2025 Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-11'}
+INFO 2025-01-12 15:48:32,239 serializers 26501 139878875743808 Final validation passed for report: Oct 2024 to Jan 2025 Report
+DEBUG 2025-01-12 15:48:32,416 views 26501 139878875743808 Base queryset count: 199
+DEBUG 2025-01-12 15:48:36,469 views 26501 139878875743808 Starting PDF generation for report 199
+DEBUG 2025-01-12 15:48:36,469 views 26501 139878875743808 User: kennyd
+DEBUG 2025-01-12 15:48:36,470 views 26501 139878875743808 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-11']}>
+DEBUG 2025-01-12 15:48:36,473 views 26501 139878875743808 Base queryset count: 199
+DEBUG 2025-01-12 15:48:36,486 views 26501 139878875743808 Base queryset count: 199
+DEBUG 2025-01-12 15:48:36,492 views 26501 139878875743808 Retrieved report: 199
+DEBUG 2025-01-12 15:48:36,493 views 26501 139878875743808 Date range: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 15:48:36,495 utils 26501 139878875743808 Generating report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 15:48:36,572 utils 26501 139878875743808 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 15:48:36,573 utils 26501 139878875743808 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 15:48:36,573 utils 26501 139878875743808 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+ERROR 2025-01-12 15:48:36,578 views 26501 139878875743808 PDF generation failed: Illegal attribute 'labelRadius' in class Pie
+Traceback (most recent call last):
+  File "/home/kennyd/verifi/Finstock/./reports/views.py", line 285, in generate_pdf
+    pdf_file = generate_pdf_report(report, start_date_str, end_date_str)
+  File "/home/kennyd/verifi/Finstock/./reports/utils.py", line 1386, in generate_pdf_report
+    category_chart = create_category_pie_chart(formatted_category_data, width, height)
+  File "/home/kennyd/verifi/Finstock/./reports/utils.py", line 990, in create_category_pie_chart
+    pie.labelRadius = 1.15
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/widgetbase.py", line 49, in __setattr__
+    validateSetattr(self,name,value)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/lib/attrmap.py", line 128, in validateSetattr
+    raise AttributeError("Illegal attribute '%s' in class %s" % (name, obj.__class__.__name__))
+AttributeError: Illegal attribute 'labelRadius' in class Pie
+ERROR 2025-01-12 15:48:36,600 log 26501 139878884136512 Internal Server Error: /api/reports/reports/199/generate_pdf/
+DEBUG 2025-01-12 15:54:58,809 views 28244 140364698613312 Base queryset count: 199
+INFO 2025-01-12 15:55:42,095 views 28244 140364698613312 Create Report Request Details:
+INFO 2025-01-12 15:55:42,095 views 28244 140364698613312 User: kennyd
+INFO 2025-01-12 15:55:42,096 views 28244 140364698613312 Request Data: {'name': {'name': 'Oct 2024 to 2025 Report', 'description': 'Generated on 1/12/2025, 4:55:41 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 15:55:42,103 views 28244 140364698613312 User Permissions: {'core.add_companyinfo', 'users.delete_userpreference', 'admin.view_logentry', 'core.delete_order', 'auth.delete_permission', 'core.view_companyinfo', 'reports.delete_report', 'invoices.delete_invoice', 'core.change_address', 'invoices.delete_invoiceitem', 'core.change_companyinfo', 'core.view_customer', 'sessions.view_session', 'users.add_customuser', 'core.change_promotion', 'transactions.view_transaction', 'users.change_permissionauditlog', 'transactions.delete_transaction', 'admin.delete_logentry', 'invoices.view_invoiceitem', 'contenttypes.add_contenttype', 'reports.view_report', 'core.delete_address', 'admin.add_logentry', 'stock_adjustments.view_stockadjustment', 'products.delete_review', 'transactions.add_transaction', 'products.view_category', 'authtoken.change_token', 'users.change_userpreference', 'core.view_visit', 'sessions.change_session', 'auth.view_permission', 'reports.view_reportaccesslog', 'users.add_userpreference', 'core.change_orderpromotion', 'core.add_promotion', 'reports.add_reportfile', 'reports.add_reportaccesslog', 'core.add_customer', 'invoices.change_invoiceitem', 'core.delete_orderpromotion', 'admin.change_logentry', 'auth.change_permission', 'products.add_review', 'invoices.change_invoice', 'authtoken.delete_tokenproxy', 'sessions.delete_session', 'core.view_address', 'users.view_userpreference', 'core.delete_customer', 'auth.delete_group', 'core.view_product', 'products.add_category', 'reports.view_reportfile', 'core.change_order', 'users.view_insight', 'users.delete', 'products.view_productimage', 'users.view_customuser', 'invoices.add_invoice', 'users.add_insight', 'invoices.view_invoice', 'reports.delete_calculatedfield', 'reports.change_reportfile', 'users.add_permissionchangelog', 'stock_adjustments.change_stockadjustment', 'reports.add_reportentry', 'users.change_permissionchangelog', 'authtoken.add_token', 'contenttypes.delete_contenttype', 'authtoken.view_tokenproxy', 'users.delete_permissionchangelog', 'core.add_product', 'reports.change_reportaccesslog', 'authtoken.view_token', 'core.change_product', 'auth.change_group', 'reports.delete_reportfile', 'products.change_category', 'authtoken.delete_token', 'users.delete_insight', 'users.create', 'core.add_visit', 'users.delete_customuser', 'users.add_role', 'reports.add_report', 'reports.change_reportentry', 'stock_adjustments.add_stockadjustment', 'auth.add_group', 'core.delete_orderitem', 'core.change_customer', 'users.change_permission', 'core.change_orderitem', 'core.view_order', 'reports.change_calculatedfield', 'core.delete_product', 'authtoken.add_tokenproxy', 'reports.delete_reportentry', 'core.add_order', 'products.add_product', 'products.delete_product', 'products.add_productimage', 'reports.delete_reportaccesslog', 'reports.add_calculatedfield', 'invoices.add_invoiceitem', 'users.analytics_access', 'authtoken.change_tokenproxy', 'users.edit', 'users.view', 'auth.add_permission', 'users.full_access', 'users.view_all', 'products.change_product', 'users.change_insight', 'products.delete_productimage', 'users.delete_role', 'transactions.change_transaction', 'users.delete_permissionauditlog', 'core.add_orderitem', 'products.view_review', 'users.change_customuser', 'core.add_address', 'auth.view_group', 'core.delete_companyinfo', 'contenttypes.change_contenttype', 'users.view_role', 'users.change_role', 'reports.change_report', 'products.view_product', 'sessions.add_session', 'users.view_permissionauditlog', 'reports.view_reportentry', 'core.view_orderitem', 'core.view_orderpromotion', 'users.view_permission', 'products.delete_category', 'core.delete_visit', 'users.add_permission', 'core.view_promotion', 'core.delete_promotion', 'stock_adjustments.delete_stockadjustment', 'products.change_review', 'contenttypes.view_contenttype', 'users.add_permissionauditlog', 'users.view_permissionchangelog', 'reports.view_calculatedfield', 'products.change_productimage', 'core.change_visit', 'core.add_orderpromotion', 'users.delete_permission'}
+INFO 2025-01-12 15:55:42,103 serializers 28244 140364698613312 Original input data: {'name': {'name': 'Oct 2024 to 2025 Report', 'description': 'Generated on 1/12/2025, 4:55:41 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 15:55:42,104 serializers 28244 140364698613312 Processed data: {'name': 'Oct 2024 to 2025 Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-11'}
+INFO 2025-01-12 15:55:42,108 serializers 28244 140364698613312 Final validation passed for report: Oct 2024 to 2025 Report
+DEBUG 2025-01-12 15:55:42,282 views 28244 140364698613312 Base queryset count: 200
+DEBUG 2025-01-12 15:55:49,893 views 28244 140364698613312 Starting PDF generation for report 200
+DEBUG 2025-01-12 15:55:49,893 views 28244 140364698613312 User: kennyd
+DEBUG 2025-01-12 15:55:49,894 views 28244 140364698613312 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-11']}>
+DEBUG 2025-01-12 15:55:49,896 views 28244 140364698613312 Base queryset count: 200
+DEBUG 2025-01-12 15:55:49,910 views 28244 140364698613312 Base queryset count: 200
+DEBUG 2025-01-12 15:55:49,914 views 28244 140364698613312 Retrieved report: 200
+DEBUG 2025-01-12 15:55:49,915 views 28244 140364698613312 Date range: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 15:55:49,919 utils 28244 140364698613312 Generating report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 15:55:49,986 utils 28244 140364698613312 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 15:55:49,987 utils 28244 140364698613312 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 15:55:49,987 utils 28244 140364698613312 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 15:55:50,000 utils 28244 140364698613312 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 15:55:50,000 utils 28244 140364698613312 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-12 15:55:50,011 utils 28244 140364698613312 No low stock products found
+INFO 2025-01-12 15:55:50,011 utils 28244 140364698613312 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-12 16:00:19,107 views 28244 140364698613312 Base queryset count: 200
+INFO 2025-01-12 16:00:19,118 views 28244 140364698613312 Generating email report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:00:19,123 utils 28244 140364698613312 Processing report email for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:00:19,124 utils 28244 140364698613312 Generating report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:00:19,203 utils 28244 140364698613312 Email report data for 200: Total Revenue: $9400.00
+INFO 2025-01-12 16:00:19,204 utils 28244 140364698613312 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:00:19,205 utils 28244 140364698613312 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:00:19,208 utils 28244 140364698613312 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:00:19,232 utils 28244 140364698613312 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:00:19,233 utils 28244 140364698613312 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-12 16:00:19,250 utils 28244 140364698613312 No low stock products found
+INFO 2025-01-12 16:00:19,250 utils 28244 140364698613312 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+INFO 2025-01-12 16:00:19,331 utils 28244 140364698613312 Generating report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:00:19,387 utils 28244 140364698613312 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:00:19,387 utils 28244 140364698613312 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:00:19,387 utils 28244 140364698613312 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:00:19,399 utils 28244 140364698613312 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:00:19,400 utils 28244 140364698613312 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-12 16:00:19,415 utils 28244 140364698613312 No low stock products found
+INFO 2025-01-12 16:00:19,416 utils 28244 140364698613312 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-12 16:18:13,303 views 33566 139960333002304 Base queryset count: 200
+INFO 2025-01-12 16:18:45,421 views 33566 139960333002304 Create Report Request Details:
+INFO 2025-01-12 16:18:45,421 views 33566 139960333002304 User: kennyd
+INFO 2025-01-12 16:18:45,422 views 33566 139960333002304 Request Data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/12/2025, 5:18:44 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 16:18:45,433 views 33566 139960333002304 User Permissions: {'contenttypes.view_contenttype', 'users.change_permissionchangelog', 'transactions.add_transaction', 'users.add_role', 'reports.add_reportfile', 'core.delete_promotion', 'invoices.delete_invoice', 'users.create', 'authtoken.add_tokenproxy', 'reports.change_reportfile', 'invoices.view_invoice', 'core.view_companyinfo', 'reports.delete_calculatedfield', 'users.view_insight', 'products.add_productimage', 'products.add_product', 'users.delete_permission', 'users.view_customuser', 'products.change_productimage', 'reports.view_calculatedfield', 'auth.delete_permission', 'admin.change_logentry', 'users.full_access', 'invoices.add_invoice', 'authtoken.change_token', 'core.view_orderpromotion', 'products.change_review', 'auth.view_permission', 'core.view_promotion', 'products.delete_review', 'users.view_all', 'core.add_visit', 'core.add_promotion', 'users.view_permissionchangelog', 'contenttypes.change_contenttype', 'core.change_promotion', 'invoices.change_invoice', 'users.change_userpreference', 'core.change_address', 'invoices.view_invoiceitem', 'products.view_productimage', 'reports.change_calculatedfield', 'auth.change_permission', 'products.view_review', 'core.add_product', 'reports.delete_report', 'contenttypes.add_contenttype', 'authtoken.view_token', 'authtoken.change_tokenproxy', 'stock_adjustments.change_stockadjustment', 'reports.delete_reportaccesslog', 'users.delete_permissionchangelog', 'core.delete_orderitem', 'core.add_companyinfo', 'admin.add_logentry', 'products.change_category', 'products.view_product', 'users.view_permission', 'stock_adjustments.add_stockadjustment', 'invoices.add_invoiceitem', 'auth.view_group', 'users.view', 'core.add_address', 'core.change_customer', 'stock_adjustments.delete_stockadjustment', 'users.add_userpreference', 'users.change_permission', 'authtoken.delete_token', 'users.delete_permissionauditlog', 'core.change_orderitem', 'core.change_product', 'core.delete_companyinfo', 'reports.view_reportfile', 'users.add_permissionauditlog', 'users.view_role', 'users.add_insight', 'core.view_customer', 'users.delete_customuser', 'reports.delete_reportentry', 'products.add_category', 'core.change_order', 'core.delete_visit', 'admin.delete_logentry', 'products.change_product', 'products.delete_productimage', 'sessions.delete_session', 'users.edit', 'core.change_orderpromotion', 'core.add_orderitem', 'reports.change_report', 'core.add_customer', 'reports.view_reportentry', 'authtoken.delete_tokenproxy', 'sessions.view_session', 'users.change_permissionauditlog', 'core.change_visit', 'users.analytics_access', 'users.delete', 'reports.delete_reportfile', 'reports.add_report', 'authtoken.add_token', 'reports.view_report', 'users.change_role', 'invoices.delete_invoiceitem', 'reports.add_reportentry', 'reports.add_reportaccesslog', 'users.view_permissionauditlog', 'core.view_order', 'contenttypes.delete_contenttype', 'core.change_companyinfo', 'transactions.change_transaction', 'sessions.change_session', 'core.view_visit', 'core.delete_address', 'auth.add_permission', 'reports.add_calculatedfield', 'users.delete_insight', 'auth.add_group', 'authtoken.view_tokenproxy', 'core.delete_customer', 'core.view_product', 'sessions.add_session', 'users.delete_role', 'products.delete_product', 'products.delete_category', 'core.delete_product', 'core.view_orderitem', 'reports.change_reportaccesslog', 'users.change_customuser', 'core.add_orderpromotion', 'users.view_userpreference', 'users.change_insight', 'reports.view_reportaccesslog', 'products.view_category', 'users.add_permission', 'auth.change_group', 'reports.change_reportentry', 'transactions.delete_transaction', 'users.add_permissionchangelog', 'invoices.change_invoiceitem', 'core.view_address', 'stock_adjustments.view_stockadjustment', 'core.delete_orderpromotion', 'core.delete_order', 'users.delete_userpreference', 'products.add_review', 'admin.view_logentry', 'transactions.view_transaction', 'core.add_order', 'auth.delete_group', 'users.add_customuser'}
+INFO 2025-01-12 16:18:45,434 serializers 33566 139960333002304 Original input data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/12/2025, 5:18:44 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 16:18:45,435 serializers 33566 139960333002304 Processed data: {'name': 'Oct 2024 to Jan 2025 Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-11'}
+INFO 2025-01-12 16:18:45,447 serializers 33566 139960333002304 Final validation passed for report: Oct 2024 to Jan 2025 Report
+DEBUG 2025-01-12 16:18:46,158 views 33566 139960333002304 Base queryset count: 201
+DEBUG 2025-01-12 16:19:01,873 views 33566 139960333002304 Base queryset count: 201
+INFO 2025-01-12 16:19:01,882 views 33566 139960333002304 Generating email report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:19:01,889 utils 33566 139960333002304 Processing report email for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:19:01,894 utils 33566 139960333002304 Generating report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:19:01,981 utils 33566 139960333002304 Email report data for 201: Total Revenue: $9400.00
+INFO 2025-01-12 16:19:01,983 utils 33566 139960333002304 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:19:01,984 utils 33566 139960333002304 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:19:01,989 utils 33566 139960333002304 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:19:02,017 utils 33566 139960333002304 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:19:02,018 utils 33566 139960333002304 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-12 16:19:02,037 utils 33566 139960333002304 No low stock products found
+INFO 2025-01-12 16:19:02,038 utils 33566 139960333002304 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+INFO 2025-01-12 16:19:02,169 utils 33566 139960333002304 Generating report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:19:02,241 utils 33566 139960333002304 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:19:02,242 utils 33566 139960333002304 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:19:02,242 utils 33566 139960333002304 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:19:02,256 utils 33566 139960333002304 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:19:02,257 utils 33566 139960333002304 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-12 16:19:02,267 utils 33566 139960333002304 No low stock products found
+INFO 2025-01-12 16:19:02,267 utils 33566 139960333002304 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-12 16:19:10,476 views 33566 139960333002304 Starting PDF generation for report 201
+DEBUG 2025-01-12 16:19:10,477 views 33566 139960333002304 User: kennyd
+DEBUG 2025-01-12 16:19:10,478 views 33566 139960333002304 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-11']}>
+DEBUG 2025-01-12 16:19:10,488 views 33566 139960333002304 Base queryset count: 201
+DEBUG 2025-01-12 16:19:10,513 views 33566 139960333002304 Base queryset count: 201
+DEBUG 2025-01-12 16:19:10,528 views 33566 139960333002304 Retrieved report: 201
+DEBUG 2025-01-12 16:19:10,528 views 33566 139960333002304 Date range: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:19:10,530 utils 33566 139960333002304 Generating report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:19:10,603 utils 33566 139960333002304 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:19:10,603 utils 33566 139960333002304 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:19:10,604 utils 33566 139960333002304 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:19:10,616 utils 33566 139960333002304 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:19:10,617 utils 33566 139960333002304 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-12 16:19:10,627 utils 33566 139960333002304 No low stock products found
+INFO 2025-01-12 16:19:10,627 utils 33566 139960333002304 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-12 16:30:53,456 views 36720 140210817988160 Base queryset count: 201
+INFO 2025-01-12 16:31:42,842 views 36720 140210817988160 Create Report Request Details:
+INFO 2025-01-12 16:31:42,843 views 36720 140210817988160 User: kennyd
+INFO 2025-01-12 16:31:42,844 views 36720 140210817988160 Request Data: {'name': {'name': 'Entire Report', 'description': 'Generated on 1/12/2025, 5:31:42 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 16:31:42,850 views 36720 140210817988160 User Permissions: {'core.add_customer', 'authtoken.add_token', 'core.view_address', 'users.view_role', 'admin.delete_logentry', 'transactions.change_transaction', 'users.view_permission', 'auth.view_group', 'core.add_companyinfo', 'contenttypes.change_contenttype', 'products.view_product', 'users.change_userpreference', 'core.add_promotion', 'core.change_product', 'reports.view_reportfile', 'reports.add_calculatedfield', 'users.add_permissionauditlog', 'core.delete_orderitem', 'auth.view_permission', 'users.delete_userpreference', 'sessions.change_session', 'users.create', 'users.change_role', 'users.change_permissionchangelog', 'transactions.delete_transaction', 'core.change_promotion', 'reports.view_report', 'products.delete_category', 'core.change_customer', 'core.add_address', 'users.edit', 'users.view_insight', 'sessions.delete_session', 'core.view_promotion', 'core.add_orderitem', 'users.add_userpreference', 'reports.change_calculatedfield', 'products.change_productimage', 'users.change_permission', 'users.view_userpreference', 'users.add_permissionchangelog', 'auth.delete_group', 'users.add_customuser', 'users.add_role', 'reports.delete_reportfile', 'reports.view_calculatedfield', 'auth.change_permission', 'users.change_customuser', 'products.delete_productimage', 'core.delete_visit', 'invoices.delete_invoiceitem', 'auth.delete_permission', 'authtoken.add_tokenproxy', 'products.delete_review', 'sessions.add_session', 'users.view_all', 'users.add_permission', 'users.view_permissionchangelog', 'invoices.change_invoiceitem', 'stock_adjustments.change_stockadjustment', 'authtoken.delete_token', 'reports.view_reportentry', 'reports.delete_report', 'core.delete_product', 'stock_adjustments.add_stockadjustment', 'products.view_productimage', 'reports.delete_reportentry', 'core.add_order', 'core.delete_orderpromotion', 'core.delete_promotion', 'reports.add_reportaccesslog', 'authtoken.delete_tokenproxy', 'users.delete_permissionauditlog', 'users.delete_role', 'invoices.add_invoiceitem', 'core.view_product', 'products.add_productimage', 'core.change_address', 'reports.change_reportaccesslog', 'users.change_permissionauditlog', 'transactions.add_transaction', 'authtoken.change_token', 'invoices.delete_invoice', 'users.add_insight', 'reports.change_reportfile', 'users.delete_customuser', 'users.view', 'products.change_review', 'products.change_product', 'core.view_customer', 'core.add_product', 'contenttypes.view_contenttype', 'invoices.view_invoiceitem', 'auth.change_group', 'core.delete_order', 'reports.change_reportentry', 'stock_adjustments.view_stockadjustment', 'contenttypes.add_contenttype', 'products.change_category', 'products.add_product', 'core.view_orderpromotion', 'invoices.view_invoice', 'authtoken.view_tokenproxy', 'users.view_customuser', 'reports.add_report', 'stock_adjustments.delete_stockadjustment', 'invoices.add_invoice', 'reports.delete_reportaccesslog', 'core.change_visit', 'sessions.view_session', 'contenttypes.delete_contenttype', 'users.change_insight', 'core.view_companyinfo', 'users.view_permissionauditlog', 'reports.add_reportfile', 'core.change_companyinfo', 'core.change_orderpromotion', 'invoices.change_invoice', 'users.delete_permission', 'core.delete_customer', 'users.full_access', 'auth.add_group', 'products.view_review', 'reports.change_report', 'core.view_visit', 'products.view_category', 'products.add_review', 'reports.add_reportentry', 'users.delete', 'admin.change_logentry', 'products.add_category', 'products.delete_product', 'reports.delete_calculatedfield', 'users.analytics_access', 'core.change_orderitem', 'core.add_orderpromotion', 'core.change_order', 'core.add_visit', 'reports.view_reportaccesslog', 'core.delete_companyinfo', 'authtoken.change_tokenproxy', 'transactions.view_transaction', 'auth.add_permission', 'users.delete_permissionchangelog', 'users.delete_insight', 'admin.view_logentry', 'admin.add_logentry', 'core.delete_address', 'authtoken.view_token', 'core.view_order', 'core.view_orderitem'}
+INFO 2025-01-12 16:31:42,851 serializers 36720 140210817988160 Original input data: {'name': {'name': 'Entire Report', 'description': 'Generated on 1/12/2025, 5:31:42 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-11'}, 'description': None}
+INFO 2025-01-12 16:31:42,852 serializers 36720 140210817988160 Processed data: {'name': 'Entire Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-11'}
+INFO 2025-01-12 16:31:42,855 serializers 36720 140210817988160 Final validation passed for report: Entire Report
+DEBUG 2025-01-12 16:31:43,004 views 36720 140210817988160 Base queryset count: 202
+DEBUG 2025-01-12 16:31:46,315 views 36720 140210817988160 Starting PDF generation for report 202
+DEBUG 2025-01-12 16:31:46,315 views 36720 140210817988160 User: kennyd
+DEBUG 2025-01-12 16:31:46,316 views 36720 140210817988160 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-11']}>
+DEBUG 2025-01-12 16:31:46,321 views 36720 140210817988160 Base queryset count: 202
+DEBUG 2025-01-12 16:31:46,341 views 36720 140210817988160 Base queryset count: 202
+DEBUG 2025-01-12 16:31:46,349 views 36720 140210817988160 Retrieved report: 202
+DEBUG 2025-01-12 16:31:46,349 views 36720 140210817988160 Date range: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:31:46,351 utils 36720 140210817988160 Generating report for period: 2024-10-01 to 2025-01-11
+INFO 2025-01-12 16:31:46,432 utils 36720 140210817988160 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:31:46,432 utils 36720 140210817988160 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:31:46,433 utils 36720 140210817988160 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-12 16:31:46,451 utils 36720 140210817988160 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-12 16:31:46,452 utils 36720 140210817988160 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-12 16:31:46,466 utils 36720 140210817988160 No low stock products found
+INFO 2025-01-12 16:31:46,466 utils 36720 140210817988160 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-13 08:23:05,307 views 7390 139674794313280 Base queryset count: 202
+INFO 2025-01-13 08:23:45,488 views 7390 139674794313280 Create Report Request Details:
+INFO 2025-01-13 08:23:45,489 views 7390 139674794313280 User: kennyd
+INFO 2025-01-13 08:23:45,490 views 7390 139674794313280 Request Data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/13/2025, 9:23:44 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 08:23:45,516 views 7390 139674794313280 User Permissions: {'users.view_permission', 'core.add_orderitem', 'admin.delete_logentry', 'invoices.delete_invoiceitem', 'reports.add_reportentry', 'reports.delete_reportentry', 'reports.change_calculatedfield', 'invoices.change_invoice', 'core.view_order', 'products.delete_category', 'products.change_product', 'users.add_permission', 'reports.delete_reportfile', 'users.view_insight', 'reports.change_reportaccesslog', 'reports.add_reportaccesslog', 'reports.change_report', 'reports.add_calculatedfield', 'users.view_role', 'users.analytics_access', 'admin.add_logentry', 'admin.view_logentry', 'transactions.add_transaction', 'reports.view_report', 'auth.add_permission', 'core.delete_orderpromotion', 'products.change_review', 'users.change_insight', 'products.delete_productimage', 'reports.view_reportaccesslog', 'reports.add_reportfile', 'users.view', 'users.add_role', 'admin.change_logentry', 'auth.delete_group', 'authtoken.delete_token', 'users.view_all', 'core.view_visit', 'products.delete_product', 'reports.change_reportentry', 'users.delete_customuser', 'contenttypes.add_contenttype', 'invoices.add_invoiceitem', 'auth.change_permission', 'core.add_customer', 'authtoken.view_token', 'sessions.view_session', 'auth.change_group', 'core.view_product', 'reports.delete_report', 'authtoken.delete_tokenproxy', 'reports.view_reportfile', 'users.create', 'users.delete_permissionauditlog', 'products.add_productimage', 'products.change_category', 'users.full_access', 'core.add_address', 'authtoken.add_token', 'products.view_productimage', 'core.change_customer', 'users.change_userpreference', 'core.view_companyinfo', 'sessions.delete_session', 'users.change_permissionauditlog', 'reports.delete_calculatedfield', 'users.delete_permission', 'auth.add_group', 'authtoken.view_tokenproxy', 'core.change_order', 'core.view_promotion', 'users.delete_userpreference', 'products.change_productimage', 'stock_adjustments.delete_stockadjustment', 'core.delete_companyinfo', 'auth.view_group', 'products.add_product', 'users.delete_role', 'products.view_review', 'users.view_permissionauditlog', 'users.add_customuser', 'core.view_orderitem', 'products.add_review', 'authtoken.add_tokenproxy', 'products.view_category', 'core.change_product', 'core.delete_product', 'users.add_permissionchangelog', 'reports.view_calculatedfield', 'contenttypes.delete_contenttype', 'core.change_companyinfo', 'core.delete_customer', 'invoices.view_invoice', 'sessions.change_session', 'users.add_insight', 'core.add_product', 'users.add_userpreference', 'users.edit', 'contenttypes.change_contenttype', 'core.change_orderpromotion', 'core.add_orderpromotion', 'core.change_address', 'reports.delete_reportaccesslog', 'authtoken.change_tokenproxy', 'reports.change_reportfile', 'stock_adjustments.view_stockadjustment', 'invoices.add_invoice', 'invoices.change_invoiceitem', 'transactions.view_transaction', 'core.delete_address', 'users.change_permission', 'contenttypes.view_contenttype', 'users.view_customuser', 'core.delete_orderitem', 'core.view_customer', 'core.delete_visit', 'products.add_category', 'invoices.view_invoiceitem', 'core.add_promotion', 'core.add_order', 'users.view_permissionchangelog', 'core.change_visit', 'authtoken.change_token', 'users.change_customuser', 'core.view_address', 'products.view_product', 'users.delete', 'auth.delete_permission', 'stock_adjustments.change_stockadjustment', 'users.add_permissionauditlog', 'transactions.change_transaction', 'users.delete_insight', 'transactions.delete_transaction', 'users.delete_permissionchangelog', 'reports.view_reportentry', 'core.add_visit', 'auth.view_permission', 'core.view_orderpromotion', 'products.delete_review', 'reports.add_report', 'stock_adjustments.add_stockadjustment', 'invoices.delete_invoice', 'core.change_promotion', 'users.view_userpreference', 'sessions.add_session', 'core.add_companyinfo', 'core.delete_order', 'core.delete_promotion', 'users.change_role', 'users.change_permissionchangelog', 'core.change_orderitem'}
+INFO 2025-01-13 08:23:45,517 serializers 7390 139674794313280 Original input data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/13/2025, 9:23:44 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 08:23:45,517 serializers 7390 139674794313280 Processed data: {'name': 'Oct 2024 to Jan 2025 Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-13'}
+INFO 2025-01-13 08:23:45,520 serializers 7390 139674794313280 Final validation passed for report: Oct 2024 to Jan 2025 Report
+DEBUG 2025-01-13 08:23:45,706 views 7390 139674794313280 Base queryset count: 203
+DEBUG 2025-01-13 08:23:57,930 views 7390 139674794313280 Starting PDF generation for report 203
+DEBUG 2025-01-13 08:23:57,931 views 7390 139674794313280 User: kennyd
+DEBUG 2025-01-13 08:23:57,931 views 7390 139674794313280 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-13']}>
+DEBUG 2025-01-13 08:23:57,934 views 7390 139674794313280 Base queryset count: 203
+DEBUG 2025-01-13 08:23:57,947 views 7390 139674794313280 Base queryset count: 203
+DEBUG 2025-01-13 08:23:57,950 views 7390 139674794313280 Retrieved report: 203
+DEBUG 2025-01-13 08:23:57,951 views 7390 139674794313280 Date range: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 08:23:57,954 utils 7390 139674794313280 Generating report for period: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 08:23:58,042 utils 7390 139674794313280 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 08:23:58,043 utils 7390 139674794313280 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 08:23:58,043 utils 7390 139674794313280 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 08:23:58,055 utils 7390 139674794313280 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 08:23:58,055 utils 7390 139674794313280 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-13 08:23:58,067 utils 7390 139674794313280 No low stock products found
+INFO 2025-01-13 08:23:58,068 utils 7390 139674794313280 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-13 08:45:45,939 views 12672 139855408395840 Base queryset count: 203
+INFO 2025-01-13 08:49:19,405 views 12672 139855408395840 Create Report Request Details:
+INFO 2025-01-13 08:49:19,405 views 12672 139855408395840 User: kennyd
+INFO 2025-01-13 08:49:19,406 views 12672 139855408395840 Request Data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/13/2025, 9:49:20 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 08:49:19,414 views 12672 139855408395840 User Permissions: {'core.add_orderpromotion', 'users.delete_insight', 'authtoken.change_token', 'invoices.view_invoiceitem', 'auth.add_permission', 'authtoken.change_tokenproxy', 'core.change_promotion', 'invoices.add_invoiceitem', 'reports.delete_reportfile', 'reports.delete_report', 'contenttypes.add_contenttype', 'stock_adjustments.delete_stockadjustment', 'authtoken.view_token', 'core.change_customer', 'products.add_productimage', 'reports.change_reportfile', 'reports.delete_reportaccesslog', 'products.delete_review', 'contenttypes.delete_contenttype', 'auth.view_group', 'reports.add_report', 'reports.add_reportfile', 'auth.add_group', 'products.delete_productimage', 'auth.change_group', 'core.view_visit', 'authtoken.delete_tokenproxy', 'reports.delete_reportentry', 'core.add_orderitem', 'core.delete_product', 'users.delete_permissionauditlog', 'core.add_order', 'reports.change_reportentry', 'reports.change_report', 'invoices.change_invoice', 'products.delete_product', 'contenttypes.change_contenttype', 'users.full_access', 'users.change_permissionauditlog', 'users.delete_role', 'auth.view_permission', 'core.add_promotion', 'users.analytics_access', 'core.add_product', 'products.view_productimage', 'users.view_permissionchangelog', 'stock_adjustments.add_stockadjustment', 'users.delete_customuser', 'transactions.add_transaction', 'users.add_insight', 'users.add_permission', 'users.add_permissionauditlog', 'users.delete_permissionchangelog', 'core.add_address', 'authtoken.add_tokenproxy', 'products.change_productimage', 'products.view_category', 'invoices.add_invoice', 'core.view_promotion', 'users.delete_userpreference', 'users.add_role', 'core.delete_promotion', 'reports.view_reportaccesslog', 'authtoken.view_tokenproxy', 'core.view_orderpromotion', 'core.view_product', 'products.change_category', 'core.change_product', 'reports.view_report', 'users.change_insight', 'core.view_orderitem', 'core.view_order', 'users.view_permissionauditlog', 'transactions.delete_transaction', 'core.change_order', 'users.change_customuser', 'sessions.view_session', 'auth.delete_group', 'reports.delete_calculatedfield', 'reports.view_calculatedfield', 'users.view_userpreference', 'users.view_role', 'core.delete_address', 'sessions.add_session', 'users.change_userpreference', 'users.edit', 'core.add_customer', 'reports.change_reportaccesslog', 'core.add_visit', 'reports.view_reportfile', 'users.change_permission', 'users.add_permissionchangelog', 'transactions.change_transaction', 'core.change_companyinfo', 'reports.add_reportaccesslog', 'products.add_product', 'products.add_review', 'stock_adjustments.change_stockadjustment', 'users.view_permission', 'users.delete_permission', 'reports.add_calculatedfield', 'products.change_review', 'transactions.view_transaction', 'products.view_product', 'core.add_companyinfo', 'core.view_companyinfo', 'core.view_address', 'sessions.change_session', 'users.view_insight', 'core.view_customer', 'authtoken.add_token', 'core.delete_companyinfo', 'auth.change_permission', 'reports.add_reportentry', 'authtoken.delete_token', 'users.add_customuser', 'contenttypes.view_contenttype', 'users.add_userpreference', 'admin.add_logentry', 'reports.view_reportentry', 'users.delete', 'core.change_orderpromotion', 'admin.change_logentry', 'users.view', 'admin.view_logentry', 'products.change_product', 'core.delete_order', 'users.change_permissionchangelog', 'products.view_review', 'products.delete_category', 'core.change_orderitem', 'stock_adjustments.view_stockadjustment', 'sessions.delete_session', 'auth.delete_permission', 'invoices.delete_invoiceitem', 'users.view_all', 'core.change_address', 'core.delete_visit', 'invoices.change_invoiceitem', 'core.delete_customer', 'products.add_category', 'core.delete_orderitem', 'core.delete_orderpromotion', 'users.create', 'users.view_customuser', 'users.change_role', 'invoices.view_invoice', 'invoices.delete_invoice', 'reports.change_calculatedfield', 'core.change_visit', 'admin.delete_logentry'}
+INFO 2025-01-13 08:49:19,415 serializers 12672 139855408395840 Original input data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/13/2025, 9:49:20 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 08:49:19,415 serializers 12672 139855408395840 Processed data: {'name': 'Oct 2024 to Jan 2025 Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-13'}
+INFO 2025-01-13 08:49:19,421 serializers 12672 139855408395840 Final validation passed for report: Oct 2024 to Jan 2025 Report
+DEBUG 2025-01-13 08:49:19,637 views 12672 139855408395840 Base queryset count: 204
+DEBUG 2025-01-13 08:49:22,768 views 12672 139855408395840 Starting PDF generation for report 204
+DEBUG 2025-01-13 08:49:22,769 views 12672 139855408395840 User: kennyd
+DEBUG 2025-01-13 08:49:22,770 views 12672 139855408395840 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-13']}>
+DEBUG 2025-01-13 08:49:22,776 views 12672 139855408395840 Base queryset count: 204
+DEBUG 2025-01-13 08:49:22,787 views 12672 139855408395840 Base queryset count: 204
+DEBUG 2025-01-13 08:49:22,795 views 12672 139855408395840 Retrieved report: 204
+DEBUG 2025-01-13 08:49:22,795 views 12672 139855408395840 Date range: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 08:49:22,798 utils 12672 139855408395840 Generating report for period: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 08:49:22,900 utils 12672 139855408395840 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 08:49:22,901 utils 12672 139855408395840 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 08:49:22,901 utils 12672 139855408395840 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+DEBUG 2025-01-13 08:49:22,913 utils 12672 139855408395840 Collected data before sorting: [{'month_year': datetime.date(2024, 10, 1), 'month': 'October', 'revenue': 8600.0}, {'month_year': datetime.date(2024, 11, 1), 'month': 'November', 'revenue': 200.0}, {'month_year': datetime.date(2025, 1, 1), 'month': 'January', 'revenue': 600.0}]
+DEBUG 2025-01-13 08:49:22,914 utils 12672 139855408395840 Data after sorting: [{'month_year': datetime.date(2024, 10, 1), 'month': 'October', 'revenue': 8600.0}, {'month_year': datetime.date(2024, 11, 1), 'month': 'November', 'revenue': 200.0}, {'month_year': datetime.date(2025, 1, 1), 'month': 'January', 'revenue': 600.0}]
+INFO 2025-01-13 08:49:22,923 utils 12672 139855408395840 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 08:49:22,924 utils 12672 139855408395840 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-13 08:49:22,941 utils 12672 139855408395840 No low stock products found
+INFO 2025-01-13 08:49:22,943 utils 12672 139855408395840 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-13 09:07:05,444 views 18004 140338172601920 Base queryset count: 204
+INFO 2025-01-13 09:10:24,857 views 18004 140338172601920 Create Report Request Details:
+INFO 2025-01-13 09:10:24,857 views 18004 140338172601920 User: kennyd
+INFO 2025-01-13 09:10:24,858 views 18004 140338172601920 Request Data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/13/2025, 10:10:24 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 09:10:24,864 views 18004 140338172601920 User Permissions: {'invoices.delete_invoiceitem', 'authtoken.change_tokenproxy', 'core.view_visit', 'core.delete_order', 'users.add_userpreference', 'users.change_permissionauditlog', 'auth.delete_group', 'users.view_customuser', 'products.add_product', 'stock_adjustments.delete_stockadjustment', 'invoices.view_invoiceitem', 'stock_adjustments.add_stockadjustment', 'core.view_customer', 'users.view_role', 'admin.add_logentry', 'users.add_role', 'core.add_visit', 'reports.delete_reportaccesslog', 'auth.view_permission', 'users.delete_permission', 'users.full_access', 'users.view', 'reports.add_reportentry', 'invoices.delete_invoice', 'auth.delete_permission', 'reports.change_reportentry', 'sessions.view_session', 'users.delete_permissionauditlog', 'users.view_userpreference', 'users.delete_insight', 'users.view_all', 'products.add_category', 'core.delete_promotion', 'reports.add_reportfile', 'products.change_category', 'sessions.add_session', 'core.add_companyinfo', 'core.add_address', 'transactions.delete_transaction', 'users.change_insight', 'contenttypes.delete_contenttype', 'reports.change_reportfile', 'users.delete_permissionchangelog', 'auth.change_group', 'contenttypes.view_contenttype', 'core.change_companyinfo', 'invoices.view_invoice', 'authtoken.add_tokenproxy', 'transactions.add_transaction', 'auth.add_group', 'users.delete', 'reports.add_report', 'core.change_orderpromotion', 'reports.delete_report', 'reports.view_calculatedfield', 'core.view_product', 'reports.delete_reportentry', 'users.view_permissionchangelog', 'products.view_category', 'authtoken.add_token', 'core.add_product', 'sessions.change_session', 'products.add_productimage', 'reports.change_report', 'invoices.add_invoice', 'core.view_promotion', 'products.view_product', 'reports.change_calculatedfield', 'reports.add_calculatedfield', 'users.change_role', 'core.add_order', 'users.change_customuser', 'authtoken.delete_tokenproxy', 'transactions.change_transaction', 'authtoken.view_token', 'invoices.add_invoiceitem', 'users.view_permission', 'reports.view_report', 'users.add_insight', 'invoices.change_invoiceitem', 'admin.change_logentry', 'products.add_review', 'reports.view_reportaccesslog', 'authtoken.change_token', 'stock_adjustments.change_stockadjustment', 'core.add_orderpromotion', 'admin.delete_logentry', 'users.change_userpreference', 'core.delete_orderitem', 'reports.view_reportfile', 'core.add_promotion', 'core.delete_companyinfo', 'users.add_permissionauditlog', 'users.add_permissionchangelog', 'users.delete_userpreference', 'auth.change_permission', 'core.delete_customer', 'core.change_promotion', 'admin.view_logentry', 'products.view_review', 'stock_adjustments.view_stockadjustment', 'core.add_customer', 'core.change_product', 'products.view_productimage', 'users.analytics_access', 'users.add_customuser', 'users.change_permissionchangelog', 'contenttypes.change_contenttype', 'products.change_productimage', 'users.delete_role', 'transactions.view_transaction', 'reports.delete_reportfile', 'core.change_order', 'core.delete_product', 'users.change_permission', 'core.view_companyinfo', 'products.change_review', 'invoices.change_invoice', 'reports.delete_calculatedfield', 'core.view_orderpromotion', 'users.create', 'users.edit', 'core.change_orderitem', 'authtoken.delete_token', 'core.view_order', 'core.change_visit', 'products.delete_review', 'products.change_product', 'reports.view_reportentry', 'core.view_address', 'users.add_permission', 'auth.view_group', 'products.delete_product', 'products.delete_productimage', 'core.add_orderitem', 'authtoken.view_tokenproxy', 'core.view_orderitem', 'auth.add_permission', 'reports.add_reportaccesslog', 'sessions.delete_session', 'core.delete_address', 'contenttypes.add_contenttype', 'products.delete_category', 'core.change_address', 'users.delete_customuser', 'core.delete_visit', 'core.change_customer', 'reports.change_reportaccesslog', 'core.delete_orderpromotion', 'users.view_insight', 'users.view_permissionauditlog'}
+INFO 2025-01-13 09:10:24,866 serializers 18004 140338172601920 Original input data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/13/2025, 10:10:24 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 09:10:24,866 serializers 18004 140338172601920 Processed data: {'name': 'Oct 2024 to Jan 2025 Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-13'}
+INFO 2025-01-13 09:10:24,871 serializers 18004 140338172601920 Final validation passed for report: Oct 2024 to Jan 2025 Report
+DEBUG 2025-01-13 09:10:25,045 views 18004 140338172601920 Base queryset count: 205
+DEBUG 2025-01-13 09:10:27,817 views 18004 140338172601920 Starting PDF generation for report 205
+DEBUG 2025-01-13 09:10:27,817 views 18004 140338172601920 User: kennyd
+DEBUG 2025-01-13 09:10:27,818 views 18004 140338172601920 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-13']}>
+DEBUG 2025-01-13 09:10:27,821 views 18004 140338172601920 Base queryset count: 205
+DEBUG 2025-01-13 09:10:27,835 views 18004 140338172601920 Base queryset count: 205
+DEBUG 2025-01-13 09:10:27,839 views 18004 140338172601920 Retrieved report: 205
+DEBUG 2025-01-13 09:10:27,840 views 18004 140338172601920 Date range: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 09:10:27,842 utils 18004 140338172601920 Generating report for period: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 09:10:27,928 utils 18004 140338172601920 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 09:10:27,928 utils 18004 140338172601920 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 09:10:27,929 utils 18004 140338172601920 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 09:10:27,946 utils 18004 140338172601920 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 09:10:27,947 utils 18004 140338172601920 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-13 09:10:27,962 utils 18004 140338172601920 No low stock products found
+INFO 2025-01-13 09:10:27,962 utils 18004 140338172601920 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-13 09:31:41,276 views 23776 139733700396608 Base queryset count: 205
+INFO 2025-01-13 09:32:13,353 views 23776 139733700396608 Create Report Request Details:
+INFO 2025-01-13 09:32:13,353 views 23776 139733700396608 User: kennyd
+INFO 2025-01-13 09:32:13,354 views 23776 139733700396608 Request Data: {'name': {'name': 'The Entire Report', 'description': 'Generated on 1/13/2025, 10:32:12 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 09:32:13,362 views 23776 139733700396608 User Permissions: {'core.change_customer', 'core.view_orderpromotion', 'stock_adjustments.view_stockadjustment', 'users.change_insight', 'core.add_address', 'admin.change_logentry', 'reports.view_reportaccesslog', 'users.edit', 'users.add_permissionauditlog', 'sessions.add_session', 'core.view_visit', 'invoices.add_invoice', 'users.change_permissionchangelog', 'products.add_productimage', 'users.add_role', 'users.create', 'users.view_permissionchangelog', 'auth.delete_permission', 'products.add_product', 'core.add_product', 'auth.delete_group', 'core.add_promotion', 'users.change_permission', 'products.delete_review', 'reports.change_reportentry', 'core.change_orderitem', 'reports.delete_report', 'invoices.view_invoice', 'core.delete_orderpromotion', 'invoices.change_invoice', 'core.view_companyinfo', 'core.add_companyinfo', 'users.view_userpreference', 'core.delete_address', 'authtoken.view_token', 'core.add_order', 'products.delete_productimage', 'auth.change_group', 'contenttypes.add_contenttype', 'reports.add_calculatedfield', 'transactions.add_transaction', 'stock_adjustments.add_stockadjustment', 'auth.add_permission', 'reports.add_report', 'authtoken.add_token', 'authtoken.add_tokenproxy', 'invoices.add_invoiceitem', 'users.change_permissionauditlog', 'users.delete_permissionchangelog', 'users.view_customuser', 'reports.view_report', 'auth.add_group', 'stock_adjustments.change_stockadjustment', 'products.add_review', 'core.delete_promotion', 'core.add_visit', 'users.view', 'sessions.view_session', 'core.add_orderpromotion', 'products.view_product', 'auth.view_permission', 'core.view_promotion', 'auth.change_permission', 'reports.delete_calculatedfield', 'users.full_access', 'core.change_promotion', 'core.view_address', 'admin.add_logentry', 'core.delete_visit', 'core.view_product', 'core.delete_companyinfo', 'reports.add_reportaccesslog', 'users.view_insight', 'authtoken.delete_tokenproxy', 'products.change_productimage', 'products.delete_category', 'authtoken.change_token', 'sessions.delete_session', 'core.change_address', 'users.add_insight', 'users.add_permissionchangelog', 'reports.change_reportaccesslog', 'reports.view_reportentry', 'reports.change_reportfile', 'users.view_permissionauditlog', 'sessions.change_session', 'reports.change_report', 'invoices.view_invoiceitem', 'transactions.change_transaction', 'users.view_permission', 'products.change_review', 'users.delete_userpreference', 'reports.delete_reportfile', 'products.delete_product', 'users.add_permission', 'admin.view_logentry', 'users.delete_permission', 'users.delete_insight', 'products.change_product', 'invoices.delete_invoice', 'users.delete_customuser', 'core.change_companyinfo', 'products.change_category', 'users.add_userpreference', 'core.delete_product', 'users.delete_role', 'products.view_productimage', 'core.delete_orderitem', 'stock_adjustments.delete_stockadjustment', 'auth.view_group', 'products.view_category', 'reports.delete_reportaccesslog', 'core.delete_order', 'users.view_all', 'users.change_customuser', 'reports.delete_reportentry', 'users.view_role', 'authtoken.change_tokenproxy', 'transactions.view_transaction', 'reports.change_calculatedfield', 'core.add_orderitem', 'admin.delete_logentry', 'core.change_product', 'contenttypes.delete_contenttype', 'core.change_visit', 'products.add_category', 'users.delete', 'users.analytics_access', 'contenttypes.view_contenttype', 'reports.view_reportfile', 'core.delete_customer', 'core.view_customer', 'products.view_review', 'core.view_orderitem', 'core.add_customer', 'transactions.delete_transaction', 'core.view_order', 'users.delete_permissionauditlog', 'reports.view_calculatedfield', 'authtoken.delete_token', 'invoices.delete_invoiceitem', 'core.change_orderpromotion', 'authtoken.view_tokenproxy', 'core.change_order', 'reports.add_reportentry', 'contenttypes.change_contenttype', 'users.change_userpreference', 'users.change_role', 'invoices.change_invoiceitem', 'users.add_customuser', 'reports.add_reportfile'}
+INFO 2025-01-13 09:32:13,364 serializers 23776 139733700396608 Original input data: {'name': {'name': 'The Entire Report', 'description': 'Generated on 1/13/2025, 10:32:12 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 09:32:13,365 serializers 23776 139733700396608 Processed data: {'name': 'The Entire Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-13'}
+INFO 2025-01-13 09:32:13,368 serializers 23776 139733700396608 Final validation passed for report: The Entire Report
+DEBUG 2025-01-13 09:32:13,540 views 23776 139733700396608 Base queryset count: 206
+DEBUG 2025-01-13 09:32:16,219 views 23776 139733700396608 Starting PDF generation for report 206
+DEBUG 2025-01-13 09:32:16,219 views 23776 139733700396608 User: kennyd
+DEBUG 2025-01-13 09:32:16,219 views 23776 139733700396608 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-13']}>
+DEBUG 2025-01-13 09:32:16,223 views 23776 139733700396608 Base queryset count: 206
+DEBUG 2025-01-13 09:32:16,237 views 23776 139733700396608 Base queryset count: 206
+DEBUG 2025-01-13 09:32:16,241 views 23776 139733700396608 Retrieved report: 206
+DEBUG 2025-01-13 09:32:16,241 views 23776 139733700396608 Date range: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 09:32:16,244 utils 23776 139733700396608 Generating report for period: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 09:32:16,355 utils 23776 139733700396608 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 09:32:16,356 utils 23776 139733700396608 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 09:32:16,357 utils 23776 139733700396608 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+ERROR 2025-01-13 09:32:16,374 utils 23776 139733700396608 Error preparing revenue chart data: name 'month_year_date' is not defined
+INFO 2025-01-13 09:32:16,377 utils 23776 139733700396608 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 09:32:16,379 utils 23776 139733700396608 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-13 09:32:16,394 utils 23776 139733700396608 No low stock products found
+INFO 2025-01-13 09:32:16,400 utils 23776 139733700396608 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+ERROR 2025-01-13 09:32:16,434 views 23776 139733700396608 PDF generation failed: Polyline must have 2 or more points
+Traceback (most recent call last):
+  File "/home/kennyd/verifi/Finstock/./reports/views.py", line 285, in generate_pdf
+    pdf_file = generate_pdf_report(report, start_date_str, end_date_str)
+  File "/home/kennyd/verifi/Finstock/./reports/utils.py", line 1687, in generate_pdf_report
+    doc.build(content, onFirstPage=add_page_number, onLaterPages=add_page_number)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/platypus/doctemplate.py", line 1318, in build
+    BaseDocTemplate.build(self,flowables, canvasmaker=canvasmaker)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/platypus/doctemplate.py", line 1083, in build
+    self.handle_flowable(flowables)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/platypus/doctemplate.py", line 932, in handle_flowable
+    if frame.add(f, canv, trySplit=self.allowSplitting):
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/platypus/frames.py", line 201, in _add
+    flowable.drawOn(canv, self._x + self._leftExtraIndent, y, _sW=aW-w)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/platypus/flowables.py", line 112, in drawOn
+    self._drawOn(canvas)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/platypus/flowables.py", line 93, in _drawOn
+    self.draw()#this is the bit you overload
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/shapes.py", line 643, in draw
+    renderPDF.draw(self, self.canv, 0, 0,
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderPDF.py", line 30, in draw
+    R.draw(renderScaledDrawing(drawing), canvas, x, y, showBoundary=showBoundary)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderbase.py", line 186, in draw
+    self.drawNode(drawing)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderPDF.py", line 55, in drawNode
+    self.drawNodeDispatcher(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderbase.py", line 267, in drawNodeDispatcher
+    self.drawGroup(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderbase.py", line 298, in drawGroup
+    self.drawNode(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderPDF.py", line 55, in drawNode
+    self.drawNodeDispatcher(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderbase.py", line 267, in drawNodeDispatcher
+    self.drawGroup(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderbase.py", line 298, in drawGroup
+    self.drawNode(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderPDF.py", line 55, in drawNode
+    self.drawNodeDispatcher(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderbase.py", line 267, in drawNodeDispatcher
+    self.drawGroup(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderbase.py", line 298, in drawGroup
+    self.drawNode(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderPDF.py", line 55, in drawNode
+    self.drawNodeDispatcher(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderbase.py", line 259, in drawNodeDispatcher
+    self.drawPolyLine(node)
+  File "/home/kennyd/.local/lib/python3.10/site-packages/reportlab/graphics/renderPDF.py", line 103, in drawPolyLine
+    assert len(polyline.points) >= 2, 'Polyline must have 2 or more points'
+AssertionError: Polyline must have 2 or more points
+ERROR 2025-01-13 09:32:16,471 log 23776 139733708789312 Internal Server Error: /api/reports/reports/206/generate_pdf/
+DEBUG 2025-01-13 09:42:42,855 views 26366 140440677197376 Base queryset count: 206
+INFO 2025-01-13 09:44:03,203 views 26366 140440677197376 Create Report Request Details:
+INFO 2025-01-13 09:44:03,203 views 26366 140440677197376 User: kennyd
+INFO 2025-01-13 09:44:03,204 views 26366 140440677197376 Request Data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/13/2025, 10:44:02 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 09:44:03,220 views 26366 140440677197376 User Permissions: {'core.delete_product', 'core.change_orderpromotion', 'contenttypes.delete_contenttype', 'users.full_access', 'reports.delete_reportfile', 'authtoken.add_tokenproxy', 'auth.delete_permission', 'core.change_product', 'authtoken.view_token', 'products.change_review', 'core.change_address', 'reports.add_reportaccesslog', 'users.delete', 'users.analytics_access', 'stock_adjustments.change_stockadjustment', 'core.view_address', 'users.view', 'authtoken.delete_token', 'users.add_insight', 'users.edit', 'users.change_permission', 'invoices.view_invoice', 'core.change_promotion', 'core.view_product', 'users.view_permissionchangelog', 'reports.change_reportfile', 'products.add_productimage', 'users.delete_role', 'invoices.delete_invoice', 'transactions.view_transaction', 'core.change_customer', 'reports.view_reportaccesslog', 'reports.view_report', 'users.add_permissionauditlog', 'core.delete_promotion', 'authtoken.add_token', 'core.change_order', 'core.add_address', 'contenttypes.change_contenttype', 'core.add_promotion', 'users.add_permission', 'reports.delete_reportaccesslog', 'core.add_customer', 'reports.delete_calculatedfield', 'reports.change_reportentry', 'sessions.delete_session', 'sessions.add_session', 'reports.add_reportentry', 'products.add_product', 'products.delete_productimage', 'invoices.add_invoice', 'stock_adjustments.delete_stockadjustment', 'products.view_review', 'users.view_permission', 'sessions.change_session', 'authtoken.change_token', 'reports.change_reportaccesslog', 'users.delete_insight', 'core.delete_visit', 'users.delete_permissionauditlog', 'core.add_order', 'core.view_visit', 'auth.delete_group', 'admin.view_logentry', 'reports.add_calculatedfield', 'core.add_companyinfo', 'users.create', 'core.delete_order', 'users.delete_customuser', 'core.view_companyinfo', 'reports.view_reportfile', 'users.change_role', 'authtoken.change_tokenproxy', 'products.delete_product', 'invoices.view_invoiceitem', 'users.change_insight', 'reports.add_report', 'core.add_product', 'users.view_permissionauditlog', 'auth.view_permission', 'users.add_customuser', 'auth.add_permission', 'core.view_order', 'core.delete_companyinfo', 'reports.delete_reportentry', 'core.view_promotion', 'invoices.delete_invoiceitem', 'core.add_orderitem', 'users.view_all', 'users.add_role', 'core.view_orderitem', 'core.add_orderpromotion', 'users.view_role', 'reports.view_reportentry', 'reports.delete_report', 'products.change_category', 'users.delete_permission', 'auth.change_group', 'users.change_userpreference', 'users.change_permissionchangelog', 'reports.view_calculatedfield', 'products.delete_review', 'auth.view_group', 'products.add_category', 'users.view_userpreference', 'users.view_insight', 'invoices.add_invoiceitem', 'reports.add_reportfile', 'transactions.delete_transaction', 'transactions.add_transaction', 'auth.add_group', 'contenttypes.view_contenttype', 'products.change_product', 'users.add_permissionchangelog', 'users.add_userpreference', 'users.change_permissionauditlog', 'admin.add_logentry', 'core.change_visit', 'sessions.view_session', 'products.view_product', 'users.delete_permissionchangelog', 'core.change_orderitem', 'core.delete_orderpromotion', 'users.change_customuser', 'contenttypes.add_contenttype', 'core.delete_address', 'admin.change_logentry', 'admin.delete_logentry', 'core.view_orderpromotion', 'core.view_customer', 'invoices.change_invoiceitem', 'transactions.change_transaction', 'core.add_visit', 'users.view_customuser', 'products.view_productimage', 'authtoken.delete_tokenproxy', 'stock_adjustments.add_stockadjustment', 'core.delete_orderitem', 'products.view_category', 'core.change_companyinfo', 'products.change_productimage', 'reports.change_report', 'authtoken.view_tokenproxy', 'reports.change_calculatedfield', 'stock_adjustments.view_stockadjustment', 'products.delete_category', 'users.delete_userpreference', 'invoices.change_invoice', 'products.add_review', 'auth.change_permission', 'core.delete_customer'}
+INFO 2025-01-13 09:44:03,225 serializers 26366 140440677197376 Original input data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/13/2025, 10:44:02 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 09:44:03,226 serializers 26366 140440677197376 Processed data: {'name': 'Oct 2024 to Jan 2025 Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-13'}
+INFO 2025-01-13 09:44:03,230 serializers 26366 140440677197376 Final validation passed for report: Oct 2024 to Jan 2025 Report
+DEBUG 2025-01-13 09:44:03,505 views 26366 140440677197376 Base queryset count: 207
+DEBUG 2025-01-13 09:44:06,779 views 26366 140440677197376 Starting PDF generation for report 207
+DEBUG 2025-01-13 09:44:06,780 views 26366 140440677197376 User: kennyd
+DEBUG 2025-01-13 09:44:06,780 views 26366 140440677197376 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-13']}>
+DEBUG 2025-01-13 09:44:06,785 views 26366 140440677197376 Base queryset count: 207
+DEBUG 2025-01-13 09:44:06,799 views 26366 140440677197376 Base queryset count: 207
+DEBUG 2025-01-13 09:44:06,804 views 26366 140440677197376 Retrieved report: 207
+DEBUG 2025-01-13 09:44:06,805 views 26366 140440677197376 Date range: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 09:44:06,809 utils 26366 140440677197376 Generating report for period: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 09:44:06,907 utils 26366 140440677197376 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 09:44:06,908 utils 26366 140440677197376 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 09:44:06,909 utils 26366 140440677197376 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+ERROR 2025-01-13 09:44:06,925 utils 26366 140440677197376 Error preparing revenue chart data: name 'month_year_date' is not defined
+INFO 2025-01-13 09:44:06,930 utils 26366 140440677197376 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 09:44:06,931 utils 26366 140440677197376 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-13 09:44:06,950 utils 26366 140440677197376 No low stock products found
+INFO 2025-01-13 09:44:06,950 utils 26366 140440677197376 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-13 09:53:55,309 views 29146 140029610640960 Base queryset count: 207
+INFO 2025-01-13 09:54:30,604 views 29146 140029610640960 Create Report Request Details:
+INFO 2025-01-13 09:54:30,604 views 29146 140029610640960 User: kennyd
+INFO 2025-01-13 09:54:30,605 views 29146 140029610640960 Request Data: {'name': {'name': 'The Entire Report', 'description': 'Generated on 1/13/2025, 10:54:30 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 09:54:30,614 views 29146 140029610640960 User Permissions: {'reports.add_calculatedfield', 'users.change_customuser', 'users.change_role', 'products.delete_category', 'users.delete_role', 'reports.change_report', 'users.analytics_access', 'reports.add_reportfile', 'stock_adjustments.change_stockadjustment', 'core.add_orderpromotion', 'contenttypes.add_contenttype', 'products.view_category', 'reports.delete_reportfile', 'core.delete_product', 'core.add_product', 'core.view_orderpromotion', 'users.add_customuser', 'products.change_productimage', 'core.view_order', 'reports.view_reportentry', 'auth.change_group', 'sessions.delete_session', 'core.view_orderitem', 'core.delete_visit', 'core.change_customer', 'reports.view_calculatedfield', 'auth.change_permission', 'contenttypes.view_contenttype', 'products.add_product', 'core.add_promotion', 'core.change_address', 'users.delete_customuser', 'core.change_orderpromotion', 'invoices.view_invoice', 'authtoken.delete_token', 'core.change_companyinfo', 'core.change_order', 'auth.view_permission', 'transactions.view_transaction', 'reports.add_reportentry', 'users.view_userpreference', 'stock_adjustments.view_stockadjustment', 'admin.add_logentry', 'users.delete_permissionauditlog', 'reports.view_reportfile', 'reports.add_reportaccesslog', 'reports.change_reportentry', 'users.full_access', 'admin.delete_logentry', 'core.delete_companyinfo', 'invoices.add_invoiceitem', 'products.add_review', 'products.view_product', 'core.view_visit', 'users.edit', 'sessions.add_session', 'reports.delete_reportentry', 'users.delete_permissionchangelog', 'authtoken.delete_tokenproxy', 'users.view', 'transactions.delete_transaction', 'users.create', 'reports.view_reportaccesslog', 'auth.delete_permission', 'contenttypes.change_contenttype', 'auth.delete_group', 'users.delete', 'sessions.change_session', 'core.change_promotion', 'core.add_address', 'users.view_permissionchangelog', 'core.view_product', 'core.view_companyinfo', 'users.add_permissionauditlog', 'core.add_order', 'auth.add_permission', 'users.delete_permission', 'invoices.view_invoiceitem', 'reports.change_reportfile', 'users.change_permission', 'contenttypes.delete_contenttype', 'users.add_permission', 'products.change_product', 'invoices.change_invoiceitem', 'core.add_companyinfo', 'core.delete_order', 'transactions.add_transaction', 'users.add_userpreference', 'users.change_permissionauditlog', 'core.add_visit', 'invoices.delete_invoiceitem', 'reports.change_reportaccesslog', 'users.view_insight', 'reports.delete_report', 'users.add_permissionchangelog', 'users.change_userpreference', 'users.view_all', 'core.view_customer', 'reports.add_report', 'authtoken.change_token', 'stock_adjustments.add_stockadjustment', 'authtoken.view_tokenproxy', 'core.delete_address', 'sessions.view_session', 'products.add_productimage', 'products.change_review', 'core.view_promotion', 'reports.view_report', 'core.delete_orderpromotion', 'invoices.change_invoice', 'users.view_permissionauditlog', 'invoices.add_invoice', 'users.delete_insight', 'stock_adjustments.delete_stockadjustment', 'core.delete_promotion', 'products.change_category', 'core.delete_orderitem', 'auth.add_group', 'products.delete_productimage', 'core.change_visit', 'products.view_productimage', 'core.add_customer', 'core.change_orderitem', 'authtoken.change_tokenproxy', 'core.delete_customer', 'admin.change_logentry', 'reports.change_calculatedfield', 'users.add_role', 'users.view_role', 'core.view_address', 'reports.delete_calculatedfield', 'invoices.delete_invoice', 'products.add_category', 'users.delete_userpreference', 'products.delete_review', 'authtoken.view_token', 'reports.delete_reportaccesslog', 'authtoken.add_tokenproxy', 'admin.view_logentry', 'transactions.change_transaction', 'users.view_permission', 'users.add_insight', 'auth.view_group', 'products.view_review', 'authtoken.add_token', 'users.change_permissionchangelog', 'core.change_product', 'users.change_insight', 'users.view_customuser', 'products.delete_product', 'core.add_orderitem'}
+INFO 2025-01-13 09:54:30,615 serializers 29146 140029610640960 Original input data: {'name': {'name': 'The Entire Report', 'description': 'Generated on 1/13/2025, 10:54:30 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 09:54:30,615 serializers 29146 140029610640960 Processed data: {'name': 'The Entire Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-13'}
+INFO 2025-01-13 09:54:30,619 serializers 29146 140029610640960 Final validation passed for report: The Entire Report
+DEBUG 2025-01-13 09:54:30,796 views 29146 140029610640960 Base queryset count: 208
+DEBUG 2025-01-13 09:54:33,742 views 29146 140029610640960 Starting PDF generation for report 208
+DEBUG 2025-01-13 09:54:33,742 views 29146 140029610640960 User: kennyd
+DEBUG 2025-01-13 09:54:33,742 views 29146 140029610640960 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-13']}>
+DEBUG 2025-01-13 09:54:33,745 views 29146 140029610640960 Base queryset count: 208
+DEBUG 2025-01-13 09:54:33,754 views 29146 140029610640960 Base queryset count: 208
+DEBUG 2025-01-13 09:54:33,759 views 29146 140029610640960 Retrieved report: 208
+DEBUG 2025-01-13 09:54:33,760 views 29146 140029610640960 Date range: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 09:54:33,766 utils 29146 140029610640960 Generating report for period: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 09:54:33,854 utils 29146 140029610640960 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 09:54:33,855 utils 29146 140029610640960 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 09:54:33,855 utils 29146 140029610640960 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 09:54:33,872 utils 29146 140029610640960 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 09:54:33,873 utils 29146 140029610640960 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-13 09:54:33,887 utils 29146 140029610640960 No low stock products found
+INFO 2025-01-13 09:54:33,887 utils 29146 140029610640960 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-13 10:22:58,802 views 36427 140475562456640 Base queryset count: 208
+INFO 2025-01-13 10:23:45,525 views 36427 140475562456640 Create Report Request Details:
+INFO 2025-01-13 10:23:45,525 views 36427 140475562456640 User: kennyd
+INFO 2025-01-13 10:23:45,527 views 36427 140475562456640 Request Data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/13/2025, 11:23:45 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 10:23:45,538 views 36427 140475562456640 User Permissions: {'users.delete_permission', 'auth.change_permission', 'authtoken.view_tokenproxy', 'auth.view_permission', 'admin.change_logentry', 'auth.add_group', 'invoices.delete_invoiceitem', 'core.delete_companyinfo', 'core.change_visit', 'auth.add_permission', 'stock_adjustments.add_stockadjustment', 'products.change_category', 'products.view_product', 'core.add_customer', 'products.add_product', 'users.change_permission', 'reports.add_reportfile', 'core.change_companyinfo', 'authtoken.view_token', 'core.add_order', 'stock_adjustments.change_stockadjustment', 'products.view_category', 'transactions.delete_transaction', 'core.view_customer', 'reports.view_report', 'users.delete', 'invoices.change_invoice', 'sessions.view_session', 'users.delete_userpreference', 'products.delete_review', 'invoices.delete_invoice', 'users.add_permission', 'authtoken.add_tokenproxy', 'reports.delete_report', 'auth.change_group', 'core.add_orderitem', 'users.view_userpreference', 'reports.delete_reportentry', 'users.change_role', 'core.add_product', 'core.add_orderpromotion', 'users.full_access', 'products.view_productimage', 'reports.add_calculatedfield', 'users.view_role', 'reports.view_calculatedfield', 'reports.change_reportentry', 'admin.delete_logentry', 'products.change_productimage', 'reports.view_reportaccesslog', 'core.add_visit', 'users.change_insight', 'core.add_promotion', 'reports.add_report', 'authtoken.change_token', 'users.add_customuser', 'reports.add_reportentry', 'users.create', 'users.view_all', 'products.change_product', 'reports.delete_calculatedfield', 'stock_adjustments.delete_stockadjustment', 'products.delete_category', 'users.delete_insight', 'core.delete_promotion', 'core.delete_customer', 'users.view_permissionchangelog', 'contenttypes.delete_contenttype', 'authtoken.add_token', 'users.add_role', 'sessions.delete_session', 'core.change_orderitem', 'reports.delete_reportfile', 'users.change_permissionchangelog', 'authtoken.change_tokenproxy', 'reports.view_reportentry', 'users.add_insight', 'users.view', 'auth.view_group', 'core.delete_orderpromotion', 'reports.delete_reportaccesslog', 'users.view_permissionauditlog', 'invoices.change_invoiceitem', 'contenttypes.add_contenttype', 'products.add_productimage', 'core.add_address', 'core.delete_product', 'core.view_address', 'core.change_order', 'products.delete_productimage', 'reports.add_reportaccesslog', 'contenttypes.change_contenttype', 'transactions.add_transaction', 'users.delete_permissionchangelog', 'users.add_permissionchangelog', 'users.delete_role', 'products.change_review', 'users.delete_customuser', 'core.delete_visit', 'contenttypes.view_contenttype', 'core.view_orderpromotion', 'reports.change_report', 'products.delete_product', 'invoices.view_invoiceitem', 'invoices.add_invoice', 'products.add_review', 'authtoken.delete_tokenproxy', 'core.change_customer', 'sessions.change_session', 'core.view_product', 'products.add_category', 'users.change_userpreference', 'core.view_order', 'users.edit', 'auth.delete_permission', 'admin.add_logentry', 'admin.view_logentry', 'users.delete_permissionauditlog', 'users.analytics_access', 'reports.change_reportfile', 'core.change_promotion', 'transactions.view_transaction', 'users.view_customuser', 'sessions.add_session', 'core.delete_order', 'core.delete_orderitem', 'core.view_visit', 'products.view_review', 'transactions.change_transaction', 'core.view_companyinfo', 'core.change_address', 'core.delete_address', 'invoices.view_invoice', 'users.view_insight', 'users.view_permission', 'core.view_promotion', 'reports.view_reportfile', 'reports.change_reportaccesslog', 'authtoken.delete_token', 'core.change_product', 'invoices.add_invoiceitem', 'auth.delete_group', 'reports.change_calculatedfield', 'users.add_permissionauditlog', 'core.add_companyinfo', 'users.change_customuser', 'users.change_permissionauditlog', 'stock_adjustments.view_stockadjustment', 'core.view_orderitem', 'core.change_orderpromotion', 'users.add_userpreference'}
+INFO 2025-01-13 10:23:45,540 serializers 36427 140475562456640 Original input data: {'name': {'name': 'Oct 2024 to Jan 2025 Report', 'description': 'Generated on 1/13/2025, 11:23:45 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-13'}, 'description': None}
+INFO 2025-01-13 10:23:45,540 serializers 36427 140475562456640 Processed data: {'name': 'Oct 2024 to Jan 2025 Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-13'}
+INFO 2025-01-13 10:23:45,545 serializers 36427 140475562456640 Final validation passed for report: Oct 2024 to Jan 2025 Report
+DEBUG 2025-01-13 10:23:45,721 views 36427 140475562456640 Base queryset count: 209
+DEBUG 2025-01-13 10:23:49,560 views 36427 140475562456640 Starting PDF generation for report 209
+DEBUG 2025-01-13 10:23:49,560 views 36427 140475562456640 User: kennyd
+DEBUG 2025-01-13 10:23:49,561 views 36427 140475562456640 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-13']}>
+DEBUG 2025-01-13 10:23:49,564 views 36427 140475562456640 Base queryset count: 209
+DEBUG 2025-01-13 10:23:49,581 views 36427 140475562456640 Base queryset count: 209
+DEBUG 2025-01-13 10:23:49,585 views 36427 140475562456640 Retrieved report: 209
+DEBUG 2025-01-13 10:23:49,586 views 36427 140475562456640 Date range: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 10:23:49,588 utils 36427 140475562456640 Generating report for period: 2024-10-01 to 2025-01-13
+INFO 2025-01-13 10:23:49,673 utils 36427 140475562456640 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 10:23:49,673 utils 36427 140475562456640 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 10:23:49,674 utils 36427 140475562456640 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-13 10:23:49,695 utils 36427 140475562456640 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-13 10:23:49,697 utils 36427 140475562456640 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-13 10:23:49,708 utils 36427 140475562456640 No low stock products found
+INFO 2025-01-13 10:23:49,710 utils 36427 140475562456640 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-13 10:30:31,899 views 36427 140475545671232 Base queryset count: 209
+DEBUG 2025-01-13 11:53:52,088 views 53791 140530650441280 Base queryset count: 209
+DEBUG 2025-01-13 12:28:44,669 views 61766 139630834689600 Base queryset count: 209
+DEBUG 2025-01-13 14:35:16,743 views 90493 140406473864768 Base queryset count: 209
+DEBUG 2025-01-13 15:54:03,100 views 101924 140613336954432 Base queryset count: 209
+DEBUG 2025-01-13 17:07:47,648 views 101924 140613416867392 Base queryset count: 209
+DEBUG 2025-01-13 17:37:59,395 views 115245 140031957354048 Base queryset count: 209
+DEBUG 2025-01-13 18:08:14,168 views 122282 140430514800192 Base queryset count: 209
+DEBUG 2025-01-13 18:17:33,860 views 122282 140429801342528 Base queryset count: 209
+DEBUG 2025-01-14 07:45:29,819 views 3180 140325087598144 Base queryset count: 209
+DEBUG 2025-01-14 07:53:49,842 views 3180 140325087598144 Base queryset count: 209
+DEBUG 2025-01-14 08:00:40,824 views 3180 140325316412992 Base queryset count: 209
+DEBUG 2025-01-14 08:05:19,295 views 3180 140325095990848 Base queryset count: 209
+DEBUG 2025-01-14 08:05:29,554 views 3180 140325104383552 Base queryset count: 209
+DEBUG 2025-01-14 08:37:49,201 views 15881 140452715251264 Base queryset count: 209
+DEBUG 2025-01-14 08:40:23,522 views 15881 140452698465856 Base queryset count: 209
+DEBUG 2025-01-14 09:32:57,841 views 27624 140601171592768 Base queryset count: 209
+INFO 2025-01-14 09:40:21,946 views 27624 140601154807360 Create Report Request Details:
+INFO 2025-01-14 09:40:21,947 views 27624 140601154807360 User: kennyd
+INFO 2025-01-14 09:40:21,948 views 27624 140601154807360 Request Data: {'name': {'name': 'Entire Report', 'description': 'Generated on 1/14/2025, 10:40:21 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-14'}, 'description': None}
+INFO 2025-01-14 09:40:22,172 views 27624 140601154807360 User Permissions: {'sessions.add_session', 'core.delete_address', 'contenttypes.view_contenttype', 'products.delete_review', 'core.delete_visit', 'users.change_permission', 'sessions.view_session', 'core.change_promotion', 'transactions.delete_transaction', 'stock_adjustments.add_stockadjustment', 'core.add_orderpromotion', 'users.view_userpreference', 'reports.view_calculatedfield', 'core.change_orderitem', 'auth.change_group', 'users.view_permission', 'core.delete_orderitem', 'users.delete_permission', 'users.change_permissionauditlog', 'reports.view_report', 'core.view_product', 'core.view_companyinfo', 'products.change_productimage', 'transactions.add_transaction', 'reports.add_reportaccesslog', 'reports.add_reportfile', 'users.full_access', 'users.change_insight', 'transactions.change_transaction', 'users.add_role', 'users.add_userpreference', 'users.view_permissionauditlog', 'users.edit', 'reports.delete_report', 'core.change_customer', 'admin.view_logentry', 'core.change_companyinfo', 'core.delete_companyinfo', 'core.delete_order', 'users.create', 'reports.add_calculatedfield', 'contenttypes.delete_contenttype', 'reports.delete_reportaccesslog', 'core.add_orderitem', 'users.add_permissionauditlog', 'authtoken.delete_token', 'products.add_productimage', 'core.change_visit', 'users.delete_permissionauditlog', 'users.delete', 'admin.add_logentry', 'products.delete_productimage', 'reports.delete_calculatedfield', 'authtoken.add_token', 'reports.delete_reportfile', 'products.delete_product', 'core.add_order', 'stock_adjustments.view_stockadjustment', 'reports.add_report', 'auth.view_permission', 'core.view_promotion', 'reports.view_reportaccesslog', 'reports.change_report', 'core.change_product', 'core.view_address', 'auth.add_permission', 'core.add_visit', 'products.add_product', 'reports.delete_reportentry', 'products.add_review', 'users.view_customuser', 'users.view_all', 'users.add_insight', 'admin.change_logentry', 'users.change_permissionchangelog', 'reports.view_reportentry', 'users.view_role', 'users.change_userpreference', 'products.view_product', 'users.view_permissionchangelog', 'users.add_customuser', 'reports.view_reportfile', 'auth.delete_permission', 'core.add_address', 'auth.add_group', 'users.delete_userpreference', 'users.analytics_access', 'stock_adjustments.delete_stockadjustment', 'sessions.delete_session', 'users.change_role', 'users.view_insight', 'invoices.delete_invoiceitem', 'reports.change_calculatedfield', 'reports.add_reportentry', 'invoices.delete_invoice', 'products.delete_category', 'auth.delete_group', 'auth.view_group', 'core.delete_product', 'authtoken.view_token', 'users.view', 'core.delete_orderpromotion', 'invoices.add_invoiceitem', 'authtoken.change_token', 'products.add_category', 'core.delete_customer', 'sessions.change_session', 'users.delete_customuser', 'products.view_productimage', 'users.delete_role', 'products.view_category', 'contenttypes.add_contenttype', 'authtoken.add_tokenproxy', 'invoices.change_invoice', 'core.view_orderpromotion', 'products.change_review', 'reports.change_reportentry', 'core.view_visit', 'users.delete_permissionchangelog', 'authtoken.delete_tokenproxy', 'invoices.view_invoiceitem', 'products.view_review', 'invoices.add_invoice', 'users.add_permission', 'core.add_product', 'stock_adjustments.change_stockadjustment', 'core.add_customer', 'transactions.view_transaction', 'admin.delete_logentry', 'core.view_order', 'authtoken.change_tokenproxy', 'core.change_order', 'invoices.change_invoiceitem', 'core.view_customer', 'authtoken.view_tokenproxy', 'reports.change_reportaccesslog', 'products.change_product', 'contenttypes.change_contenttype', 'users.change_customuser', 'core.delete_promotion', 'auth.change_permission', 'core.change_orderpromotion', 'products.change_category', 'reports.change_reportfile', 'core.add_companyinfo', 'core.view_orderitem', 'users.add_permissionchangelog', 'invoices.view_invoice', 'core.add_promotion', 'users.delete_insight', 'core.change_address'}
+INFO 2025-01-14 09:40:22,173 serializers 27624 140601154807360 Original input data: {'name': {'name': 'Entire Report', 'description': 'Generated on 1/14/2025, 10:40:21 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-14'}, 'description': None}
+INFO 2025-01-14 09:40:22,173 serializers 27624 140601154807360 Processed data: {'name': 'Entire Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-14'}
+INFO 2025-01-14 09:40:22,176 serializers 27624 140601154807360 Final validation passed for report: Entire Report
+DEBUG 2025-01-14 09:40:22,330 views 27624 140601154807360 Base queryset count: 210
+DEBUG 2025-01-14 10:24:53,367 views 41165 139932484007488 Base queryset count: 210
+DEBUG 2025-01-14 10:26:18,697 views 41165 139932113827392 Base queryset count: 210
+DEBUG 2025-01-14 10:27:00,956 views 41165 139932484007488 Base queryset count: 210
+DEBUG 2025-01-14 10:28:06,741 views 41165 139932467222080 Base queryset count: 210
+DEBUG 2025-01-14 10:29:21,733 views 41165 139931756230208 Base queryset count: 210
+DEBUG 2025-01-14 10:29:45,328 views 41165 139931746788928 Base queryset count: 210
+DEBUG 2025-01-14 10:30:29,004 views 41165 139931756230208 Base queryset count: 210
+DEBUG 2025-01-14 10:30:58,228 views 41165 139931746788928 Base queryset count: 210
+DEBUG 2025-01-14 10:31:33,454 views 41165 139931756230208 Base queryset count: 210
+DEBUG 2025-01-14 10:31:58,689 views 41165 139931746788928 Base queryset count: 210
+DEBUG 2025-01-14 10:41:34,463 views 41165 139932484007488 Base queryset count: 210
+DEBUG 2025-01-14 10:56:31,714 views 48866 140226370459200 Base queryset count: 210
+DEBUG 2025-01-14 10:59:08,430 views 48866 140226467886656 Base queryset count: 210
+DEBUG 2025-01-14 11:51:17,503 views 56423 139826955286080 Base queryset count: 210
+WARNING 2025-01-14 11:56:31,747 log 56423 139826295219776 Not Found: /api
+DEBUG 2025-01-14 12:09:10,604 views 60863 139759846422080 Base queryset count: 210
+DEBUG 2025-01-14 12:19:58,993 views 60863 139759204054592 Base queryset count: 210
+DEBUG 2025-01-14 12:20:24,183 views 60863 139759845373504 Base queryset count: 210
+DEBUG 2025-01-14 13:07:00,367 views 72545 139622441006656 Base queryset count: 210
+DEBUG 2025-01-14 13:07:19,956 views 72545 139621767661120 Base queryset count: 210
+DEBUG 2025-01-14 13:43:11,535 views 80426 139817510790720 Base queryset count: 210
+DEBUG 2025-01-14 13:46:55,909 views 80426 139817519183424 Base queryset count: 210
+DEBUG 2025-01-14 13:49:44,701 views 80426 139816796526144 Base queryset count: 210
+DEBUG 2025-01-14 14:23:06,846 views 90642 139676726019648 Base queryset count: 210
+DEBUG 2025-01-14 14:40:12,999 views 94715 139807304140352 Base queryset count: 210
+DEBUG 2025-01-14 14:44:41,101 views 94715 139807082669632 Base queryset count: 210
+DEBUG 2025-01-14 15:18:14,332 views 104210 140139584243264 Base queryset count: 210
+WARNING 2025-01-14 15:23:30,262 log 104210 140139212830272 Not Found: /api
+DEBUG 2025-01-14 15:28:21,960 views 106790 140403139442240 Base queryset count: 210
+DEBUG 2025-01-14 15:51:31,790 views 112457 140465102079552 Base queryset count: 210
+DEBUG 2025-01-14 16:23:46,650 views 119946 139696025892416 Base queryset count: 210
+DEBUG 2025-01-14 16:59:20,980 views 127630 140366154065472 Base queryset count: 210
+DEBUG 2025-01-14 17:00:24,974 views 127630 140366137280064 Base queryset count: 210
+DEBUG 2025-01-15 08:25:46,851 views 1227 139679231891008 Base queryset count: 210
+ERROR 2025-01-15 08:28:44,593 log 1227 139679215105600 Internal Server Error: /api/transactions/transactions/export_pdf/
+DEBUG 2025-01-15 08:29:24,558 views 1227 139679231891008 Base queryset count: 210
+DEBUG 2025-01-15 08:30:32,323 views 1227 139678598338112 Base queryset count: 210
+DEBUG 2025-01-15 08:30:38,708 views 1227 139679231891008 Base queryset count: 210
+DEBUG 2025-01-15 08:30:48,198 views 1227 139678598338112 Base queryset count: 210
+DEBUG 2025-01-15 08:30:55,903 views 1227 139679231891008 Base queryset count: 210
+DEBUG 2025-01-15 08:31:08,502 views 1227 139678598338112 Base queryset count: 210
+DEBUG 2025-01-15 08:31:18,454 views 1227 139679248676416 Base queryset count: 210
+DEBUG 2025-01-15 08:31:27,041 views 1227 139678598338112 Base queryset count: 210
+DEBUG 2025-01-15 08:31:43,028 views 1227 139678598338112 Base queryset count: 210
+DEBUG 2025-01-15 08:31:52,197 views 1227 139679248676416 Base queryset count: 210
+DEBUG 2025-01-15 09:03:46,394 views 10439 139978362537536 Base queryset count: 210
+DEBUG 2025-01-15 09:06:37,137 views 10439 139978370930240 Base queryset count: 210
+DEBUG 2025-01-15 09:13:06,186 views 10439 139978362537536 Base queryset count: 210
+DEBUG 2025-01-15 09:15:17,357 views 10439 139978134771264 Base queryset count: 210
+DEBUG 2025-01-15 09:20:21,588 views 10439 139978134771264 Base queryset count: 210
+DEBUG 2025-01-15 09:21:09,307 views 10439 139978370930240 Base queryset count: 210
+DEBUG 2025-01-15 09:22:01,576 views 10439 139978134771264 Base queryset count: 210
+DEBUG 2025-01-15 09:26:46,259 views 10439 139978370930240 Base queryset count: 210
+DEBUG 2025-01-15 09:34:55,575 views 10439 139977641645632 Base queryset count: 210
+DEBUG 2025-01-15 09:37:29,964 views 10439 139977641645632 Base queryset count: 210
+DEBUG 2025-01-15 09:38:28,628 views 10439 139977641645632 Base queryset count: 210
+DEBUG 2025-01-15 09:38:42,528 views 10439 139978134771264 Base queryset count: 210
+DEBUG 2025-01-15 09:38:51,019 views 10439 139977641645632 Base queryset count: 210
+DEBUG 2025-01-15 09:49:00,220 views 10439 139977633252928 Base queryset count: 210
+DEBUG 2025-01-15 10:20:34,027 views 29453 140155562251840 Base queryset count: 210
+DEBUG 2025-01-15 10:31:08,145 views 29453 140155545466432 Base queryset count: 210
+DEBUG 2025-01-15 10:34:33,777 views 29453 140155553859136 Base queryset count: 210
+DEBUG 2025-01-15 10:34:45,293 views 29453 140155577988672 Base queryset count: 210
+DEBUG 2025-01-15 10:36:16,349 views 29453 140154845972032 Base queryset count: 210
+DEBUG 2025-01-15 10:40:05,487 views 29453 140155577988672 Base queryset count: 210
+DEBUG 2025-01-15 10:47:32,647 views 29453 140155568547392 Base queryset count: 210
+DEBUG 2025-01-15 10:53:55,811 views 37780 139743705585216 Base queryset count: 210
+DEBUG 2025-01-15 10:59:44,872 views 37780 139743705585216 Base queryset count: 210
+DEBUG 2025-01-15 11:00:52,700 views 37780 139742999721536 Base queryset count: 210
+DEBUG 2025-01-15 12:28:58,989 views 51620 139833451435584 Base queryset count: 210
+DEBUG 2025-01-15 12:33:12,754 views 51620 139833451435584 Base queryset count: 210
+DEBUG 2025-01-15 12:43:56,775 views 51620 139833417864768 Base queryset count: 210
+DEBUG 2025-01-15 12:55:06,359 views 57971 140395501581888 Base queryset count: 210
+DEBUG 2025-01-15 13:00:24,966 views 57971 140395579397696 Base queryset count: 210
+DEBUG 2025-01-15 13:00:35,716 views 57971 140394856891968 Base queryset count: 210
+DEBUG 2025-01-15 13:00:44,864 views 57971 140395579397696 Base queryset count: 210
+DEBUG 2025-01-15 13:26:11,183 views 64583 140451797526080 Base queryset count: 210
+DEBUG 2025-01-15 13:28:24,615 views 64583 140451772347968 Base queryset count: 210
+DEBUG 2025-01-15 13:51:13,816 views 71384 140063572747840 Base queryset count: 210
+DEBUG 2025-01-15 13:54:45,885 views 71384 140063572747840 Base queryset count: 210
+DEBUG 2025-01-15 13:58:16,336 views 71384 140062842943040 Base queryset count: 210
+DEBUG 2025-01-15 13:58:26,171 views 71384 140063555962432 Base queryset count: 210
+DEBUG 2025-01-15 14:05:56,624 views 71384 140063562257984 Base queryset count: 210
+DEBUG 2025-01-15 14:07:13,279 views 71384 140063562257984 Base queryset count: 210
+DEBUG 2025-01-15 14:17:30,569 views 71384 140063562257984 Base queryset count: 210
+DEBUG 2025-01-15 14:20:36,836 views 71384 140062826157632 Base queryset count: 210
+DEBUG 2025-01-15 14:29:58,438 views 71384 140063562257984 Base queryset count: 210
+DEBUG 2025-01-15 14:31:17,995 views 71384 140063562257984 Base queryset count: 210
+DEBUG 2025-01-15 14:31:26,672 views 71384 140062842943040 Base queryset count: 210
+WARNING 2025-01-15 14:31:49,939 log 71384 140063562257984 Not Found: /api
+DEBUG 2025-01-15 14:34:33,760 views 71384 140062842943040 Base queryset count: 210
+DEBUG 2025-01-15 14:50:49,596 views 71384 140062834550336 Base queryset count: 210
+DEBUG 2025-01-15 14:59:18,755 views 88630 140702699644480 Base queryset count: 210
+DEBUG 2025-01-15 15:01:53,848 views 88630 140702708037184 Base queryset count: 210
+DEBUG 2025-01-15 15:13:26,684 views 92126 139967405745728 Base queryset count: 210
+DEBUG 2025-01-15 15:14:34,071 views 92126 139967414138432 Base queryset count: 210
+DEBUG 2025-01-15 15:14:41,989 views 92126 139967380567616 Base queryset count: 210
+DEBUG 2025-01-15 15:14:49,934 views 92126 139966762722880 Base queryset count: 210
+DEBUG 2025-01-15 15:37:55,387 views 97813 140353545127488 Base queryset count: 210
+DEBUG 2025-01-15 17:39:39,643 views 112519 139774667863616 Base queryset count: 210
+DEBUG 2025-01-15 17:39:51,192 views 112519 139774642685504 Base queryset count: 210
+DEBUG 2025-01-15 17:46:46,370 views 112519 139774667863616 Base queryset count: 210
+DEBUG 2025-01-15 17:48:32,403 views 112519 139774642685504 Base queryset count: 210
+DEBUG 2025-01-15 17:51:06,069 views 112519 139774651078208 Base queryset count: 210
+DEBUG 2025-01-15 17:55:32,373 views 112519 139774659470912 Base queryset count: 210
+DEBUG 2025-01-15 17:56:34,218 views 112519 139774667863616 Base queryset count: 210
+DEBUG 2025-01-15 17:59:07,350 views 112519 139774659470912 Base queryset count: 210
+DEBUG 2025-01-15 18:01:02,858 views 112519 139774667863616 Base queryset count: 210
+INFO 2025-01-15 18:07:03,124 views 112519 139774642685504 Create Report Request Details:
+INFO 2025-01-15 18:07:03,125 views 112519 139774642685504 User: kennyd
+INFO 2025-01-15 18:07:03,125 views 112519 139774642685504 Request Data: {'name': {'name': 'The Entire Report', 'description': 'Generated on 1/15/2025, 7:07:02 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-15'}, 'description': None}
+INFO 2025-01-15 18:07:03,876 views 112519 139774642685504 User Permissions: {'products.change_productimage', 'users.add_userpreference', 'users.delete', 'core.view_address', 'authtoken.delete_token', 'reports.delete_calculatedfield', 'core.change_address', 'authtoken.add_tokenproxy', 'invoices.view_invoiceitem', 'reports.view_reportaccesslog', 'invoices.view_invoice', 'auth.delete_permission', 'core.delete_order', 'transactions.delete_transaction', 'products.add_product', 'core.add_companyinfo', 'users.change_userpreference', 'admin.change_logentry', 'reports.add_reportfile', 'core.add_product', 'reports.change_reportfile', 'users.change_role', 'admin.add_logentry', 'core.view_visit', 'core.change_customer', 'invoices.change_invoice', 'products.delete_review', 'auth.view_group', 'users.change_insight', 'users.change_permissionchangelog', 'core.add_order', 'users.add_insight', 'core.view_orderpromotion', 'core.add_orderpromotion', 'products.view_productimage', 'users.view_role', 'core.add_promotion', 'users.add_permission', 'users.delete_role', 'core.delete_orderpromotion', 'users.delete_customuser', 'core.change_visit', 'reports.delete_reportfile', 'core.add_visit', 'core.view_order', 'core.delete_product', 'users.view_permissionchangelog', 'invoices.change_invoiceitem', 'products.change_review', 'reports.change_reportentry', 'sessions.delete_session', 'authtoken.change_token', 'reports.view_reportfile', 'invoices.delete_invoice', 'reports.add_calculatedfield', 'stock_adjustments.delete_stockadjustment', 'reports.delete_reportaccesslog', 'core.add_customer', 'core.delete_orderitem', 'core.delete_address', 'products.add_review', 'users.create', 'core.view_promotion', 'users.change_customuser', 'core.delete_customer', 'reports.view_calculatedfield', 'auth.view_permission', 'transactions.view_transaction', 'stock_adjustments.view_stockadjustment', 'authtoken.change_tokenproxy', 'stock_adjustments.add_stockadjustment', 'users.delete_userpreference', 'transactions.add_transaction', 'products.add_category', 'core.add_address', 'products.delete_productimage', 'users.change_permissionauditlog', 'core.view_companyinfo', 'products.delete_category', 'users.change_permission', 'reports.delete_report', 'core.view_customer', 'sessions.change_session', 'core.view_orderitem', 'auth.add_group', 'sessions.add_session', 'authtoken.view_token', 'users.view_userpreference', 'reports.add_reportaccesslog', 'products.change_category', 'auth.add_permission', 'users.delete_permissionauditlog', 'core.change_orderpromotion', 'core.change_product', 'auth.change_permission', 'contenttypes.add_contenttype', 'core.delete_promotion', 'users.view_customuser', 'authtoken.delete_tokenproxy', 'products.view_review', 'products.view_category', 'products.add_productimage', 'users.view_all', 'core.view_product', 'reports.view_reportentry', 'core.delete_companyinfo', 'contenttypes.delete_contenttype', 'auth.delete_group', 'reports.change_report', 'products.view_product', 'users.view', 'reports.view_report', 'users.view_permissionauditlog', 'admin.delete_logentry', 'transactions.change_transaction', 'authtoken.view_tokenproxy', 'reports.change_calculatedfield', 'auth.change_group', 'core.delete_visit', 'users.edit', 'users.delete_insight', 'core.change_orderitem', 'users.analytics_access', 'products.change_product', 'reports.change_reportaccesslog', 'core.change_companyinfo', 'users.view_permission', 'admin.view_logentry', 'core.add_orderitem', 'sessions.view_session', 'users.full_access', 'reports.add_report', 'stock_adjustments.change_stockadjustment', 'users.view_insight', 'users.add_role', 'core.change_promotion', 'invoices.add_invoiceitem', 'users.add_permissionchangelog', 'reports.delete_reportentry', 'users.add_customuser', 'invoices.add_invoice', 'invoices.delete_invoiceitem', 'authtoken.add_token', 'core.change_order', 'users.delete_permissionchangelog', 'users.add_permissionauditlog', 'products.delete_product', 'users.delete_permission', 'reports.add_reportentry', 'contenttypes.view_contenttype', 'contenttypes.change_contenttype'}
+INFO 2025-01-15 18:07:03,877 serializers 112519 139774642685504 Original input data: {'name': {'name': 'The Entire Report', 'description': 'Generated on 1/15/2025, 7:07:02 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-15'}, 'description': None}
+INFO 2025-01-15 18:07:03,877 serializers 112519 139774642685504 Processed data: {'name': 'The Entire Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-15'}
+INFO 2025-01-15 18:07:03,880 serializers 112519 139774642685504 Final validation passed for report: The Entire Report
+DEBUG 2025-01-15 18:07:04,121 views 112519 139774642685504 Base queryset count: 211
+DEBUG 2025-01-15 18:12:20,098 views 112519 139774642685504 Base queryset count: 211
+DEBUG 2025-01-15 18:15:28,745 views 112519 139774642685504 Base queryset count: 211
+DEBUG 2025-01-15 18:16:16,316 views 112519 139774651078208 Base queryset count: 211
+DEBUG 2025-01-16 07:31:58,908 views 2061 140303124354624 Base queryset count: 211
+INFO 2025-01-16 07:37:17,890 views 2061 140302891349568 Create Report Request Details:
+INFO 2025-01-16 07:37:17,891 views 2061 140302891349568 User: kennyd
+INFO 2025-01-16 07:37:17,893 views 2061 140302891349568 Request Data: {'name': {'name': 'The Entire Report', 'description': 'Generated on 1/16/2025, 8:37:17 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-16'}, 'description': None}
+INFO 2025-01-16 07:37:17,939 views 2061 140302891349568 User Permissions: {'core.view_customer', 'products.view_product', 'auth.view_group', 'users.delete_role', 'products.change_productimage', 'products.add_product', 'sessions.change_session', 'products.delete_category', 'users.delete_permissionauditlog', 'users.delete_userpreference', 'core.change_companyinfo', 'transactions.delete_transaction', 'authtoken.add_tokenproxy', 'core.change_customer', 'users.change_permissionchangelog', 'core.add_address', 'authtoken.change_token', 'auth.add_group', 'core.view_product', 'reports.view_reportaccesslog', 'admin.change_logentry', 'reports.delete_report', 'users.delete_insight', 'products.view_productimage', 'users.delete', 'users.view_customuser', 'users.add_permissionchangelog', 'users.change_permission', 'transactions.change_transaction', 'users.view_permission', 'reports.delete_calculatedfield', 'reports.add_reportfile', 'core.delete_product', 'users.add_customuser', 'reports.change_reportfile', 'stock_adjustments.add_stockadjustment', 'core.delete_promotion', 'stock_adjustments.delete_stockadjustment', 'products.delete_review', 'invoices.view_invoice', 'core.add_orderitem', 'core.view_address', 'users.add_role', 'transactions.add_transaction', 'reports.delete_reportentry', 'core.view_companyinfo', 'core.delete_orderitem', 'core.view_order', 'core.add_product', 'users.change_userpreference', 'admin.add_logentry', 'invoices.change_invoiceitem', 'core.change_product', 'admin.delete_logentry', 'reports.view_report', 'authtoken.view_token', 'reports.delete_reportfile', 'transactions.view_transaction', 'users.change_insight', 'core.add_promotion', 'auth.delete_permission', 'contenttypes.delete_contenttype', 'auth.delete_group', 'invoices.view_invoiceitem', 'core.add_orderpromotion', 'authtoken.delete_token', 'core.view_orderitem', 'core.view_promotion', 'reports.view_calculatedfield', 'reports.change_report', 'users.analytics_access', 'core.delete_address', 'stock_adjustments.change_stockadjustment', 'reports.change_reportentry', 'authtoken.delete_tokenproxy', 'core.delete_orderpromotion', 'contenttypes.add_contenttype', 'products.change_product', 'reports.view_reportentry', 'core.change_order', 'core.change_orderpromotion', 'users.add_permissionauditlog', 'core.delete_visit', 'admin.view_logentry', 'core.view_orderpromotion', 'invoices.delete_invoiceitem', 'users.delete_permission', 'users.change_role', 'reports.change_calculatedfield', 'users.view', 'core.change_orderitem', 'core.add_visit', 'core.add_order', 'invoices.add_invoice', 'products.add_category', 'products.add_productimage', 'users.delete_customuser', 'invoices.change_invoice', 'invoices.delete_invoice', 'products.delete_productimage', 'reports.delete_reportaccesslog', 'users.view_permissionchangelog', 'core.add_companyinfo', 'auth.change_group', 'reports.change_reportaccesslog', 'authtoken.add_token', 'reports.add_reportaccesslog', 'users.change_permissionauditlog', 'products.view_review', 'core.delete_customer', 'auth.add_permission', 'reports.add_calculatedfield', 'users.delete_permissionchangelog', 'reports.view_reportfile', 'authtoken.change_tokenproxy', 'core.delete_companyinfo', 'users.view_role', 'sessions.view_session', 'products.change_review', 'users.view_permissionauditlog', 'users.create', 'users.view_all', 'core.change_visit', 'core.add_customer', 'contenttypes.view_contenttype', 'users.full_access', 'reports.add_report', 'stock_adjustments.view_stockadjustment', 'invoices.add_invoiceitem', 'users.add_userpreference', 'users.view_insight', 'users.view_userpreference', 'sessions.add_session', 'users.add_permission', 'sessions.delete_session', 'contenttypes.change_contenttype', 'users.edit', 'auth.change_permission', 'auth.view_permission', 'products.view_category', 'products.delete_product', 'core.view_visit', 'reports.add_reportentry', 'users.change_customuser', 'users.add_insight', 'products.add_review', 'products.change_category', 'core.change_promotion', 'core.change_address', 'authtoken.view_tokenproxy', 'core.delete_order'}
+INFO 2025-01-16 07:37:17,940 serializers 2061 140302891349568 Original input data: {'name': {'name': 'The Entire Report', 'description': 'Generated on 1/16/2025, 8:37:17 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-16'}, 'description': None}
+INFO 2025-01-16 07:37:17,940 serializers 2061 140302891349568 Processed data: {'name': 'The Entire Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-16'}
+INFO 2025-01-16 07:37:17,943 serializers 2061 140302891349568 Final validation passed for report: The Entire Report
+DEBUG 2025-01-16 07:37:18,104 views 2061 140302891349568 Base queryset count: 212
+DEBUG 2025-01-16 08:02:18,286 views 9859 140556056610368 Base queryset count: 212
+DEBUG 2025-01-16 08:16:41,180 views 9859 140556056610368 Base queryset count: 212
+DEBUG 2025-01-16 08:27:41,697 views 9859 140556039824960 Base queryset count: 212
+DEBUG 2025-01-16 08:53:26,301 views 9859 140556056610368 Base queryset count: 212
+DEBUG 2025-01-16 08:56:02,967 views 9859 140556039824960 Base queryset count: 212
+DEBUG 2025-01-16 09:08:32,462 views 9859 140556039824960 Base queryset count: 212
+DEBUG 2025-01-16 09:19:07,269 views 9859 140556056610368 Base queryset count: 212
+DEBUG 2025-01-16 09:24:59,542 views 9859 140555690440256 Base queryset count: 212
+DEBUG 2025-01-16 09:51:13,034 views 9859 140555690440256 Base queryset count: 212
+DEBUG 2025-01-16 10:10:54,510 views 9859 140555690440256 Base queryset count: 212
+DEBUG 2025-01-16 10:12:33,126 views 9859 140555690440256 Base queryset count: 212
+DEBUG 2025-01-16 10:16:04,832 views 9859 140555690440256 Base queryset count: 212
+DEBUG 2025-01-16 10:18:39,084 views 9859 140555335702080 Base queryset count: 212
+DEBUG 2025-01-16 10:21:47,798 views 9859 140556065003072 Base queryset count: 212
+DEBUG 2025-01-16 10:32:16,074 views 9859 140556039824960 Base queryset count: 212
+DEBUG 2025-01-16 10:57:41,620 views 53241 139642548540992 Base queryset count: 212
+DEBUG 2025-01-16 11:00:46,351 views 53241 139642548540992 Base queryset count: 212
+DEBUG 2025-01-16 11:03:20,336 views 53241 139642565326400 Base queryset count: 212
+DEBUG 2025-01-16 12:02:24,282 views 65052 140411987506752 Base queryset count: 212
+DEBUG 2025-01-16 12:14:21,580 views 67938 140435078202944 Base queryset count: 212
+DEBUG 2025-01-16 12:15:17,532 views 67938 140435051976256 Base queryset count: 212
+DEBUG 2025-01-16 12:18:36,316 views 67938 140435069810240 Base queryset count: 212
+DEBUG 2025-01-16 12:43:15,701 views 75079 140270358447680 Base queryset count: 212
+DEBUG 2025-01-16 12:53:09,806 views 75079 140269636183616 Base queryset count: 212
+DEBUG 2025-01-16 12:59:32,920 views 75079 140269636183616 Base queryset count: 212
+DEBUG 2025-01-16 13:27:55,850 views 75079 140270358447680 Base queryset count: 212
+DEBUG 2025-01-16 13:48:14,619 views 90940 139686518670912 Base queryset count: 212
+DEBUG 2025-01-16 13:55:24,847 views 92666 140575084901952 Base queryset count: 212
+DEBUG 2025-01-16 14:01:08,862 views 92666 140575163766336 Base queryset count: 212
+DEBUG 2025-01-16 14:01:20,678 views 92666 140574346704448 Base queryset count: 212
+DEBUG 2025-01-16 14:01:31,892 views 92666 140575163766336 Base queryset count: 212
+DEBUG 2025-01-16 14:01:44,036 views 92666 140574346704448 Base queryset count: 212
+DEBUG 2025-01-16 14:22:01,051 views 99136 139906579936832 Base queryset count: 212
+DEBUG 2025-01-16 14:43:43,483 views 99136 139906605114944 Base queryset count: 212
+DEBUG 2025-01-16 14:51:08,776 views 99136 139906613507648 Base queryset count: 212
+DEBUG 2025-01-16 14:53:48,582 views 99136 139906605114944 Base queryset count: 212
+DEBUG 2025-01-16 14:57:20,029 views 99136 139906605114944 Base queryset count: 212
+DEBUG 2025-01-16 15:02:30,365 views 99136 139905885300288 Base queryset count: 212
+DEBUG 2025-01-16 15:27:02,838 views 99136 139905893692992 Base queryset count: 212
+DEBUG 2025-01-16 15:27:27,323 views 99136 139906596722240 Base queryset count: 212
+DEBUG 2025-01-16 15:32:01,493 views 99136 139905860122176 Base queryset count: 212
+DEBUG 2025-01-16 15:33:07,385 views 99136 139905876907584 Base queryset count: 212
+DEBUG 2025-01-16 15:38:15,827 views 99136 139906613507648 Base queryset count: 212
+DEBUG 2025-01-16 15:51:47,884 views 99136 139906605114944 Base queryset count: 212
+DEBUG 2025-01-16 15:54:17,303 views 99136 139905860122176 Base queryset count: 212
+DEBUG 2025-01-16 15:58:17,366 views 99136 139905860122176 Base queryset count: 212
+DEBUG 2025-01-16 16:08:30,975 views 99136 139905885300288 Base queryset count: 212
+DEBUG 2025-01-16 16:09:35,345 views 99136 139906605114944 Base queryset count: 212
+DEBUG 2025-01-16 16:13:19,527 views 99136 139906605114944 Base queryset count: 212
+DEBUG 2025-01-16 16:27:17,602 views 99136 139905876907584 Base queryset count: 212
+DEBUG 2025-01-16 16:32:12,811 views 99136 139906605114944 Base queryset count: 212
+DEBUG 2025-01-16 16:41:38,440 views 99136 139906596722240 Base queryset count: 212
+DEBUG 2025-01-16 17:05:07,855 views 99136 139905860122176 Base queryset count: 212
+DEBUG 2025-01-16 17:11:07,896 views 99136 139905860122176 Base queryset count: 212
+DEBUG 2025-01-16 17:13:24,322 views 99136 139905860122176 Base queryset count: 212
+DEBUG 2025-01-16 17:14:43,884 views 99136 139905885300288 Base queryset count: 212
+DEBUG 2025-01-17 07:39:08,312 views 4693 139665155814976 Base queryset count: 212
+DEBUG 2025-01-17 07:44:02,256 views 4693 139665373087296 Base queryset count: 212
+DEBUG 2025-01-17 07:44:10,690 views 4693 139665155814976 Base queryset count: 212
+DEBUG 2025-01-17 07:44:27,801 views 4693 139664650667584 Base queryset count: 212
+DEBUG 2025-01-17 07:44:39,882 views 4693 139665155814976 Base queryset count: 212
+DEBUG 2025-01-17 07:45:27,085 views 4693 139664650667584 Base queryset count: 212
+DEBUG 2025-01-17 08:37:17,042 views 18912 140454271153728 Base queryset count: 212
+DEBUG 2025-01-17 08:43:05,697 views 18912 140454237582912 Base queryset count: 212
+DEBUG 2025-01-17 08:45:46,931 views 18912 140454271153728 Base queryset count: 212
+DEBUG 2025-01-17 08:48:45,112 views 18912 140454237582912 Base queryset count: 212
+DEBUG 2025-01-17 08:58:15,007 views 24103 139877869110848 Base queryset count: 212
+DEBUG 2025-01-17 09:04:32,378 views 24103 139877869110848 Base queryset count: 212
+DEBUG 2025-01-17 09:11:27,844 views 27370 140665673475648 Base queryset count: 212
+DEBUG 2025-01-17 09:13:23,344 views 27370 140665665082944 Base queryset count: 212
+DEBUG 2025-01-17 09:14:38,839 views 27370 140665027561024 Base queryset count: 212
+DEBUG 2025-01-17 09:49:50,443 views 36183 140101404542528 Base queryset count: 212
+DEBUG 2025-01-17 10:04:09,858 views 38956 139917255722560 Base queryset count: 212
+DEBUG 2025-01-17 10:26:06,083 views 44556 140337033201216 Base queryset count: 212
+DEBUG 2025-01-17 10:53:52,602 views 51767 140545748887104 Base queryset count: 212
+DEBUG 2025-01-17 10:59:05,685 views 51767 140545740494400 Base queryset count: 212
+DEBUG 2025-01-17 11:53:45,434 views 61212 140327216432704 Base queryset count: 212
+DEBUG 2025-01-17 11:58:17,493 views 61212 140327208040000 Base queryset count: 212
+DEBUG 2025-01-17 12:13:57,063 views 66060 139868639544896 Base queryset count: 212
+DEBUG 2025-01-17 12:36:58,702 views 71229 140335515510336 Base queryset count: 212
+DEBUG 2025-01-17 12:38:33,405 views 71229 140335304930880 Base queryset count: 212
+DEBUG 2025-01-17 12:39:48,823 views 71229 140335287096896 Base queryset count: 212
+DEBUG 2025-01-17 12:45:49,778 views 73685 139874280695360 Base queryset count: 212
+WARNING 2025-01-17 12:48:03,463 log 73685 139873566570048 Not Found: /api
+DEBUG 2025-01-17 12:59:19,971 views 76994 140596266124864 Base queryset count: 212
+DEBUG 2025-01-17 12:59:47,570 views 76994 140596274517568 Base queryset count: 212
+DEBUG 2025-01-17 13:06:37,117 views 78664 139897781569088 Base queryset count: 212
+DEBUG 2025-01-17 13:06:57,735 views 78664 139897789961792 Base queryset count: 212
+DEBUG 2025-01-17 13:10:11,492 views 78664 139897772127808 Base queryset count: 212
+DEBUG 2025-01-17 13:11:06,980 views 78664 139897789961792 Base queryset count: 212
+DEBUG 2025-01-17 13:18:33,745 views 78664 139897064568384 Base queryset count: 212
+DEBUG 2025-01-17 13:19:29,295 views 78664 139897772127808 Base queryset count: 212
+DEBUG 2025-01-17 13:45:25,040 views 78664 139897056175680 Base queryset count: 212
+DEBUG 2025-01-17 13:57:36,059 views 78664 139897064568384 Base queryset count: 212
+DEBUG 2025-01-17 14:04:09,163 views 78664 139897781569088 Base queryset count: 212
+DEBUG 2025-01-17 14:33:18,337 views 78664 139897772127808 Base queryset count: 212
+DEBUG 2025-01-17 14:34:11,161 views 78664 139897763735104 Base queryset count: 212
+DEBUG 2025-01-17 14:35:16,336 views 78664 139897781569088 Base queryset count: 212
+DEBUG 2025-01-17 14:36:08,812 views 78664 139897789961792 Base queryset count: 212
+DEBUG 2025-01-17 14:41:58,381 views 78664 139897064568384 Base queryset count: 212
+DEBUG 2025-01-17 14:42:06,075 views 78664 139897789961792 Base queryset count: 212
+DEBUG 2025-01-17 14:53:25,218 views 78664 139897056175680 Base queryset count: 212
+DEBUG 2025-01-17 15:10:35,075 views 78664 139897781569088 Base queryset count: 212
+DEBUG 2025-01-17 15:14:07,564 views 78664 139897047782976 Base queryset count: 212
+DEBUG 2025-01-17 15:15:45,795 views 78664 139897789961792 Base queryset count: 212
+DEBUG 2025-01-17 15:20:17,031 views 78664 139897781569088 Base queryset count: 212
+DEBUG 2025-01-17 15:25:34,512 views 78664 139897789961792 Base queryset count: 212
+DEBUG 2025-01-17 15:27:06,000 views 78664 139897064568384 Base queryset count: 212
+DEBUG 2025-01-17 15:29:07,261 views 78664 139897772127808 Base queryset count: 212
+DEBUG 2025-01-17 15:30:10,243 views 78664 139897781569088 Base queryset count: 212
+DEBUG 2025-01-17 15:31:26,514 views 78664 139897772127808 Base queryset count: 212
+DEBUG 2025-01-17 15:31:38,110 views 78664 139897763735104 Base queryset count: 212
+DEBUG 2025-01-17 15:39:16,490 views 78664 139897047782976 Base queryset count: 212
+DEBUG 2025-01-17 17:28:09,173 views 137737 140118409082432 Base queryset count: 212
+DEBUG 2025-01-17 17:43:28,995 views 142290 140438838396480 Base queryset count: 212
+DEBUG 2025-01-17 17:55:48,874 views 145263 140400820176448 Base queryset count: 212
+DEBUG 2025-01-17 17:56:49,439 views 145263 140400601855552 Base queryset count: 212
+INFO 2025-01-17 18:05:14,935 views 145263 140400105911872 Create Report Request Details:
+INFO 2025-01-17 18:05:14,935 views 145263 140400105911872 User: kennyd
+INFO 2025-01-17 18:05:14,936 views 145263 140400105911872 Request Data: {'name': {'name': 'Oct to Jan Report', 'description': 'Generated on 1/17/2025, 7:05:14 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-17'}, 'description': None}
+INFO 2025-01-17 18:05:16,156 views 145263 140400105911872 User Permissions: {'core.delete_product', 'products.delete_product', 'auth.change_group', 'users.add_role', 'core.delete_visit', 'users.edit', 'core.change_customer', 'invoices.view_invoice', 'transactions.change_transaction', 'users.add_permissionauditlog', 'transactions.add_transaction', 'reports.view_reportfile', 'users.view_customuser', 'users.delete_permissionauditlog', 'users.view', 'core.add_visit', 'core.view_orderitem', 'core.delete_customer', 'sessions.view_session', 'auth.delete_permission', 'users.full_access', 'stock_adjustments.delete_stockadjustment', 'products.change_productimage', 'sessions.add_session', 'users.change_permissionchangelog', 'core.change_companyinfo', 'authtoken.change_tokenproxy', 'products.add_review', 'users.add_permissionchangelog', 'stock_adjustments.view_stockadjustment', 'products.delete_productimage', 'users.change_customuser', 'users.delete_permission', 'core.change_product', 'users.view_permissionchangelog', 'users.delete_role', 'products.view_review', 'products.add_product', 'users.view_userpreference', 'reports.view_reportaccesslog', 'core.add_customer', 'core.view_customer', 'core.add_order', 'reports.change_calculatedfield', 'users.change_role', 'products.delete_category', 'core.add_address', 'users.add_permission', 'core.delete_address', 'reports.delete_reportentry', 'core.view_order', 'authtoken.add_token', 'core.change_address', 'reports.delete_reportaccesslog', 'reports.change_reportaccesslog', 'products.add_productimage', 'core.add_companyinfo', 'core.add_orderitem', 'core.delete_orderpromotion', 'reports.change_reportfile', 'authtoken.view_tokenproxy', 'core.delete_promotion', 'authtoken.add_tokenproxy', 'core.change_order', 'core.view_address', 'contenttypes.add_contenttype', 'products.delete_review', 'core.add_product', 'auth.delete_group', 'core.add_promotion', 'admin.delete_logentry', 'invoices.view_invoiceitem', 'users.delete_customuser', 'auth.add_group', 'authtoken.change_token', 'contenttypes.change_contenttype', 'products.change_review', 'products.view_category', 'users.delete_userpreference', 'users.change_permissionauditlog', 'users.view_all', 'core.view_companyinfo', 'products.change_product', 'transactions.delete_transaction', 'core.change_visit', 'authtoken.view_token', 'admin.change_logentry', 'admin.view_logentry', 'users.analytics_access', 'transactions.view_transaction', 'contenttypes.delete_contenttype', 'reports.add_reportfile', 'core.delete_order', 'core.view_product', 'invoices.delete_invoice', 'reports.add_calculatedfield', 'products.add_category', 'users.change_permission', 'core.view_promotion', 'users.delete', 'authtoken.delete_token', 'core.view_orderpromotion', 'invoices.change_invoice', 'users.add_insight', 'users.view_permissionauditlog', 'admin.add_logentry', 'users.delete_insight', 'users.add_customuser', 'core.delete_orderitem', 'products.view_product', 'core.change_orderpromotion', 'reports.change_reportentry', 'reports.view_calculatedfield', 'reports.add_reportentry', 'core.change_orderitem', 'invoices.change_invoiceitem', 'invoices.add_invoice', 'stock_adjustments.change_stockadjustment', 'reports.add_reportaccesslog', 'users.view_role', 'auth.add_permission', 'reports.view_report', 'reports.delete_reportfile', 'users.change_userpreference', 'core.delete_companyinfo', 'sessions.delete_session', 'users.create', 'core.change_promotion', 'reports.delete_calculatedfield', 'core.add_orderpromotion', 'auth.change_permission', 'reports.view_reportentry', 'users.change_insight', 'users.add_userpreference', 'users.delete_permissionchangelog', 'invoices.add_invoiceitem', 'core.view_visit', 'products.change_category', 'reports.add_report', 'contenttypes.view_contenttype', 'users.view_insight', 'products.view_productimage', 'reports.change_report', 'sessions.change_session', 'authtoken.delete_tokenproxy', 'auth.view_permission', 'users.view_permission', 'invoices.delete_invoiceitem', 'stock_adjustments.add_stockadjustment', 'reports.delete_report', 'auth.view_group'}
+INFO 2025-01-17 18:05:16,157 serializers 145263 140400105911872 Original input data: {'name': {'name': 'Oct to Jan Report', 'description': 'Generated on 1/17/2025, 7:05:14 PM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-17'}, 'description': None}
+INFO 2025-01-17 18:05:16,158 serializers 145263 140400105911872 Processed data: {'name': 'Oct to Jan Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-17'}
+INFO 2025-01-17 18:05:16,162 serializers 145263 140400105911872 Final validation passed for report: Oct to Jan Report
+DEBUG 2025-01-17 18:05:16,440 views 145263 140400105911872 Base queryset count: 213
+DEBUG 2025-01-17 18:06:21,837 views 145263 140400105911872 Base queryset count: 213
+INFO 2025-01-17 18:06:21,855 views 145263 140400105911872 Generating email report for period: 2024-10-01 to 2025-01-17
+INFO 2025-01-17 18:06:21,874 utils 145263 140400105911872 Processing report email for period: 2024-10-01 to 2025-01-17
+INFO 2025-01-17 18:06:21,876 utils 145263 140400105911872 Generating report for period: 2024-10-01 to 2025-01-17
+INFO 2025-01-17 18:06:22,021 utils 145263 140400105911872 Email report data for 213: Total Revenue: $9400.00
+INFO 2025-01-17 18:06:22,023 utils 145263 140400105911872 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-17 18:06:22,026 utils 145263 140400105911872 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-17 18:06:22,027 utils 145263 140400105911872 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-17 18:06:22,078 utils 145263 140400105911872 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-17 18:06:22,079 utils 145263 140400105911872 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-17 18:06:22,106 utils 145263 140400105911872 No low stock products found
+INFO 2025-01-17 18:06:22,107 utils 145263 140400105911872 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+INFO 2025-01-17 18:06:22,249 utils 145263 140400105911872 Generating report for period: 2024-10-01 to 2025-01-17
+INFO 2025-01-17 18:06:22,343 utils 145263 140400105911872 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-17 18:06:22,344 utils 145263 140400105911872 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-17 18:06:22,344 utils 145263 140400105911872 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-17 18:06:22,358 utils 145263 140400105911872 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-17 18:06:22,359 utils 145263 140400105911872 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-17 18:06:22,375 utils 145263 140400105911872 No low stock products found
+INFO 2025-01-17 18:06:22,376 utils 145263 140400105911872 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-17 18:12:22,631 views 145263 140400105911872 Starting PDF generation for report 213
+DEBUG 2025-01-17 18:12:22,631 views 145263 140400105911872 User: kennyd
+DEBUG 2025-01-17 18:12:22,632 views 145263 140400105911872 Query parameters: <QueryDict: {'start_date': ['2024-10-01'], 'end_date': ['2025-01-17']}>
+DEBUG 2025-01-17 18:12:22,639 views 145263 140400105911872 Base queryset count: 213
+DEBUG 2025-01-17 18:12:22,657 views 145263 140400105911872 Base queryset count: 213
+DEBUG 2025-01-17 18:12:22,662 views 145263 140400105911872 Retrieved report: 213
+DEBUG 2025-01-17 18:12:22,663 views 145263 140400105911872 Date range: 2024-10-01 to 2025-01-17
+INFO 2025-01-17 18:12:22,664 utils 145263 140400105911872 Generating report for period: 2024-10-01 to 2025-01-17
+INFO 2025-01-17 18:12:22,768 utils 145263 140400105911872 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-17 18:12:22,768 utils 145263 140400105911872 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-17 18:12:22,769 utils 145263 140400105911872 Category data being passed to chart: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+INFO 2025-01-17 18:12:22,778 utils 145263 140400105911872 Income breakdown data: [{'category': 'Other', 'total_amount': Decimal('400.00'), 'transaction_count': 2}, {'category': 'Income', 'total_amount': Decimal('200.00'), 'transaction_count': 1}, {'category': 'Uncategorized Income', 'total_amount': Decimal('8800.00'), 'transaction_count': 12}]
+INFO 2025-01-17 18:12:22,778 utils 145263 140400105911872 Formatted category data: [{'category': 'Other', 'total_amount': 400.0}, {'category': 'Income', 'total_amount': 200.0}, {'category': 'Uncategorized Income', 'total_amount': 8800.0}]
+WARNING 2025-01-17 18:12:22,785 utils 145263 140400105911872 No low stock products found
+INFO 2025-01-17 18:12:22,786 utils 145263 140400105911872 Prepared inventory data: {'product_categories': ['No Low Stock Items'], 'stock_levels': [[0]]}
+DEBUG 2025-01-18 08:48:35,221 views 4480 140090584286784 Base queryset count: 213
+DEBUG 2025-01-18 08:54:06,024 views 4480 140090567501376 Base queryset count: 213
+WARNING 2025-01-18 09:57:23,911 log 19927 139650627069504 Not Found: /api/password-reset-request/
+WARNING 2025-01-18 10:02:06,974 log 19927 139650627069504 Not Found: /api/api/password-reset-request/
+WARNING 2025-01-18 10:18:27,920 log 25714 140497431881280 Not Found: /api/password-reset-request/
+WARNING 2025-01-18 10:21:47,542 log 25714 140497431881280 Not Found: /api/password-reset-request/
+WARNING 2025-01-18 10:35:14,166 log 29759 140016747869760 Bad Request: /api/users/password-reset-request/
+WARNING 2025-01-18 10:37:51,110 log 29759 140016747869760 Bad Request: /api/users/password-reset-request/
+ERROR 2025-01-18 10:42:54,731 log 29759 140016747869760 Internal Server Error: /api/users/register/
+ERROR 2025-01-18 10:49:34,006 log 29759 140016747869760 Internal Server Error: /api/users/register/
+WARNING 2025-01-18 10:56:59,466 log 34967 139814683362880 Forbidden: /api/users/register/
+WARNING 2025-01-18 11:59:03,229 log 45143 140606986360384 Forbidden: /api/users/register/
+WARNING 2025-01-18 13:04:05,709 log 60923 139999673185856 Forbidden: /api/users/register/
+WARNING 2025-01-18 13:21:50,752 log 65120 140215722399296 Not Found: /api
+WARNING 2025-01-18 13:24:15,150 log 65120 140215722399296 Forbidden: /api/stock_adjustments/stock_adjustments/
+WARNING 2025-01-18 13:24:15,153 log 65120 140215722399296 Forbidden: /api/stock_adjustments/stock_adjustments/get_adjustment_types/
+WARNING 2025-01-18 13:24:15,199 log 65120 140215722399296 Forbidden: /api/products/products/
+WARNING 2025-01-18 14:02:24,973 log 73450 139855944029760 Not Found: /api
+DEBUG 2025-01-18 14:15:26,148 views 73450 139855901017664 Base queryset count: 213
+DEBUG 2025-01-18 14:16:55,182 views 73450 139855901017664 Base queryset count: 213
+DEBUG 2025-01-18 14:17:45,030 views 73450 139856360724032 Base queryset count: 213
+DEBUG 2025-01-18 14:31:50,848 views 73450 139855934588480 Base queryset count: 213
+DEBUG 2025-01-18 14:38:58,009 views 73450 139855917803072 Base queryset count: 213
+DEBUG 2025-01-18 14:41:58,327 views 73450 139855934588480 Base queryset count: 213
+DEBUG 2025-01-18 14:43:19,629 views 73450 139855917803072 Base queryset count: 213
+DEBUG 2025-01-18 15:04:06,511 views 73450 139855934588480 Base queryset count: 213
+DEBUG 2025-01-18 15:05:29,652 views 73450 139855917803072 Base queryset count: 213
+DEBUG 2025-01-18 15:05:59,837 views 73450 139856360724032 Base queryset count: 213
+DEBUG 2025-01-18 15:15:36,345 views 73450 139855926195776 Base queryset count: 213
+DEBUG 2025-01-18 15:17:59,352 views 73450 139855926195776 Base queryset count: 213
+DEBUG 2025-01-18 15:20:08,470 views 73450 139855934588480 Base queryset count: 213
+DEBUG 2025-01-18 15:21:54,251 views 73450 139855926195776 Base queryset count: 213
+DEBUG 2025-01-18 15:23:45,881 views 73450 139855917803072 Base queryset count: 213
+DEBUG 2025-01-18 15:27:25,310 views 95736 140432924239424 Base queryset count: 213
+DEBUG 2025-01-18 15:29:33,425 views 95736 140432915846720 Base queryset count: 213
+DEBUG 2025-01-18 15:32:25,522 views 95736 140432194348608 Base queryset count: 213
+DEBUG 2025-01-18 15:51:40,332 views 95736 140432915846720 Base queryset count: 213
+DEBUG 2025-01-18 15:51:53,258 views 95736 140432932632128 Base queryset count: 213
+DEBUG 2025-01-18 16:51:20,367 views 95736 140432202741312 Base queryset count: 213
+DEBUG 2025-01-18 16:51:33,573 views 95736 140432202741312 Base queryset count: 213
+DEBUG 2025-01-18 17:31:52,917 views 95736 140432202741312 Base queryset count: 213
+DEBUG 2025-01-18 17:37:28,967 views 95736 140432915846720 Base queryset count: 213
+DEBUG 2025-01-18 17:40:35,801 views 95736 140432915846720 Base queryset count: 213
+DEBUG 2025-01-18 17:42:13,397 views 95736 140432202741312 Base queryset count: 213
+DEBUG 2025-01-18 17:42:30,165 views 95736 140432202741312 Base queryset count: 213
+DEBUG 2025-01-18 17:42:37,849 views 95736 140432915846720 Base queryset count: 213
+DEBUG 2025-01-18 17:44:43,921 views 95736 140432202741312 Base queryset count: 213
+DEBUG 2025-01-18 17:46:47,559 views 95736 140432899065408 Base queryset count: 213
+DEBUG 2025-01-18 17:47:45,691 views 95736 140432899065408 Base queryset count: 213
+DEBUG 2025-01-18 17:52:27,311 views 95736 140432202741312 Base queryset count: 213
+DEBUG 2025-01-18 17:56:29,327 views 131604 140109771130432 Base queryset count: 213
+DEBUG 2025-01-18 17:58:55,046 views 131604 140109779523136 Base queryset count: 213
+DEBUG 2025-01-18 18:01:17,914 views 131604 140109771130432 Base queryset count: 213
+DEBUG 2025-01-18 18:05:45,051 views 131604 140109779523136 Base queryset count: 213
+DEBUG 2025-01-18 18:09:50,559 views 131604 140109779523136 Base queryset count: 213
+DEBUG 2025-01-20 09:08:26,835 views 989 140537265731136 Base queryset count: 213
+DEBUG 2025-01-20 09:11:49,960 views 989 140537034176064 Base queryset count: 213
+DEBUG 2025-01-20 09:12:37,098 views 989 140537034176064 Base queryset count: 213
+DEBUG 2025-01-20 09:13:08,084 views 989 140537025783360 Base queryset count: 213
+DEBUG 2025-01-20 09:14:36,353 views 989 140537034176064 Base queryset count: 213
+DEBUG 2025-01-20 12:07:40,904 views 23483 140515664410176 Base queryset count: 213
+DEBUG 2025-01-20 12:32:29,954 views 29513 140573541398080 Base queryset count: 213
+DEBUG 2025-01-20 12:35:20,470 views 29513 140573624456768 Base queryset count: 213
+DEBUG 2025-01-20 13:17:48,475 views 40591 140122360112704 Base queryset count: 213
+DEBUG 2025-01-20 13:19:26,182 views 40591 140122368505408 Base queryset count: 213
+DEBUG 2025-01-20 13:23:59,731 views 40591 140122360112704 Base queryset count: 213
+DEBUG 2025-01-20 13:25:25,634 views 40591 140122368505408 Base queryset count: 213
+DEBUG 2025-01-20 14:38:09,718 views 59318 139779564922432 Base queryset count: 213
+DEBUG 2025-01-20 14:39:09,946 views 59318 139779539744320 Base queryset count: 213
+DEBUG 2025-01-20 14:42:23,124 views 59318 139779564922432 Base queryset count: 213
+DEBUG 2025-01-20 15:15:45,653 views 59318 139779539744320 Base queryset count: 213
+DEBUG 2025-01-20 15:16:58,322 views 59318 139779564922432 Base queryset count: 213
+DEBUG 2025-01-20 15:18:18,226 views 59318 139779539744320 Base queryset count: 213
+DEBUG 2025-01-20 15:18:35,267 views 59318 139779548137024 Base queryset count: 213
+DEBUG 2025-01-20 15:24:24,780 views 70677 139753211250240 Base queryset count: 213
+DEBUG 2025-01-20 17:20:23,629 views 81965 140456611759680 Base queryset count: 213
+DEBUG 2025-01-20 17:33:49,957 views 81965 140456620152384 Base queryset count: 213
+DEBUG 2025-01-20 17:37:20,271 views 86453 140124035737152 Base queryset count: 213
+DEBUG 2025-01-20 18:05:33,200 views 92877 140321002350144 Base queryset count: 213
+DEBUG 2025-01-20 18:18:27,034 views 92877 140320360339008 Base queryset count: 213
+DEBUG 2025-01-20 18:35:42,063 views 92877 140320993957440 Base queryset count: 213
+DEBUG 2025-01-21 07:47:34,239 views 1008 139761582859840 Base queryset count: 213
+DEBUG 2025-01-21 07:59:18,631 views 1008 139761591252544 Base queryset count: 213
+DEBUG 2025-01-21 08:07:40,693 views 1008 139761804011072 Base queryset count: 213
+DEBUG 2025-01-21 08:09:37,279 views 1008 139761812403776 Base queryset count: 213
+DEBUG 2025-01-21 08:54:55,786 views 14485 139905286874688 Base queryset count: 213
+DEBUG 2025-01-21 09:04:25,937 views 14485 139905295267392 Base queryset count: 213
+DEBUG 2025-01-21 10:26:16,152 views 39019 140490697811520 Base queryset count: 213
+DEBUG 2025-01-21 11:35:46,465 views 54815 140245388518976 Base queryset count: 213
+DEBUG 2025-01-21 11:42:17,572 views 54815 140245169333824 Base queryset count: 213
+DEBUG 2025-01-21 11:52:55,983 views 54815 140245388518976 Base queryset count: 213
+DEBUG 2025-01-21 12:02:27,321 views 54815 140245388518976 Base queryset count: 213
+DEBUG 2025-01-21 12:15:42,024 views 54815 140245169333824 Base queryset count: 213
+DEBUG 2025-01-21 12:18:38,848 views 54815 140245160941120 Base queryset count: 213
+DEBUG 2025-01-21 12:35:53,145 views 54815 140245169333824 Base queryset count: 213
+DEBUG 2025-01-21 12:39:45,389 views 54815 140245388518976 Base queryset count: 213
+DEBUG 2025-01-21 12:48:44,263 views 54815 140245169333824 Base queryset count: 213
+DEBUG 2025-01-21 12:50:07,307 views 54815 140245388518976 Base queryset count: 213
+DEBUG 2025-01-21 12:51:51,799 views 54815 140245169333824 Base queryset count: 213
+DEBUG 2025-01-21 12:55:10,153 views 54815 140245388518976 Base queryset count: 213
+DEBUG 2025-01-21 13:03:56,186 views 54815 140245177726528 Base queryset count: 213
+DEBUG 2025-01-21 13:08:25,070 views 54815 140245388518976 Base queryset count: 213
+DEBUG 2025-01-21 13:50:21,312 views 87919 139794706146880 Base queryset count: 213
+DEBUG 2025-01-21 14:05:56,990 views 87919 139794714539584 Base queryset count: 213
+DEBUG 2025-01-21 14:08:15,682 views 87919 139794340378176 Base queryset count: 213
+DEBUG 2025-01-21 14:09:07,183 views 87919 139794714539584 Base queryset count: 213
+DEBUG 2025-01-21 14:20:32,366 views 87919 139794340378176 Base queryset count: 213
+WARNING 2025-01-21 14:22:17,580 log 87919 139794714539584 Not Found: /api
+DEBUG 2025-01-21 14:23:08,158 views 87919 139793982551616 Base queryset count: 213
+DEBUG 2025-01-21 14:29:23,457 views 87919 139793982551616 Base queryset count: 213
+DEBUG 2025-01-21 15:05:20,049 views 106186 139953423201856 Base queryset count: 213
+ERROR 2025-01-21 15:16:15,841 log 106186 139953406416448 Internal Server Error: /api/transactions/transactions/export_pdf/
+DEBUG 2025-01-21 16:20:26,324 views 123619 140530945312320 Base queryset count: 213
+ERROR 2025-01-21 16:23:52,601 log 123619 140530953705024 Internal Server Error: /api/transactions/transactions/export_csv/
+DEBUG 2025-01-21 16:35:57,424 views 127267 139632608015936 Base queryset count: 213
+DEBUG 2025-01-21 16:39:41,867 views 127267 139632599623232 Base queryset count: 213
+DEBUG 2025-01-21 16:41:16,954 views 127267 139631967245888 Base queryset count: 213
+DEBUG 2025-01-21 17:01:48,187 views 133407 140283756930624 Base queryset count: 213
+DEBUG 2025-01-22 08:14:35,562 views 1215 139965190141504 Base queryset count: 213
+DEBUG 2025-01-22 08:18:00,947 views 1215 139965164963392 Base queryset count: 213
+DEBUG 2025-01-22 09:49:26,585 views 23534 140268976195136 Base queryset count: 213
+DEBUG 2025-01-22 09:50:16,972 views 23534 140269001373248 Base queryset count: 213
+DEBUG 2025-01-22 10:08:27,581 views 23534 140268984587840 Base queryset count: 213
+DEBUG 2025-01-22 10:10:06,914 views 23534 140268992980544 Base queryset count: 213
+DEBUG 2025-01-22 10:11:22,208 views 23534 140268984587840 Base queryset count: 213
+DEBUG 2025-01-22 10:17:29,262 views 23534 140268967802432 Base queryset count: 213
+DEBUG 2025-01-22 10:19:17,408 views 23534 140268976195136 Base queryset count: 213
+DEBUG 2025-01-22 10:29:59,458 views 33441 139636587259456 Base queryset count: 213
+DEBUG 2025-01-22 10:36:39,722 views 33441 139636357719616 Base queryset count: 213
+DEBUG 2025-01-22 10:39:33,510 views 33441 139636595652160 Base queryset count: 213
+DEBUG 2025-01-22 10:44:53,016 views 33441 139635762132544 Base queryset count: 213
+DEBUG 2025-01-22 10:46:07,130 views 33441 139636594603584 Base queryset count: 213
+DEBUG 2025-01-22 10:46:34,312 views 33441 139635762132544 Base queryset count: 213
+DEBUG 2025-01-22 10:47:26,119 views 33441 139636594603584 Base queryset count: 213
+DEBUG 2025-01-22 10:48:21,244 views 33441 139635762132544 Base queryset count: 213
+DEBUG 2025-01-22 10:50:33,939 views 33441 139635762132544 Base queryset count: 213
+DEBUG 2025-01-22 10:55:34,638 views 33441 139636594603584 Base queryset count: 213
+DEBUG 2025-01-22 10:56:07,948 views 33441 139635762132544 Base queryset count: 213
+DEBUG 2025-01-22 10:57:03,870 views 33441 139636594603584 Base queryset count: 213
+DEBUG 2025-01-22 10:57:42,265 views 33441 139636357719616 Base queryset count: 213
+DEBUG 2025-01-22 11:44:31,175 views 50363 140058042779200 Base queryset count: 213
+DEBUG 2025-01-22 12:24:01,850 views 50363 140058042779200 Base queryset count: 213
+DEBUG 2025-01-22 12:31:14,552 views 50363 140058034386496 Base queryset count: 213
+DEBUG 2025-01-22 12:43:53,560 views 50363 140058042779200 Base queryset count: 213
+DEBUG 2025-01-22 12:53:56,634 views 67368 140514652350016 Base queryset count: 213
+DEBUG 2025-01-22 13:32:17,813 views 74643 139840005891648 Base queryset count: 213
+DEBUG 2025-01-22 13:33:20,198 views 74643 139839997498944 Base queryset count: 213
+DEBUG 2025-01-22 16:30:51,831 views 115975 140568825943616 Base queryset count: 213
+DEBUG 2025-01-22 16:36:02,165 views 115975 140568842729024 Base queryset count: 213
+DEBUG 2025-01-22 16:38:47,699 views 115975 140568825943616 Base queryset count: 213
+DEBUG 2025-01-22 16:39:07,255 views 115975 140568815453760 Base queryset count: 213
+DEBUG 2025-01-22 17:06:01,647 views 115975 140568815453760 Base queryset count: 213
+DEBUG 2025-01-22 17:09:34,325 views 115975 140568825943616 Base queryset count: 213
+DEBUG 2025-01-22 17:11:15,636 views 115975 140568815453760 Base queryset count: 213
+DEBUG 2025-01-22 17:11:53,751 views 115975 140568188159552 Base queryset count: 213
+DEBUG 2025-01-22 17:12:48,695 views 115975 140568188159552 Base queryset count: 213
+DEBUG 2025-01-22 17:13:09,969 views 115975 140568815453760 Base queryset count: 213
+DEBUG 2025-01-22 17:34:49,341 views 130928 139883922318912 Base queryset count: 213
+DEBUG 2025-01-23 07:53:36,075 views 1241 139990192571968 Base queryset count: 213
+DEBUG 2025-01-23 07:56:06,963 views 1241 139990184179264 Base queryset count: 213
+DEBUG 2025-01-23 07:57:11,887 views 1241 139989478946368 Base queryset count: 213
+DEBUG 2025-01-23 07:57:19,347 views 1241 139990200964672 Base queryset count: 213
+WARNING 2025-01-23 08:02:52,536 log 1241 139990175786560 Not Found: /api
+ERROR 2025-01-23 08:03:01,784 log 1241 139990175786560 Internal Server Error: /api/users/users/
+DEBUG 2025-01-23 08:09:25,264 views 5370 140131881215552 Base queryset count: 0
+ERROR 2025-01-23 08:09:25,345 log 5370 140131872822848 Internal Server Error: /api/users/users/
+WARNING 2025-01-23 08:09:26,139 log 5370 140131872822848 Forbidden: /api/products/products/
+WARNING 2025-01-23 08:10:11,871 log 5370 140131872822848 Not Found: /api
+INFO 2025-01-23 08:12:49,289 views 5370 140131082167872 Create Report Request Details:
+INFO 2025-01-23 08:12:49,289 views 5370 140131082167872 User: kennyd
+INFO 2025-01-23 08:12:49,290 views 5370 140131082167872 Request Data: {'name': {'name': 'The Entire Report', 'description': 'Generated on 1/23/2025, 9:12:48 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-23'}, 'description': None}
+INFO 2025-01-23 08:12:49,325 views 5370 140131082167872 User Permissions: {'reports.view_report', 'core.delete_orderpromotion', 'sessions.add_session', 'users.change_permissionchangelog', 'auth.add_group', 'invoices.change_invoice', 'products.delete_category', 'users.view_all', 'users.delete_userpreference', 'products.add_review', 'contenttypes.delete_contenttype', 'auth.delete_permission', 'core.delete_promotion', 'products.view_product', 'core.add_companyinfo', 'users.view_role', 'core.add_address', 'reports.add_reportentry', 'admin.delete_logentry', 'authtoken.change_token', 'products.change_product', 'sessions.delete_session', 'users.view_customuser', 'admin.change_logentry', 'core.change_address', 'core.change_product', 'reports.delete_reportaccesslog', 'users.delete_insight', 'admin.view_logentry', 'core.view_customer', 'authtoken.add_token', 'transactions.view_transaction', 'invoices.view_invoice', 'products.add_category', 'invoices.view_invoiceitem', 'core.change_orderitem', 'reports.change_reportfile', 'users.delete_permissionchangelog', 'authtoken.delete_tokenproxy', 'reports.add_calculatedfield', 'core.delete_visit', 'invoices.delete_invoice', 'users.delete_permission', 'stock_adjustments.change_stockadjustment', 'core.view_promotion', 'users.delete_customuser', 'stock_adjustments.view_stockadjustment', 'users.delete_role', 'core.change_orderpromotion', 'admin.add_logentry', 'reports.change_calculatedfield', 'sessions.view_session', 'core.view_visit', 'core.view_address', 'products.delete_product', 'core.view_companyinfo', 'users.change_permissionauditlog', 'users.view_insight', 'reports.add_reportfile', 'authtoken.view_tokenproxy', 'users.add_role', 'core.delete_address', 'core.change_customer', 'products.delete_review', 'reports.change_reportaccesslog', 'auth.change_permission', 'core.change_order', 'reports.change_reportentry', 'reports.view_reportfile', 'products.add_productimage', 'users.edit', 'users.view', 'users.add_userpreference', 'products.add_product', 'contenttypes.add_contenttype', 'authtoken.add_tokenproxy', 'reports.change_report', 'users.analytics_access', 'products.change_productimage', 'reports.delete_reportentry', 'reports.add_reportaccesslog', 'users.change_permission', 'products.change_category', 'core.add_visit', 'users.view_userpreference', 'authtoken.view_token', 'core.change_companyinfo', 'stock_adjustments.add_stockadjustment', 'reports.add_report', 'core.delete_product', 'core.add_product', 'auth.change_group', 'auth.delete_group', 'core.add_order', 'users.add_permission', 'transactions.delete_transaction', 'users.change_insight', 'products.change_review', 'invoices.add_invoice', 'auth.add_permission', 'reports.delete_report', 'users.view_permissionauditlog', 'users.change_role', 'invoices.change_invoiceitem', 'reports.view_reportentry', 'auth.view_permission', 'users.create', 'users.delete_permissionauditlog', 'core.add_promotion', 'transactions.add_transaction', 'users.change_userpreference', 'users.add_insight', 'contenttypes.change_contenttype', 'users.delete', 'reports.delete_reportfile', 'contenttypes.view_contenttype', 'users.view_permissionchangelog', 'reports.delete_calculatedfield', 'users.add_permissionchangelog', 'users.add_customuser', 'core.change_promotion', 'products.view_category', 'users.full_access', 'reports.view_reportaccesslog', 'core.change_visit', 'core.view_orderpromotion', 'core.add_customer', 'core.view_order', 'products.delete_productimage', 'products.view_productimage', 'products.view_review', 'reports.view_calculatedfield', 'core.delete_companyinfo', 'auth.view_group', 'sessions.change_session', 'transactions.change_transaction', 'invoices.delete_invoiceitem', 'core.view_orderitem', 'core.delete_customer', 'users.change_customuser', 'users.view_permission', 'core.delete_order', 'authtoken.change_tokenproxy', 'core.add_orderitem', 'users.add_permissionauditlog', 'core.add_orderpromotion', 'core.view_product', 'core.delete_orderitem', 'invoices.add_invoiceitem', 'stock_adjustments.delete_stockadjustment', 'authtoken.delete_token'}
+INFO 2025-01-23 08:12:49,326 serializers 5370 140131082167872 Original input data: {'name': {'name': 'The Entire Report', 'description': 'Generated on 1/23/2025, 9:12:48 AM', 'is_template': False, 'startDate': '2024-10-01', 'endDate': '2025-01-23'}, 'description': None}
+INFO 2025-01-23 08:12:49,327 serializers 5370 140131082167872 Processed data: {'name': 'The Entire Report', 'description': None, 'start_date': '2024-10-01', 'end_date': '2025-01-23'}
+INFO 2025-01-23 08:12:49,332 serializers 5370 140131082167872 Final validation passed for report: The Entire Report
+DEBUG 2025-01-23 08:12:49,499 views 5370 140131082167872 Base queryset count: 214
+WARNING 2025-01-23 08:14:59,512 log 5370 140131872822848 Not Found: /api
+ERROR 2025-01-23 08:15:01,383 log 5370 140131872822848 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 08:15:02,078 log 5370 140131872822848 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 08:15:04,081 log 5370 140131872822848 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 08:15:05,475 log 5370 140131872822848 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 08:15:06,797 log 5370 140131872822848 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 08:15:07,496 log 5370 140131872822848 Internal Server Error: /api/core/orders/
+DEBUG 2025-01-23 08:19:25,040 views 7969 140273397950016 Base queryset count: 0
+ERROR 2025-01-23 08:19:25,110 log 7969 140273397950016 Internal Server Error: /api/users/users/
+ERROR 2025-01-23 08:19:26,126 log 7969 140273397950016 Internal Server Error: /api/products/products/
+ERROR 2025-01-23 08:20:09,433 log 7969 140273397950016 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 08:20:09,780 log 7969 140273397950016 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 08:20:11,293 log 7969 140273397950016 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 08:20:11,711 log 7969 140273397950016 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 08:20:12,324 log 7969 140273397950016 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 08:20:12,716 log 7969 140273397950016 Internal Server Error: /api/core/orders/
+WARNING 2025-01-23 08:24:51,117 log 9124 140485316167232 Not Found: /api
+ERROR 2025-01-23 08:24:53,347 log 9124 140485316167232 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 08:24:53,438 log 9124 140485316167232 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 08:24:55,154 log 9124 140485316167232 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 08:24:55,214 log 9124 140485316167232 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 08:24:55,732 log 9124 140485316167232 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 08:24:55,914 log 9124 140485316167232 Internal Server Error: /api/core/orders/
+WARNING 2025-01-23 09:06:56,126 log 19597 139663435454016 Not Found: /api
+DEBUG 2025-01-23 09:45:19,484 views 27452 140342373586496 Base queryset count: 214
+ERROR 2025-01-23 09:51:16,874 log 29687 140186224604736 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 09:51:17,513 log 29687 140186224604736 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 09:51:18,380 log 29687 140186224604736 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 09:51:19,424 log 29687 140186224604736 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 09:51:19,813 log 29687 140186224604736 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 09:51:20,009 log 29687 140186224604736 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 09:57:18,051 log 29687 140186224604736 Internal Server Error: /api/users/users/
+WARNING 2025-01-23 09:58:16,451 log 29687 140186224604736 Forbidden: /api/stock_adjustments/stock_adjustments/get_adjustment_types/
+WARNING 2025-01-23 09:58:16,494 log 29687 140186224604736 Forbidden: /api/stock_adjustments/stock_adjustments/
+ERROR 2025-01-23 09:58:16,562 log 29687 140186224604736 Internal Server Error: /api/products/products/
+ERROR 2025-01-23 10:08:00,071 log 34012 140040730555968 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 10:08:00,562 log 34012 140040730555968 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 10:08:01,794 log 34012 140040730555968 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 10:08:02,126 log 34012 140040730555968 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 10:08:02,729 log 34012 140040730555968 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 10:08:03,045 log 34012 140040730555968 Internal Server Error: /api/core/orders/
+DEBUG 2025-01-23 11:37:57,830 views 54785 140110813230656 Base queryset count: 0
+ERROR 2025-01-23 11:37:57,883 log 54785 140110092826176 Internal Server Error: /api/users/users/
+ERROR 2025-01-23 11:37:59,764 log 54785 140110092826176 Internal Server Error: /api/products/products/
+ERROR 2025-01-23 11:46:43,262 log 54785 140110092826176 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 11:46:44,923 log 54785 140110092826176 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 11:46:46,273 log 54785 140110092826176 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 11:46:47,425 log 54785 140110092826176 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 11:46:47,866 log 54785 140110092826176 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 11:46:48,342 log 54785 140110092826176 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 12:12:35,843 log 62377 139732046693952 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 12:12:36,470 log 62377 139732046693952 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 12:12:37,256 log 62377 139732046693952 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 12:12:37,739 log 62377 139732046693952 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 12:12:38,150 log 62377 139732046693952 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 12:12:38,327 log 62377 139732046693952 Internal Server Error: /api/core/orders/
+WARNING 2025-01-23 12:22:23,240 log 62377 139732046693952 Forbidden: /api/stock_adjustments/stock_adjustments/
+WARNING 2025-01-23 12:22:23,253 log 62377 139732046693952 Forbidden: /api/stock_adjustments/stock_adjustments/get_adjustment_types/
+ERROR 2025-01-23 12:39:34,464 log 69593 139880146511424 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 12:39:35,906 log 69593 139880146511424 Internal Server Error: /api/transactions/transactions/
+DEBUG 2025-01-23 13:17:53,607 views 78854 140073957836352 Base queryset count: 0
+ERROR 2025-01-23 13:17:53,741 log 78854 140073949443648 Internal Server Error: /api/users/users/
+ERROR 2025-01-23 13:39:33,554 log 83973 140572531074624 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 13:39:34,193 log 83973 140572531074624 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 13:39:35,393 log 83973 140572531074624 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 13:39:35,956 log 83973 140572531074624 Internal Server Error: /api/transactions/transactions/
+ERROR 2025-01-23 13:39:36,429 log 83973 140572531074624 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 13:39:36,606 log 83973 140572531074624 Internal Server Error: /api/core/orders/
+DEBUG 2025-01-23 14:02:23,821 views 89380 139637814412864 Base queryset count: 0
+ERROR 2025-01-23 14:02:52,122 log 89380 139637093135936 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 14:02:54,429 log 89380 139637093135936 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 14:02:54,921 log 89380 139637093135936 Internal Server Error: /api/core/orders/
+ERROR 2025-01-23 14:02:55,182 log 89380 139637093135936 Internal Server Error: /api/core/orders/
+DEBUG 2025-01-23 14:19:12,364 views 93349 139920535664192 Base queryset count: 0
+WARNING 2025-01-23 15:24:32,886 log 93349 139919756097088 Forbidden: /api/stock_adjustments/stock_adjustments/get_adjustment_types/
+WARNING 2025-01-23 15:24:32,940 log 93349 139919756097088 Forbidden: /api/stock_adjustments/stock_adjustments/
+DEBUG 2025-01-23 15:26:13,489 views 93349 139920517830208 Base queryset count: 0

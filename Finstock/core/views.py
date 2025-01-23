@@ -123,7 +123,7 @@ class OrderViewSet(BaseAccessControlViewSet):
         
         try:
             if user.is_role('Sales Representative'):
-                return self.model.objects.filter(created_by=user)
+                return self.model.objects.filter(sales_rep=user)
             elif user.is_role('Inventory Manager'):
                 return self.model.objects.filter(
                     items__product__in=Product.objects.filter(managed_by=user)

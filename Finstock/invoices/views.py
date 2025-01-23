@@ -229,8 +229,6 @@ class InvoiceViewSet(BaseAccessControlViewSet):
         p = canvas.Canvas(buffer, pagesize=letter)
         width, height = letter
 
-
-        # Helper function for drawing text
         def draw_text(text, x, y, font="Helvetica", size=10, color=colors.black):
             p.setFont(font, size)
             p.setFillColor(color)
@@ -242,22 +240,23 @@ class InvoiceViewSet(BaseAccessControlViewSet):
         p.setFillColor(colors.Color(0.150, 0.205, 0.315))  # Slightly darker blue
         p.rect(0, height - 2.5*inch, width, 0.5*inch, fill=1)
 
+        # Company Logo - Adjusted position to prevent overlap
         logo_path = os.path.expanduser('~/verifi/Finstock/static/Logo 10.png')
+        p.drawImage(logo_path, 0.5*inch, height - 2*inch, width=1.5*inch, height=1*inch)
 
-        # Company Logo
-        p.drawImage(logo_path, 0.5*inch, height - 1.75*inch, width=1.5*inch, height=1*inch)
-
-        # Company Information with improved layout
+        # Company Information - Moved to right side of logo
         company_info = CompanyInfo.objects.first()
         if company_info:
-            draw_text(company_info.name, 0.5*inch, height - 0.75*inch, "Helvetica-Bold", 24, colors.white)
-            draw_text(company_info.address, 0.5*inch, height - 1.25*inch, "Helvetica", 11, colors.white)
-            draw_text(f"Tel: {company_info.phone}", 0.5*inch, height - 1.5*inch, "Helvetica", 11, colors.white)
+            # Start company info to the right of the logo
+            info_start_x = 2.25*inch
+            draw_text(company_info.name, info_start_x, height - 0.75*inch, "Helvetica-Bold", 24, colors.white)
+            draw_text(company_info.address, info_start_x, height - 1.25*inch, "Helvetica", 11, colors.white)
+            draw_text(f"Tel: {company_info.phone}", info_start_x, height - 1.5*inch, "Helvetica", 11, colors.white)
             if hasattr(company_info, 'website'):
-                draw_text(f"Web: {company_info.website}", 0.5*inch, height - 1.75*inch, "Helvetica", 11, colors.white)
+                draw_text(f"Web: {company_info.website}", info_start_x, height - 1.75*inch, "Helvetica", 11, colors.white)
         else:
             logger.warning("No CompanyInfo found. Using default values.")
-            draw_text("Company Name Not Set", 0.5*inch, height - 0.75*inch, "Helvetica-Bold", 24, colors.white)
+            draw_text("Company Name Not Set", 2.25*inch, height - 0.75*inch, "Helvetica-Bold", 24, colors.white)
 
         # Professional Invoice Title
         draw_text("INVOICE", width - 2*inch, height - 0.75*inch, "Helvetica-Bold", 28, colors.white)
@@ -265,13 +264,15 @@ class InvoiceViewSet(BaseAccessControlViewSet):
         # Invoice Details Box
         p.setFillColor(colors.Color(0.95, 0.95, 0.95))  # Light gray background
         p.rect(0.5*inch, height - 3.75*inch, 3*inch, 1*inch, fill=1)
-    
+
+        # Shortened invoice number (first 6 digits)
+        shortened_invoice_number = str(invoice.invoice_number)[:6]
         draw_text("Invoice Number:", 0.75*inch, height - 3*inch, "Helvetica-Bold", 10)
-        draw_text(f"#{invoice.invoice_number}", 1.75*inch, height - 3*inch)
-    
+        draw_text(f"#{shortened_invoice_number}", 1.75*inch, height - 3*inch)
+
         draw_text("Issue Date:", 0.75*inch, height - 3.25*inch, "Helvetica-Bold", 10)
         draw_text(invoice.issue_date.strftime("%B %d, %Y"), 1.75*inch, height - 3.25*inch)
-    
+
         draw_text("Due Date:", 0.75*inch, height - 3.5*inch, "Helvetica-Bold", 10)
         draw_text(invoice.due_date.strftime("%B %d, %Y"), 1.75*inch, height - 3.5*inch)
 

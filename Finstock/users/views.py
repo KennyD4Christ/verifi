@@ -9,7 +9,7 @@ from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -25,6 +25,7 @@ from stock_adjustments.models import StockAdjustment
 from reports.models import Report
 from core.models import Order
 from .permissions import AdminUserRolePermission, RoleBasedPermission, OrderPermission
+from .constants import PermissionConstants
 from .serializers import (
     UserSerializer,
     UserRegistrationSerializer,
@@ -42,6 +43,10 @@ from .serializers import (
     OrderSerializer
 )
 from rest_framework.pagination import PageNumberPagination
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class UserPagination(PageNumberPagination):
     page_size = 10
@@ -188,11 +193,14 @@ class BaseAccessControlViewSet(viewsets.ModelViewSet):
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
 
+        date_field = self._get_model_date_field()
+
         if start_date and end_date:
             try:
                 start = timezone.datetime.strptime(start_date, '%Y-%m-%d')
                 end = timezone.datetime.strptime(end_date, '%Y-%m-%d')
-                queryset = queryset.filter(created_at__range=[start, end])
+
+                queryset = queryset.filter(**{f'{date_field}__range': [start, end]})
             except ValueError:
                 raise ValidationError("Invalid date format. Use YYYY-MM-DD")
 
@@ -205,6 +213,23 @@ class BaseAccessControlViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(search_filter)
 
         return queryset
+
+    def _get_model_date_field(self):
+        """
+        Dynamically determine the appropriate date field for filtering
+        """
+        date_field_candidates = [
+            'created_at',
+            'order_date',
+            'date',
+            'created',
+        ]
+
+        for candidate in date_field_candidates:
+            if hasattr(self.model, candidate):
+                return candidate
+
+        return None
 
     def get_permissions(self):
         """
@@ -234,6 +259,10 @@ class BaseAccessControlViewSet(viewsets.ModelViewSet):
         return self.request.user.has_perm(permission)
 
     def check_permissions(self, request):
+
+        if hasattr(self, 'action') and self.action == 'register':
+            return
+
         super().check_permissions(request)
 
         # Additional logging for debugging
@@ -256,6 +285,11 @@ class UserViewSet(BaseAccessControlViewSet):
     pagination_class = UserPagination
     model = CustomUser
     model_name = 'user'
+
+    view_permission = PermissionConstants.USER_VIEW_ALL
+    create_permission = PermissionConstants.USER_CREATE
+    edit_permission = PermissionConstants.USER_EDIT
+    delete_permission = PermissionConstants.USER_DELETE
 
     def list(self, request, *args, **kwargs):
         # Get the queryset and apply pagination
@@ -308,10 +342,10 @@ class UserViewSet(BaseAccessControlViewSet):
 
     def get_permissions(self):
         if self.action == 'register':
-            return [permissions.AllowAny()]
+            return [AllowAny()]
         elif self.action in ['create', 'update', 'partial_update', 'destroy', 'assign_roles', 'update_roles']:
             return [permissions.IsAuthenticated(), RoleBasedPermission()]
-        return [permissions.IsAuthenticated()]
+        return super().get_permissions()
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -425,21 +459,32 @@ class UserViewSet(BaseAccessControlViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @action(detail=False, methods=['GET'])
-    def me(self, request):
-        serializer = self.get_serializer(request.user)
-        return Response(serializer.data)
-
+    @action(detail=False, methods=['POST'], permission_classes=[AllowAny])
     def register(self, request):
-        serializer = UserRegistrationSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            token, created = Token.objects.get_or_create(user=user)
-            return Response({
-                'user': UserSerializer(user).data,
-                'token': token.key
-            }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            serializer = UserRegistrationSerializer(data=request.data)
+            if serializer.is_valid():
+                user = serializer.save()
+                token, created = Token.objects.get_or_create(user=user)
+                
+                response_data = {
+                    'user': UserSerializer(user).data,
+                    'token': token.key
+                }
+                
+                logger.info(f"Successfully registered new user: {user.username}")
+                return Response(response_data, status=status.HTTP_201_CREATED)
+                
+            logger.warning(f"Registration failed due to validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            logger.error(f"Unexpected error during registration: {str(e)}")
+            return Response(
+                {'error': 'Registration failed. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
     @action(detail=False, methods=['GET'])
     def me(self, request):
