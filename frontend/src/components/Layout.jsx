@@ -16,7 +16,7 @@ const breakpoints = {
 
 const SIDEBAR_WIDTHS = {
   expanded: '270px',
-  collapsed: '72px',
+  collapsed: '65px',
   mobile: '280px',
 };
 
@@ -62,38 +62,61 @@ const Overlay = styled.div`
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
-  z-index: 998;
+  z-index: 995;
   transition: opacity 0.3s ease;
   opacity: ${props => (props.show ? 1 : 0)};
 `;
 
 const Layout = ({ children }) => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [headerHeight, setHeaderHeight] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // Desktop sidebar state
+  const [isMobile, setIsMobile] = useState(false); // Check if mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Mobile overlay state
+  const [headerHeight, setHeaderHeight] = useState(0); // Header height for layout adjustment
   const location = useLocation();
   const headerRef = useRef(null);
 
-  const sidebarWidth = sidebarCollapsed ? SIDEBAR_WIDTHS.collapsed : SIDEBAR_WIDTHS.expanded;
+  // Load sidebar state from localStorage on initial render
+  useEffect(() => {
+    const savedSidebarState = localStorage.getItem("sidebarCollapsed");
+    if (savedSidebarState !== null) {
+      setSidebarCollapsed(JSON.parse(savedSidebarState));
+    }
+  }, []);
 
-  const toggleSidebar = useCallback(() => {
+  // Save sidebar state whenever it changes
+  useEffect(() => {
+    localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  const sidebarWidth = sidebarCollapsed
+    ? SIDEBAR_WIDTHS.collapsed
+    : SIDEBAR_WIDTHS.expanded;
+
+  // Toggle sidebar collapse (desktop) or overlay (mobile)
+  const handleMenuClick = useCallback(() => {
     if (isMobile) {
-      setIsSidebarOpen(prev => !prev);
-    } else {
-      setSidebarCollapsed(prev => !prev);
+      // Toggle overlay state in mobile mode
+      setIsSidebarOpen((prev) => !prev);
     }
   }, [isMobile]);
 
+  const handleSidebarToggle = useCallback(() => {
+    if (!isMobile) {
+      // Toggle sidebar collapse in desktop mode
+      setSidebarCollapsed((prev) => !prev);
+    }
+  }, [isMobile]);
+
+  // Update component states based on window size
   useEffect(() => {
     const updateComponentHeights = () => {
       const mobile = window.innerWidth < parseInt(breakpoints.tablet);
       setIsMobile(mobile);
 
-      if (mobile && isSidebarOpen) {
-        setIsSidebarOpen(false);
+      if (mobile) {
+        setIsSidebarOpen(false); // Close overlay by default on mobile
       } else {
-	setIsSidebarOpen(!sidebarCollapsed);
+        setIsSidebarOpen(true); // Keep sidebar open on desktop
       }
 
       if (headerRef.current) {
@@ -103,46 +126,43 @@ const Layout = ({ children }) => {
 
     updateComponentHeights();
     const resizeHandler = debounce(updateComponentHeights, 250);
-    window.addEventListener('resize', resizeHandler);
-    return () => window.removeEventListener('resize', resizeHandler);
-  }, [sidebarCollapsed]);
+    window.addEventListener("resize", resizeHandler);
+    return () => window.removeEventListener("resize", resizeHandler);
+  }, []);
+
+  // Ensure sidebar remains open on desktop when route changes
+  useEffect(() => {
+    if (!isMobile) {
+      setIsSidebarOpen(true);
+    }
+  }, [isMobile, location]);
 
   return (
     <LayoutWrapper>
       <Navbar
         ref={headerRef}
-        onMenuClick={toggleSidebar}
+        onMenuClick={handleMenuClick} // Handles mobile overlay toggling
         isMobile={isMobile}
         collapsed={sidebarCollapsed}
         setHeaderHeight={setHeaderHeight}
-	setIsSidebarOpen={setIsSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
       />
-
       <Overlay show={isMobile && isSidebarOpen} />
-
       <Sidebar
         collapsed={sidebarCollapsed}
-        onToggle={toggleSidebar}
+        onToggle={handleSidebarToggle} // Handles sidebar collapse on desktop
         isMobile={isMobile}
-        isOpen={isSidebarOpen}
+        isOpen={isMobile ? isSidebarOpen : true} // Open in desktop by default
         width={sidebarWidth}
         headerHeight={headerHeight}
       />
-
       <ContentWrapper
         headerHeight={headerHeight}
         sidebarWidth={sidebarWidth}
-        isSidebarOpen={isSidebarOpen && !isMobile}
+        isSidebarOpen={!sidebarCollapsed}
       >
-        <MainContent 
-          headerHeight={headerHeight}
-        >
-          {children}
-        </MainContent>
-        <Footer
-          isSidebarOpen={isSidebarOpen && !isMobile}
-          sidebarWidth={sidebarWidth}
-        />
+        <MainContent headerHeight={headerHeight}>{children}</MainContent>
+        <Footer isSidebarOpen={!sidebarCollapsed} sidebarWidth={sidebarWidth} />
       </ContentWrapper>
     </LayoutWrapper>
   );

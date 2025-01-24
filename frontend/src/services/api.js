@@ -1418,9 +1418,21 @@ export async function fetchCurrentUser() {
     };
   } catch (error) {
     console.error('Error fetching current user:', error);
+
     if (error.response) {
-      console.error('Server responded with:', error.response.data);
-      console.error('Status code:', error.response.status);
+      switch (error.response.status) {
+        case 404:
+          console.error('Endpoint not found. Check API routes.');
+          break;
+        case 401:
+          console.error('Unauthorized. Please log in.');
+          break;
+        case 500:
+          console.error('Server error. Please try again later.');
+          break;
+        default:
+          console.error('Unexpected error occurred.');
+      }
       throw new Error(JSON.stringify(error.response.data));
     } else if (error.request) {
       console.error('No response received:', error.request);

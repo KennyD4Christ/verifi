@@ -45,7 +45,7 @@ const defaultTheme = {
 
 const SIDEBAR_WIDTHS = {
   expanded: '270px',
-  collapsed: '72px',
+  collapsed: '60px',
   mobile: '280px',
 };
 
@@ -81,7 +81,7 @@ const SidebarContainer = styled.aside`
   box-shadow: ${props => props.theme.shadow};
   transition: all ${props => props.theme.transition?.slower || '0.3s'};
   overflow-y: auto;
-  z-index: 1000; // Increased z-index
+  z-index: 990;
 
   // Add padding-top to account for header
   padding-top: ${props => props.headerHeight}px;
@@ -246,11 +246,11 @@ const SortableItem = ({ id, children }) => {
 };
 
 const Sidebar = ({
-  onToggle, 
-  collapsed = false, 
-  isOpen = false, 
+  onToggle,
+  collapsed = false,
+  isOpen = false,
   theme = defaultTheme,
-  onReorder 
+  onReorder
 }) => {
   const location = useLocation();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -278,11 +278,11 @@ const Sidebar = ({
 
   const handleDragEnd = useCallback((event) => {
     const { active, over } = event;
-    
+
     if (active.id !== over.id) {
       const oldIndex = menuItems.findIndex(item => item.id === active.id);
       const newIndex = menuItems.findIndex(item => item.id === over.id);
-      
+
       onReorder?.(arrayMove(menuItems, oldIndex, newIndex));
     }
   }, [menuItems, onReorder]);
@@ -290,8 +290,8 @@ const Sidebar = ({
   const handleKeyDown = useCallback((e, index) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      const targetIndex = e.key === 'ArrowDown' ? 
-        Math.min(index + 1, menuItems.length - 1) : 
+      const targetIndex = e.key === 'ArrowDown' ?
+        Math.min(index + 1, menuItems.length - 1) :
         Math.max(index - 1, 0);
       document.getElementById(`sidebar-link-${targetIndex}`)?.focus();
     }
@@ -339,7 +339,7 @@ const Sidebar = ({
                       to={item.path}
                       id={`sidebar-link-${index}`}
                       $active={location.pathname === item.path}
-                      collapsed={collapsed && !isMobile}
+                      $collapsed={collapsed && !isMobile}
                       tabIndex={0}
                       onKeyDown={(e) => handleKeyDown(e, index)}
                       aria-current={location.pathname === item.path ? 'page' : undefined}

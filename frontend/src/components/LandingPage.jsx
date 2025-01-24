@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import SuccessStories from './SuccessStories';
 import { 
   ArrowRight, 
   BarChart2, 
@@ -28,7 +29,7 @@ const getThemeValue = (path, fallback) => props => {
 const NavContainer = styled.nav`
   position: fixed;
   width: 100%;
-  top: 0;
+  top: 53px;
   z-index: 50;
   background: white;
   border-bottom: 1px solid #e5e7eb;
@@ -61,7 +62,6 @@ const MobileMenuContainer = styled.div`
 
 const MainContainer = styled.main`
   padding-top: 4rem;
-  padding-top: 64px; // Equivalent to pt-16
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
@@ -233,34 +233,26 @@ const LandingPage = () => {
     {
       id: 1,
       company: 'Tech Solutions Inc.',
-      logo: '/companies/tech-solutions.png',
       testimonial: 'Verifi transformed our financial operations...',
       videoUrl: '/videos/testimonial1.mp4',
-      thumbnail: '/api/placeholder/320/180',
     },
     {
       id: 2,
       company: 'Global Retail Co.',
-      logo: '/companies/global-retail.png',
       testimonial: 'The inventory management features are incredible...',
       videoUrl: '/videos/testimonial2.mp4',
-      thumbnail: '/api/placeholder/320/180',
     },
     {
       id: 3,
       company: 'StartUp Ventures',
-      logo: '/companies/startup-ventures.png',
       testimonial: 'Perfect solution for growing businesses...',
       videoUrl: '/videos/testimonial3.mp4',
-      thumbnail: '/api/placeholder/320/180',
     },
     {
       id: 4,
       company: 'Enterprise Systems',
-      logo: '/companies/enterprise.png',
       testimonial: 'Seamless integration and powerful analytics...',
       videoUrl: '/videos/testimonial4.mp4',
-      thumbnail: '/api/placeholder/320/180',
     },
   ];
 
@@ -269,13 +261,6 @@ const LandingPage = () => {
       <NavContainer>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <LogoContainer>
-              <img 
-                src="/Logo 10.png" 
-                alt="Verifi Logo" 
-                className="object-contain"
-              />
-            </LogoContainer>
             
             {/* Mobile menu button */}
             <div className="md:hidden">
@@ -372,45 +357,7 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
-
-        {/* Success Stories Section */}
-        <div className="bg-gray-50 py-24">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                Success Stories
-              </h2>
-              <p className="mt-4 text-xl text-gray-500">
-                See how businesses like yours achieve success with Verifi
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {testimonials.map((testimonial) => (
-                <VideoCard key={testimonial.id} className="overflow-hidden">
-                  <div className="relative group cursor-pointer" onClick={() => setActiveVideo(testimonial.id)}>
-                    <img 
-                      src={testimonial.thumbnail} 
-                      alt={`${testimonial.company} testimonial`}
-                      className="w-full h-48 object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-30 group-hover:bg-opacity-20 transition-all flex items-center justify-center">
-                      <Play className="w-12 h-12 text-white opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all" />
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <img 
-                      src={testimonial.logo} 
-                      alt={testimonial.company}
-                      className="h-8 mb-2"
-                    />
-                    <p className="text-sm text-gray-600">{testimonial.testimonial}</p>
-                  </div>
-                </VideoCard>
-              ))}
-            </div>
-          </div>
-        </div>
+        <SuccessStories testimonials={testimonials} onVideoSelect={setActiveVideo} />
       </MainContainer>
 
       {/* Video Modal */}

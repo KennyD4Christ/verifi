@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, forwardRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../../context/AuthContext';
@@ -9,7 +9,7 @@ import { FaBars, FaTimes, FaHome, FaExchangeAlt, FaFileInvoiceDollar, FaBox,
 
 const SIDEBAR_WIDTHS = {
   expanded: '270px',
-  collapsed: '72px',
+  collapsed: '60px',
   mobile: '280px',
 };
 
@@ -22,7 +22,7 @@ const NavbarContainer = styled.header`
   position: fixed;
   top: 0;
   right: 0;
-  z-index: 998;
+  z-index: 990;
   background-color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
@@ -159,7 +159,7 @@ const navigationItems = [
   { path: '/invoices', label: 'Invoices', icon: FaFileInvoiceDollar },
 ];
 
-const Navbar = ({ onMenuClick, isMobile, collapsed, setHeaderHeight, setIsSidebarOpen }) => {
+const Navbar = forwardRef(({ onMenuClick, isMobile, collapsed, setHeaderHeight, setIsSidebarOpen }, ref) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, logout } = useAuth();
@@ -195,7 +195,7 @@ const Navbar = ({ onMenuClick, isMobile, collapsed, setHeaderHeight, setIsSideba
   return (
     <>
       <NavbarContainer 
-        ref={headerRef} 
+        ref={ref} 
         isMobile={isMobile}
         collapsed={collapsed}
       >
@@ -249,6 +249,6 @@ const Navbar = ({ onMenuClick, isMobile, collapsed, setHeaderHeight, setIsSideba
       )}
     </>
   );
-};
+});
 
 export default Navbar;
