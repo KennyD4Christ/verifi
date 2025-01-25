@@ -26,7 +26,7 @@ from users.models import CustomUser
 from users.constants import PermissionConstants
 from users.views import BaseAccessControlViewSet
 from .serializers import InvoiceSerializer, InvoiceItemSerializer
-from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly, InvoicePermission
+from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly
 from core.models import Customer, CompanyInfo
 import logging
 import io
@@ -60,7 +60,6 @@ class InvoiceViewSet(BaseAccessControlViewSet):
     """
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
-    permission_classes = [InvoicePermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'issue_date', 'due_date']

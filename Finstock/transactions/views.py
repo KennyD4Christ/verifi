@@ -27,7 +27,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly, TransactionPermission
+from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly
 
 
 class StandardResultsSetPagination(PageNumberPagination):

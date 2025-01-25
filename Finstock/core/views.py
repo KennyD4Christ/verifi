@@ -29,7 +29,6 @@ from .serializers import (
 )
 from users.constants import PermissionConstants
 from users.views import BaseAccessControlViewSet
-from users.permissions import DynamicModelPermission
 from users.permissions import CanViewResource, CanManageResource, SuperuserOrReadOnly
 from users.models import CustomUser
 import logging
