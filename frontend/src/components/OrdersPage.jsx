@@ -4,6 +4,7 @@ import { fetchProducts, fetchCustomers, fetchOrders, fetchCurrentUser } from '..
 import CreateOrderModal from '../modals/CreateOrderModal';
 import OrderDetailsModal from '../modals/OrderDetailsModal';
 import { format } from 'date-fns';
+import { formatCurrency } from '../utils/dataTransformations';
 import styled, { ThemeProvider } from 'styled-components';
 import { debounce } from 'lodash';
 import {
@@ -484,12 +485,10 @@ const OrdersPage = () => {
       dataIndex: 'total_price',
       key: 'total_price',
       render: (totalPrice, record) => {
-        console.log('Rendering total price for order:', record);
         const calculatedTotal = (record.items || []).reduce((sum, item) =>
           sum + (item.quantity * (parseFloat(item.unit_price) || 0)), 0
         );
-        console.log('Calculated total:', calculatedTotal);
-        return `$${(calculatedTotal || totalPrice || 0).toFixed(2)}`;
+        return formatCurrency(calculatedTotal || totalPrice || 0);
       },
       sorter: true,
     },

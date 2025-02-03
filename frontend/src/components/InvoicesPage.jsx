@@ -5,8 +5,9 @@ import { useInvoices } from '../context/InvoiceContext';
 import styled from 'styled-components';
 import { ThemeProvider } from "styled-components";
 import EditInvoiceModal from '../modals/EditInvoiceModal';
-import { generateInvoicePDF, markInvoiceAsPaid, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, bulkDeleteInvoices } from '../services/api';
-import { Button, Table, Form, Container, Row, Col, Spinner, Alert, Modal, ButtonGroup } from 'react-bootstrap';
+import { formatCurrency } from '../utils/dataTransformations';
+import { generateInvoicePDF, markInvoiceAsPaid, fetchInvoices, exportPdf, createInvoice, updateInvoice, deleteInvoice, bulkDeleteInvoices } from '../services/api';
+import { Button, Badge, Table, Form, Container, Row, Col, Spinner, Alert, Modal, ButtonGroup } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
 
@@ -367,6 +368,15 @@ const InvoicesPage = () => {
 
   const [debugInfo, setDebugInfo] = useState(null);
 
+  const [exportFormat, setExportFormat] = useState('detailed');
+  const [showExportModal, setShowExportModal] = useState(false);
+
+  // Export format options
+  const exportFormatOptions = [
+    { value: 'detailed', label: 'Detailed Export' },
+    { value: 'summary', label: 'Summary Export' }
+  ];
+
   const statusOptions = ['draft', 'sent', 'paid'];
 
   const fetchInvoicesData = useCallback(async () => {
@@ -625,6 +635,107 @@ const InvoicesPage = () => {
     }
   };
 
+  const handleExportPdf = async () => {
+    try {
+      if (!selectedInvoices.length) {
+        setError('Please select at least one invoice to export');
+        return;
+      }
+
+      console.log('Selected invoices:', selectedInvoices);
+    
+      setLoading(true);
+      setError(null);
+
+      // Prepare export parameters based on current filters
+      const exportParams = {
+        invoice_ids: selectedInvoices, // Use IDs directly, no mapping needed
+        format: exportFormat,
+        search: searchTerm,
+        issue_date: dateFilter,
+        status: statusFilter,
+        min_amount: minAmount,
+        max_amount: maxAmount,
+      };
+
+      // Remove undefined or empty parameters
+      Object.keys(exportParams).forEach(key =>
+        (exportParams[key] === undefined || exportParams[key] === '') && delete exportParams[key]
+      );
+
+      console.log('Export params:', exportParams);
+
+      // Call export PDF method from api.js
+      await exportPdf(exportParams);
+
+      setSuccess('Invoices exported successfully');
+      setShowExportModal(false); // Close modal after successful export
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      setError('Failed to export invoices. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Export Modal Component
+  const ExportModal = () => (
+    <Modal show={showExportModal} onHide={() => setShowExportModal(false)}>
+      <Modal.Header closeButton>
+        <Modal.Title>Export Invoices</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form>
+          <Form.Group controlId="exportFormatSelect">
+            <Form.Label>Export Format</Form.Label>
+            <Form.Control 
+              as="select"
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value)}
+            >
+              {exportFormatOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Form.Control>
+            <Form.Text className="text-muted">
+              {exportFormat === 'detailed' 
+                ? 'Includes additional details like contact information and full invoice breakdown.' 
+                : 'Provides a concise overview of key invoice information.'}
+            </Form.Text>
+          </Form.Group>
+
+          <Form.Group className="mt-3">
+            <Form.Label>Selected Invoices</Form.Label>
+            <div>
+              {selectedInvoices.length > 0 ? (
+                <Badge bg="primary">{selectedInvoices.length} invoice(s) selected</Badge>
+              ) : (
+                <Badge bg="warning">No invoices selected</Badge>
+              )}
+            </div>
+          </Form.Group>
+        </Form>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button 
+          variant="secondary" 
+          onClick={() => setShowExportModal(false)}
+        >
+          Cancel
+        </Button>
+        <Button 
+          variant="primary" 
+          onClick={handleExportPdf}
+          disabled={selectedInvoices.length === 0}
+        >
+          Export PDF
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+
   const handleMarkAsPaid = async (invoiceId) => {
     try {
       await markInvoiceAsPaid(invoiceId);
@@ -713,7 +824,10 @@ const InvoicesPage = () => {
       </ActionButton>
   
       {/* Default style for export PDF */}
-      <ActionButton as={Link} to="/invoices/export/pdf">
+      <ActionButton
+	onClick={() => setShowExportModal(true)}
+        disabled={selectedInvoices.length === 0}
+      >
         Export PDF
       </ActionButton>
     </ActionButtonContainer>
@@ -748,7 +862,7 @@ const InvoicesPage = () => {
                 <Td className="text-center">{invoice.issue_date || 'N/A'}</Td>
                 <Td className="text-center">{invoice.customer?.id || 'N/A'}</Td>
                 <Td className="text-center">{formatInvoiceNumber(invoice.invoice_number) || 'N/A'}</Td>
-                <Td className="text-right">${invoice.total_amount ? parseFloat(invoice.total_amount).toFixed(2) : '0.00'}</Td>
+                <Td className="text-right">{formatCurrency(invoice.total_amount)}</Td>
                 <Td className="text-center">
                   <StatusBadge status={invoice.status}>{invoice.status}</StatusBadge>
                 </Td>
@@ -867,6 +981,7 @@ const InvoicesPage = () => {
       onSave={handleCreateOrUpdateInvoice}
     />
   </ContentWrapper>
+  <ExportModal />
   </InvoicesContainer>
   );
 };

@@ -44,6 +44,30 @@ export const transformLineChartData = (data, xKey, yKey) => {
 };
 
 /**
+ * Generates a consistent color hash from a string
+ * @param {string} str - Input string to generate color from
+ * @returns {string} - Hex color code
+ */
+const stringToColor = (str) => {
+  if (!str || typeof str !== 'string') {
+    return '#666666'; // Default color for invalid inputs
+  }
+
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  let color = '#';
+  for (let i = 0; i < 3; i++) {
+    const value = (hash >> (i * 8)) & 0xFF;
+    color += ('00' + value.toString(16)).substr(-2);
+  }
+
+  return color;
+};
+
+/**
  * Transforms data for a bar chart
  * @param {Array} data - Array of data points
  * @param {string} xKey - Key for X-axis values
@@ -102,6 +126,56 @@ export const transformPieChartData = (data, labelKey, valueKey) => {
       }
     ]
   };
+};
+
+export const adjustColorBrightness = (color, amount) => {
+  return '#' + color.replace(/^#/, '').replace(/../g, color =>
+    ('0' + Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2)
+  );
+};
+
+export const generateColorPalette = (baseColor, count) => {
+  const colors = [];
+  for (let i = 0; i < count; i++) {
+    const adjustment = Math.floor((i - count / 2) * (255 / count));
+    colors.push(adjustColorBrightness(baseColor, adjustment));
+  }
+  return colors;
+};
+
+export const extractNumericValue = (currencyString) => {
+  // Handle direct numeric input
+  if (typeof currencyString === 'number') {
+    return currencyString;
+  }
+
+  // Handle null, undefined, or empty string
+  if (!currencyString) {
+    return 0;
+  }
+
+  try {
+    // Convert to string if not already
+    const valueString = currencyString.toString();
+    
+    // Remove the Naira symbol, commas, and any whitespace
+    const cleanedString = valueString.replace(/[₦,\s]/g, '');
+    
+    // Parse the numeric value
+    const numericValue = parseFloat(cleanedString);
+    
+    // Log the transformation for debugging
+    console.log('Currency transformation:', {
+      original: currencyString,
+      cleaned: cleanedString,
+      final: numericValue
+    });
+
+    return isNaN(numericValue) ? 0 : numericValue;
+  } catch (error) {
+    console.error('Error processing currency value:', error);
+    return 0;
+  }
 };
 
 /**
@@ -185,27 +259,39 @@ export const calculateAverageSales = (salesData) => {
 /**
  * Formats a number as currency
  * @param {number} value - The value to format
- * @param {string} currency - The currency code (default: 'USD')
+ * @param {string} currency - The currency code (default: 'NGN')
  * @returns {string} Formatted currency string
  */
-export const formatCurrency = (value, currency = 'USD', locale = 'en-US') => {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currency,
-  }).format(value);
-};
+export const formatCurrency = (value, currency = 'NGN', locale = 'en-NG') => {
+  if (value === null || value === undefined) {
+    return '₦0.00';
+  }
 
-const stringToColor = (str) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  try {
+    const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+    
+    if (isNaN(numericValue)) {
+      return '₦0.00';
+    }
+
+    if (currency === 'NGN') {
+      // Custom formatting for Naira to ensure consistency with backend
+      const formattedNumber = numericValue.toLocaleString('en-NG', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      return `₦${formattedNumber}`;
+    }
+
+    // For other currencies, use Intl.NumberFormat
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currency
+    }).format(numericValue);
+  } catch (error) {
+    console.error('Error formatting currency:', error);
+    return '₦0.00';
   }
-  let color = '#';
-  for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xFF;
-    color += ('00' + value.toString(16)).substr(-2);
-  }
-  return color;
 };
 
 /**

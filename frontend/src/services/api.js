@@ -2,6 +2,7 @@ import axios from 'axios';
 import { isTokenPresent, getAuthHeader } from '../utils/auth';
 import { dateUtils } from '../utils/dateUtils';
 import moment from 'moment-timezone';
+import { formatCurrency, extractNumericValue } from '../utils/dataTransformations';
 
 const BASE_URL = 'http://localhost:8000/api'
 
@@ -818,6 +819,36 @@ export const generateInvoicePDF = async (invoiceId) => {
   }
 };
 
+export const exportPdf = async (exportParams) => {
+  try {
+    const response = await axiosInstance.post('/invoices/invoices/export_pdf/', exportParams, {
+      responseType: 'blob', // Important for file download
+    });
+
+    // Create a download link
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:T]/g, '-').split('.')[0];
+    link.setAttribute('download', `invoice_export_${timestamp}.pdf`);
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    return response.data; // Return the blob data if needed
+  } catch (error) {
+    console.error('Export PDF error:', error);
+
+    if (error.response) {
+      console.error('Error details:', error.response.data);
+    }
+    throw error;
+  }
+};
+
 // Function to mark an invoice as paid
 export const markInvoiceAsPaid = async (invoiceId) => {
   try {
@@ -966,15 +997,12 @@ export const fetchSummaryData = async (startDate, endDate) => {
   try {
     console.log('fetchSummaryData input dates:', { startDate, endDate });
 
-    // Process the date range properly
     const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(startDate, endDate);
-    
+
     const params = {
       start_date: formattedStartDate,
       end_date: formattedEndDate
     };
-
-    console.log('API request params:', params);
 
     const [orders, products, customers, transactions] = await Promise.all([
       axiosInstance.get('/core/orders/', { params }),
@@ -982,31 +1010,55 @@ export const fetchSummaryData = async (startDate, endDate) => {
       axiosInstance.get('/core/customers/', { params }),
       axiosInstance.get('/transactions/transactions/', { params })
     ]);
-    const safeArrayOp = (data, op) => {
-      if (Array.isArray(data)) {
-        return op === 'length' ? data.length : data.slice(0, 5);
-      } else if (data && typeof data === 'object') {
-        // If it's a paginated response, try to use the 'results' field
-        return op === 'length' ? (data.count || 0) : (data.results || []).slice(0, 5);
-      }
-      return op === 'length' ? 0 : [];
-    };
 
-    const orderData = Array.isArray(orders.data) ? orders.data : (orders.data.results || []);
-    const totalRevenue = orderData.reduce((sum, order) => sum + (parseFloat(order.total_price) || 0), 0);
-    const totalOrders = safeArrayOp(orders.data, 'length');
+    // Improved data extraction with verbose logging
+    const orderData = Array.isArray(orders.data) ? orders.data : 
+                     (orders.data.results || []);
+
+    console.log('Raw Order Data:', orderData);
+
+    let totalRevenue = 0;
+    // Process each order individually with error handling
+    orderData.forEach((order, index) => {
+      try {
+        const orderValue = extractNumericValue(order.total_price);
+        console.log(`Processing order ${index}:`, {
+          originalPrice: order.total_price,
+          extractedValue: orderValue
+        });
+        totalRevenue += orderValue;
+      } catch (err) {
+        console.error(`Error processing order ${index}:`, err);
+      }
+    });
+
+    const totalOrders = orderData.length;
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-    return {
+    console.log('Processing Results:', {
       totalRevenue,
-      averageOrderValue,
       totalOrders,
-      totalProducts: safeArrayOp(products.data, 'length'),
-      totalCustomers: safeArrayOp(customers.data, 'length'),
-      recentTransactions: safeArrayOp(transactions.data, 'slice')
+      averageOrderValue
+    });
+
+    const summaryData = {
+      totalRevenue: formatCurrency(totalRevenue),
+      averageOrderValue: formatCurrency(averageOrderValue),
+      totalOrders,
+      totalProducts: Array.isArray(products.data) ? products.data.length : 
+                    (products.data?.results?.length || 0),
+      totalCustomers: Array.isArray(customers.data) ? customers.data.length :
+                     (customers.data?.results?.length || 0),
+      recentTransactions: Array.isArray(transactions.data) ? 
+                         transactions.data.slice(0, 5) :
+                         (transactions.data?.results || []).slice(0, 5)
     };
+
+    console.log('Final Summary Data:', summaryData);
+    return summaryData;
+
   } catch (error) {
-    console.error('Error fetching summary data:', error.response?.data || error.message);
+    console.error('Error in fetchSummaryData:', error);
     throw error;
   }
 };
@@ -1030,7 +1082,7 @@ export const fetchSalesData = async (startDate, endDate) => {
     const processOrders = (orders) => orders.map(order => ({
       id: order.id,
       date: order.order_date,
-      amount: order.total_price,
+      amount: extractNumericValue(order.total_price),
       customer: order.customer,
       status: order.status,
       isPaid: order.is_paid,

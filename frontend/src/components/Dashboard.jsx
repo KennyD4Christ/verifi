@@ -15,6 +15,7 @@ import { FixedSizeList as List } from 'react-window';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { debounce } from 'lodash';
 import { transparentize, rgba, darken, lighten } from 'polished';
+import TopProductsChart from './TopProductsChart';
 import {
   Chart as ChartJS,
   TimeScale,
@@ -47,6 +48,7 @@ import {
   validateSearchInput,
   calculateAverageSales,
   transformChartData,
+  extractNumericValue,
 } from '../utils/dataTransformations';
 
 import 'chartjs-adapter-date-fns';
@@ -947,13 +949,18 @@ const Dashboard = () => {
           return acc;
         }
 
-        // Parse amount with fallback
-        const amount = parseFloat(sale.amount) || 0;
-        if (amount === 0) {
-          console.warn(`Invalid amount in sale object: ${sale.amount}`);
+        // Handle currency-formatted amounts by extracting numeric value
+        let amount = sale.amount;
+        if (typeof amount === 'string' && amount.includes('₦')) {
+          amount = extractNumericValue(amount);
+        } else {
+          amount = parseFloat(amount) || 0;
         }
 
-        // Format date consistently
+        if (amount === 0) {
+          console.warn(`Invalid or zero amount in sale object: ${sale.amount}`);
+        }
+
         const formattedDate = dateUtils.formatDateForAPI(saleDate);
 
         // Check if date is within range
@@ -967,9 +974,10 @@ const Dashboard = () => {
       return Object.entries(aggregated)
         .map(([date, amount]) => ({
           date,
-          amount: Number(amount.toFixed(2))
+          amount: Number(amount.toFixed(2))  // Maintain numeric value
         }))
         .sort((a, b) => moment(a.date).valueOf() - moment(b.date).valueOf());
+
     } catch (error) {
       console.error('Error in revenue aggregation:', error);
       return [];
@@ -978,26 +986,21 @@ const Dashboard = () => {
 
   const formatTopProductsData = useMemo(() => {
     console.log('Raw top products data:', topProducts);
-
     if (!Array.isArray(topProducts) || topProducts.length === 0) {
       console.warn('No top products data available');
       return [];
     }
-
     return topProducts.map(product => {
-      // Add detailed logging for each product
-      console.log('Processing product:', {
-        name: product.name,
-        sales: product.total_sales,
-        revenue: product.total_revenue
-      });
+      const revenue = typeof product.total_revenue === 'string' 
+        ? extractNumericValue(product.total_revenue)
+        : parseFloat(product.total_revenue) || 0;
 
       return {
         name: product.name || 'Unnamed Product',
         sku: product.sku || 'N/A',
         sales: parseInt(product.total_sales) || 0,
-        revenue: parseFloat(product.total_revenue) || 0,
-        // Add debugging information
+        revenue: revenue, // Keep as numeric for Chart.js
+        revenueFormatted: formatCurrency(revenue, 'NGN', 'en-NG'), // Formatted version for display
         _debug: {
           rawSales: product.total_sales,
           rawRevenue: product.total_revenue
@@ -1192,37 +1195,13 @@ const Dashboard = () => {
           if (productsData.length === 0) {
             throw new Error('No top products data available');
           }
-
-          if (chartType === 'pie') {
-            data = {
-              labels: productsData.map(item => item.name),
-              datasets: [{
-                data: productsData.map(item => item.sales),
-                backgroundColor: productsData.map(() => getRandomColor()),
-                borderColor: productsData.map(() => getRandomColor()),
-                borderWidth: 1
-              }]
-            };
-          } else {
-            // For bar or line chart
-            data = {
-              labels: productsData.map(item => item.name),
-              datasets: [{
-                label: 'Total Sales',
-                data: productsData.map(item => item.sales),
-                backgroundColor: getRandomColor(),
-                borderColor: getRandomColor(),
-                borderWidth: 1
-              }, {
-                label: 'Revenue',
-                data: productsData.map(item => item.revenue),
-                backgroundColor: getRandomColor(),
-                borderColor: getRandomColor(),
-                borderWidth: 1,
-                yAxisID: 'revenue'
-              }]
-            };
-          }
+          return (
+            <TopProductsChart 
+              chartType={chartType}
+              productsData={productsData}
+              getRandomColor={getRandomColor}
+            />
+          );
 
           chartConfig = {
             responsive: true,
@@ -1237,12 +1216,11 @@ const Dashboard = () => {
               tooltip: {
                 callbacks: {
                   label: function(context) {
-                    const item = productsData[context.dataIndex];
                     const metric = context.dataset.label;
                     const value = context.raw;
 
                     if (metric === 'Revenue') {
-                      return `${metric}: $${value.toLocaleString()}`;
+                      return `${metric}: ₦${value.toLocaleString()}`;
                     }
                     return `${metric}: ${value.toLocaleString()} units`;
                   }
@@ -1262,7 +1240,7 @@ const Dashboard = () => {
                 position: 'right',
                 title: {
                   display: true,
-                  text: 'Revenue ($)'
+                  text: 'Revenue (₦)'
                 },
                 grid: {
                   drawOnChartArea: false
@@ -1405,7 +1383,10 @@ const Dashboard = () => {
             ) : (
               <>
                 {userPreferences.showRevenue && (
-                  <p>Revenue: {formatCurrency(metricData.totalRevenue || 0)}</p>
+                  <p>Revenue: {typeof metricData.totalRevenue === 'string' ? 
+                    metricData.totalRevenue : 
+                    formatCurrency(metricData.totalRevenue || 0)}
+                  </p>
                 )}
                 {userPreferences.showOrders && (
                   <p>Orders: {metricData.totalOrders || 0}</p>
@@ -1414,7 +1395,10 @@ const Dashboard = () => {
                   <p>Customers: {metricData.totalCustomers || 0}</p>
                 )}
                 {userPreferences.showAOV && (
-                  <p>Average Order Value: {formatCurrency(metricData.averageOrderValue || 0)}</p>
+                  <p>Average Order Value: {typeof metricData.averageOrderValue === 'string' ? 
+                    metricData.averageOrderValue : 
+                    formatCurrency(metricData.averageOrderValue || 0)}
+                  </p>
                 )}
                 {netProfit && (
                   <p>Net Profit: {formatCurrency(netProfit.net_profit || 0)}</p>

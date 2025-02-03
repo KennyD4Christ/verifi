@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Form, Input, Select, Button, message, InputNumber, Typography, Table } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { fetchProducts } from '../services/api';
+import { formatCurrency } from '../utils/dataTransformations';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -187,7 +188,7 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
       title: 'Unit Price',
       dataIndex: 'unit_price',
       key: 'unit_price',
-      render: (value) => `$${parseFloat(value).toFixed(2)}`,
+      render: (value) => formatCurrency(value),
     },
     {
       title: 'Status',
@@ -304,7 +305,7 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
           </Text>
         </div>
 
-        <Text strong>Total Price: ${totalPrice.toFixed(2)}</Text>
+        <Text strong>Total Price: {formatCurrency(totalPrice)}</Text>
 
         <Form.Item style={{ marginTop: 16 }}>
           <Button type="primary" htmlType="submit" loading={loading}>
