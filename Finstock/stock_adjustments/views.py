@@ -55,6 +55,7 @@ class StockAdjustmentViewSet(BaseAccessControlViewSet):
     filterset_class = StockAdjustmentFilter
     search_fields = ['product__name', 'reason']
     ordering_fields = ['adjustment_date', 'quantity', 'product__name']
+    ordering = ['-adjustment_date']
 
     model = StockAdjustment
     model_name = 'stock_adjustment'

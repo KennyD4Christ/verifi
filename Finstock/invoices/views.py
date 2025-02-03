@@ -21,6 +21,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from products.models import Product
 from products.serializers import ProductSerializer
 from decimal import Decimal
+from django.utils import timezone
 from .models import Invoice, InvoiceItem
 from users.models import CustomUser
 from users.constants import PermissionConstants
@@ -65,51 +66,79 @@ class InvoiceViewSet(BaseAccessControlViewSet):
     filterset_fields = ['status', 'issue_date', 'due_date']
     search_fields = ['customer__name', 'invoice_number']
     ordering_fields = ['issue_date', 'due_date', 'total_amount', 'status']
+    ordering = ['-issue_date']
 
     view_permission = PermissionConstants.INVOICE_VIEW
     create_permission = PermissionConstants.INVOICE_CREATE
     edit_permission = PermissionConstants.INVOICE_EDIT
     delete_permission = PermissionConstants.INVOICE_DELETE
 
+    def get_queryset(self):
+        """
+        Override get_queryset to ensure proper model initialization
+        """
+        if not self.request.user.is_authenticated:
+            return Invoice.objects.none()
+
+        base_queryset = super().get_queryset()
+        return base_queryset.select_related('customer').prefetch_related('items')
+
     def apply_role_based_filtering(self):
+        """
+        Implement role-specific filtering for invoices
+        """
+        queryset = Invoice.objects.all()
         user = self.request.user
 
         try:
-            if user.is_role('Administrator'):
-                return self.model.objects.all()
-            elif user.is_role('Sales Representative'):
-                return self.model.objects.filter(order__sales_rep=user)
-            elif user.is_role('Customer'):
-                return self.model.objects.filter(order__customer__user=user)
+            if user.is_superuser:
+                return queryset
 
-            return self.model.objects.all()
+            # Check if user has explicit view permission regardless of role
+            if user.has_role_permission(self.view_permission):
+                if user.is_role('Administrator'):
+                    return queryset
+                elif user.is_role('Sales Representative'):
+                    return queryset.filter(order__sales_rep=user)
+                elif user.is_role('Customer'):
+                    return queryset.filter(order__customer__user=user)
+                elif user.is_role('Accountant'):
+                    # Accountants can view all invoices if they have view permission
+                    return queryset
+                else:
+                    # For other roles with view permission, show invoices they created
+                    return queryset.filter(
+                        Q(created_by=user) |
+                        Q(order__created_by=user)
+                    )
+        
+            logger.info(f"User {user.username} lacks view permission for invoices")
+            return Invoice.objects.none()
+
         except Exception as e:
             logger.error(f"Error in apply_role_based_filtering for user {user.id}: {str(e)}")
-            return self.model.objects.none()
+            return Invoice.objects.none()
 
-    def get_queryset(self):
-        user = self.request.user
-        logger.debug(f"User authenticated: {user.is_authenticated}")
-        if user.is_authenticated:
-            queryset = Invoice.objects.filter(user=user).select_related('customer').prefetch_related('items')
-            logger.debug(f"Initial queryset count: {queryset.count()}")
+    def apply_additional_filters(self, queryset):
+        """
+        Apply invoice-specific filters in addition to base filters
+        """
+        queryset = super().apply_additional_filters(queryset)
+        
+        # Apply amount-based filters
+        min_amount = self.request.query_params.get('min_amount')
+        max_amount = self.request.query_params.get('max_amount')
+        status = self.request.query_params.get('status')
 
-            min_amount = self.request.query_params.get('min_amount')
-            max_amount = self.request.query_params.get('max_amount')
-            status = self.request.query_params.get('status')
+        if min_amount:
+            queryset = queryset.filter(total_amount__gte=min_amount)
+        if max_amount:
+            queryset = queryset.filter(total_amount__lte=max_amount)
+        if status:
+            queryset = queryset.filter(status__iexact=status)
 
-            if min_amount:
-                queryset = queryset.filter(total_amount__gte=min_amount)
-            if max_amount:
-                queryset = queryset.filter(total_amount__lte=max_amount)
-            if status:
-                queryset = queryset.filter(status__iexact=status)
-
-            logger.debug(f"Final queryset count: {queryset.count()}")
-            return queryset
-        logger.debug("User not authenticated, returning empty queryset")
-        return Invoice.objects.none()
-
+        return queryset.select_related('customer').prefetch_related('items')
+    
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         instance.update_total_amount()  # Ensure total_amount is up to date
@@ -239,23 +268,33 @@ class InvoiceViewSet(BaseAccessControlViewSet):
         p.setFillColor(colors.Color(0.150, 0.205, 0.315))  # Slightly darker blue
         p.rect(0, height - 2.5*inch, width, 0.5*inch, fill=1)
 
-        # Company Logo - Adjusted position to prevent overlap
-        logo_path = os.path.expanduser('~/verifi/Finstock/static/Logo 10.png')
-        p.drawImage(logo_path, 0.5*inch, height - 2*inch, width=1.5*inch, height=1*inch)
+        # Set consistent left margin for all header elements
+        left_margin = 0.5*inch
 
-        # Company Information - Moved to right side of logo
+        # Logo path setup
+        logo_path = os.path.expanduser('~/verifi/Finstock/static/Logo 10.png')
+
+        # Get company information
         company_info = CompanyInfo.objects.first()
+
         if company_info:
-            # Start company info to the right of the logo
-            info_start_x = 2.25*inch
-            draw_text(company_info.name, info_start_x, height - 0.75*inch, "Helvetica-Bold", 24, colors.white)
-            draw_text(company_info.address, info_start_x, height - 1.25*inch, "Helvetica", 11, colors.white)
-            draw_text(f"Tel: {company_info.phone}", info_start_x, height - 1.5*inch, "Helvetica", 11, colors.white)
+            # Company name positioned above logo
+            name_y = height - 0.75*inch
+            draw_text(company_info.name, left_margin, name_y, "Helvetica-Bold", 24, colors.white)
+    
+            # Company Logo - Positioned below company name
+            logo_y = height - 1.85*inch
+            p.drawImage(logo_path, left_margin, logo_y, width=1.5*inch, height=1*inch)
+    
+            # Address and phone below logo, aligned with same left margin
+            info_y = logo_y - 0.27*inch
+            draw_text(company_info.address, left_margin, info_y, "Helvetica", 11, colors.white)
+            draw_text(f"Tel: {company_info.phone}", left_margin, info_y - 0.25*inch, "Helvetica", 11, colors.white)
             if hasattr(company_info, 'website'):
-                draw_text(f"Web: {company_info.website}", info_start_x, height - 1.75*inch, "Helvetica", 11, colors.white)
+                draw_text(f"Web: {company_info.website}", left_margin, info_y - 0.5*inch, "Helvetica", 11, colors.white)
         else:
             logger.warning("No CompanyInfo found. Using default values.")
-            draw_text("Company Name Not Set", 2.25*inch, height - 0.75*inch, "Helvetica-Bold", 24, colors.white)
+            draw_text("Company Name Not Set", left_margin, height - 1.5*inch, "Helvetica-Bold", 24, colors.white)
 
         # Professional Invoice Title
         draw_text("INVOICE", width - 2*inch, height - 0.75*inch, "Helvetica-Bold", 28, colors.white)
@@ -357,7 +396,168 @@ class InvoiceViewSet(BaseAccessControlViewSet):
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True, filename=f'invoice_{invoice.invoice_number}.pdf')
 
-    @action(detail=True, methods=['post'], permission_classes=[CanManageResource])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def export_pdf(self, request):
+        """
+        Generates a professional bulk PDF export of invoices with advanced styling and layout.
+        Supports multiple export formats and comprehensive filtering.
+        """
+        logger.info(f"Raw request data: {request.body}")
+        logger.info(f"Parsed request data: {request.data}")
+        logger.info(f"Content-Type header: {request.headers.get('Content-Type')}")
+
+        if not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, 
+                          status=status.HTTP_401_UNAUTHORIZED)
+
+        if not request.user.has_role_permission(self.view_permission):
+            logger.warning(f"Permission denied for PDF export to user {request.user.username}")
+            raise PermissionDenied("You don't have permission to export invoices")
+
+        invoice_ids = request.data.get('invoice_ids', [])
+        export_format = request.data.get('format', 'detailed')
+
+        if not invoice_ids:
+            logger.warning(f"Bulk PDF export attempted without invoice IDs by user {request.user.username}")
+            return Response(
+                {'error': 'No invoice IDs provided for export'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            accessible_invoices = self.apply_role_based_filtering()
+            invoices = accessible_invoices.filter(id__in=invoice_ids)
+
+            if not invoices.exists():
+                logger.warning(f"No accessible invoices found for bulk export by user {request.user.username}")
+                return Response(
+                    {'error': 'No invoices found or access denied'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            logger.info(f"Exporting {invoices.count()} invoices for user {request.user.username}")
+
+            # Prepare PDF buffer
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=letter)
+            elements = []
+
+            # Company information retrieval
+            company_info = CompanyInfo.objects.first()
+            if not company_info:
+                logger.warning("No CompanyInfo found. Using default values.")
+
+            # Styling and layout consistent with generate_pdf method
+            def create_header(canvas, doc):
+                canvas.saveState()
+                width, height = letter
+
+                # Header background
+                canvas.setFillColor(colors.Color(0.180, 0.235, 0.345))  # Primary blue
+                canvas.rect(0, height - 2.5*inch, width, 2.5*inch, fill=1)
+                canvas.setFillColor(colors.Color(0.150, 0.205, 0.315))  # Darker blue
+                canvas.rect(0, height - 2.5*inch, width, 0.5*inch, fill=1)
+
+                # Company Logo
+                logo_path = os.path.expanduser('~/verifi/Finstock/static/Logo 10.png')
+                canvas.drawImage(logo_path, 0.5*inch, height - 2*inch, width=1.5*inch, height=1*inch)
+
+                # Bulk Export Title
+                canvas.setFont("Helvetica-Bold", 24)
+                canvas.setFillColor(colors.white)
+                canvas.drawString(2.25*inch, height - 0.75*inch, "Invoice Bulk Export")
+
+                # Export Metadata
+                canvas.setFont("Helvetica", 10)
+                canvas.drawString(0.5*inch, 0.75*inch,
+                    f"Exported by {request.user.username} on {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+                canvas.restoreState()
+
+            # Prepare invoice data for table
+            table_data = [['Invoice #', 'Customer', 'Issue Date', 'Due Date', 'Subtotal', 'Total']]
+
+            for invoice in invoices:
+                row = [
+                    str(invoice.invoice_number)[:6],  # Consistent with generate_pdf approach
+                    invoice.customer.name if invoice.customer else 'N/A',
+                    invoice.issue_date.strftime("%B %d, %Y"),
+                    invoice.due_date.strftime("%B %d, %Y"),
+                    f"${invoice.total_amount:,.2f}",
+                    f"${invoice.total_amount:,.2f}"  # Placeholder for potential tax/adjustment
+                ]
+
+                if export_format == 'detailed':
+                    # Add more columns for detailed export
+                    row.extend([
+                        invoice.status,
+                        invoice.customer.phone if invoice.customer else 'N/A'
+                    ])
+                    table_data[0].extend(['Status', 'Contact'])
+
+                table_data.append(row)
+
+            # Table styling consistent with generate_pdf
+            table_style = [
+                ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.180, 0.235, 0.345)),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]
+
+            # Create table
+            table = Table(table_data, repeatRows=1)
+            table.setStyle(TableStyle(table_style))
+
+            # Aggregate summary
+            total_invoices = len(invoices)
+            total_amount = sum(invoice.total_amount for invoice in invoices)
+
+            # Summary paragraph
+            summary_style = getSampleStyleSheet()['Normal']
+            summary_text = (
+                f"Bulk Export Summary: {total_invoices} invoices exported. "
+                f"Total amount: ${total_amount:,.2f}"
+            )
+            summary_paragraph = Paragraph(summary_text, summary_style)
+
+            # Assemble PDF elements
+            elements.extend([
+                Spacer(1, 2*inch),  # Add some initial spacing
+                summary_paragraph,
+                Spacer(1, 0.5*inch),
+                table
+            ])
+
+            # Build PDF with custom header
+            doc.build(elements, onFirstPage=create_header, onLaterPages=create_header)
+
+            # Prepare response
+            buffer.seek(0)
+            response = FileResponse(
+                buffer,
+                as_attachment=True,
+                filename=f'invoice_bulk_export_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+            )
+
+            # Log export event
+            logger.info(f"Bulk PDF export of {total_invoices} invoices by user {request.user.username}")
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error in bulk PDF export: {str(e)}")
+            return Response(
+                {'error': 'An error occurred while generating bulk PDF export'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def mark_as_paid(self, request, pk=None):
         """
         Marks the invoice as paid.

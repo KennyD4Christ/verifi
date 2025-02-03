@@ -63,6 +63,7 @@ from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from reportlab.graphics.charts.legends import Legend
 from reportlab.graphics.charts.piecharts import Pie
 from calendar import month_name
+from core.utils.currency import currency_formatter
 
 
 logger = logging.getLogger(__name__)
@@ -269,12 +270,12 @@ def prepare_email_components(
     try:
         # Generate PDF report
         pdf_content = generate_pdf_with_retry(report, report_data)
-        
+
         # Get email template
         email_template = Report.get_email_template()
         if not email_template:
             raise ValueError("Email template configuration is missing")
-        
+
         # Generate email content
         content_generator = ReportContentGenerator()
         email_content = _generate_email_content(
@@ -285,18 +286,33 @@ def prepare_email_components(
             content_generator=content_generator,
             report_data=report_data
         )
-        
+
+        # Process financial data for context
+        financial_overview = report_data['financial_overview'].copy()
+        for key in ['total_revenue', 'net_profit', 'operating_expenses', 'cost_of_services']:
+            if key in financial_overview:
+                value = parse_number(financial_overview[key])
+                financial_overview[key] = format_number(value, include_suffix=True)
+
+        # Process performance metrics
+        performance_metrics = report_data['performance_metrics'].copy()
+        if 'order_performance' in performance_metrics:
+            order_perf = performance_metrics['order_performance']
+            if 'average_order_value' in order_perf:
+                value = parse_number(order_perf['average_order_value'])
+                order_perf['average_order_value'] = format_number(value, include_suffix=True)
+
         # Prepare context
         context = {
             **report.generate_email_context(recipient_name=recipient.display_name),
             'email_content': email_content,
             'period_start': report_data['report_metadata']['period_start'],
             'period_end': report_data['report_metadata']['period_end'],
-            'financial_overview': report_data['financial_overview'],
-            'performance_metrics': report_data['performance_metrics'],
+            'financial_overview': financial_overview,
+            'performance_metrics': performance_metrics,
             'inventory_insights': report_data['inventory_insights']
         }
-        
+
         return {
             'pdf_content': pdf_content,
             'email_template': email_template,
@@ -426,33 +442,39 @@ def _generate_email_content(
 
     financial_data = report_data['financial_overview']
     performance_data = report_data['performance_metrics']
-    
+
+    # Parse financial values
+    total_revenue = parse_number(financial_data['total_revenue'])
+    net_profit = parse_number(financial_data['net_profit'])
+    operating_expenses = parse_number(financial_data['operating_expenses'])
+    cost_of_services = parse_number(financial_data['cost_of_services'])
+    avg_order_value = parse_number(performance_data['order_performance']['average_order_value'])
+
     if recipient.is_administrator:
         content_parts.extend([
             "<h2>Administrative Overview</h2>",
             f"<p>Period: {report_data['report_metadata']['period_start']} to {report_data['report_metadata']['period_end']}</p>",
-            f"<p>Total Revenue: ${financial_data['total_revenue']:,.2f}</p>",
-            f"<p>Net Profit: ${financial_data['net_profit']:,.2f}</p>",
+            f"<p>Total Revenue: {format_number(total_revenue, include_suffix=True)}</p>",
+            f"<p>Net Profit: {format_number(net_profit, include_suffix=True)}</p>",
             f"<p>Total Orders: {performance_data['order_performance']['total_orders']}</p>"
         ])
     elif recipient.is_auditor:
         content_parts.extend([
             "<h2>Audit Summary</h2>",
             f"<p>Financial Period: {report_data['report_metadata']['period_start']} to {report_data['report_metadata']['period_end']}</p>",
-            f"<p>Revenue Verified: ${financial_data['total_revenue']:,.2f}</p>",
-            f"<p>Expenses Verified: ${financial_data['operating_expenses']:,.2f}</p>",
-            f"<p>Cost of Services: ${financial_data['cost_of_services']:,.2f}</p>"
+            f"<p>Revenue Verified: {format_number(total_revenue, include_suffix=True)}</p>",
+            f"<p>Expenses Verified: {format_number(operating_expenses, include_suffix=True)}</p>",
+            f"<p>Cost of Services: {format_number(cost_of_services, include_suffix=True)}</p>"
         ])
     else:
         content_parts.extend([
             "<h2>Report Summary</h2>",
             f"<p>Period: {report_data['report_metadata']['period_start']} to {report_data['report_metadata']['period_end']}</p>",
             "<p>Performance Overview:</p>",
-            f"<p>Average Order Value: ${performance_data['order_performance']['average_order_value']:,.2f}</p>"
+            f"<p>Average Order Value: {format_number(avg_order_value, include_suffix=True)}</p>"
         ])
 
     return "\n".join(content_parts)
-
 
 def validate_date_range(start_date_str: Optional[str], end_date_str: Optional[str]) -> tuple:
     """
@@ -503,9 +525,55 @@ def validate_date_range(start_date_str: Optional[str], end_date_str: Optional[st
     except Exception as e:
         raise ValidationError(f"Error validating date range: {str(e)}")
 
+def format_number(value, include_suffix=False):
+    """
+    Format numbers with thousand separators and optional K/M suffix.
+    
+    Args:
+        value (float/Decimal): The number to format
+        include_suffix (bool): Whether to include K/M suffix for large numbers
+        
+    Returns:
+        str: Formatted number string
+    """
+    try:
+        value = float(value)
+        if include_suffix:
+            if value >= 1_000_000:
+                return f"{value/1_000_000:,.2f}M"
+            elif value >= 1_000:
+                return f"{value/1_000:,.2f}K"
+        return f"{value:,.2f}"
+    except (TypeError, ValueError):
+        return "0.00"
+
+def parse_number(value_str):
+    """
+    Parse a formatted number string back to float.
+    
+    Args:
+        value_str (str): The formatted number string or number
+        
+    Returns:
+        float: Parsed number value
+    """
+    if isinstance(value_str, (int, float, Decimal)):
+        return float(value_str)
+    try:
+        # Handle strings with K/M suffixes
+        value_str = str(value_str).strip().upper()
+        multiplier = 1
+        if value_str.endswith('M'):
+            multiplier = 1_000_000
+            value_str = value_str[:-1]
+        elif value_str.endswith('K'):
+            multiplier = 1_000
+            value_str = value_str[:-1]
+        return float(value_str.replace(',', '')) * multiplier
+    except (ValueError, AttributeError):
+        return 0.0
 
 def generate_comprehensive_report(report, start_date_str: Optional[str], end_date_str: Optional[str]) -> dict:
-    """Generate a comprehensive report with date range filtering."""
     try:
         if start_date_str and end_date_str:
             # Use validated date range when dates are provided
@@ -537,13 +605,12 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
                     # Default to report creation date and current time
                     start_date = report.created_at
                     end_date = timezone.now()
-        
+
         logger.info(f"Generating report for period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
 
         def _analyze_income_breakdown(income_transactions):
-            # First, get all transactions with categories
             categorized = income_transactions.exclude(
-                Q(category__isnull=True) | Q(category='')  # Handle both NULL and empty string cases
+                Q(category__isnull=True) | Q(category='')
             ).values(
                 'category'
             ).annotate(
@@ -551,21 +618,18 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
                 transaction_count=Count('id')
             ).order_by('-total_amount')
 
-            # Get the category mapping
             category_mapping = dict(Transaction.CATEGORY_CHOICES)
-    
-            # Process categorized transactions
+
             breakdown = []
             for item in categorized:
                 category_name = category_mapping.get(item['category'])
-                if category_name:  # Only add if we have a valid category name
+                if category_name:
                     breakdown.append({
                         'category': category_name,
-                        'total_amount': item['total_amount'],
+                        'total_amount': format_number(item['total_amount']),
                         'transaction_count': item['transaction_count']
                     })
 
-            # Handle uncategorized transactions (both NULL and empty string categories)
             uncategorized = income_transactions.filter(
                 Q(category__isnull=True) | Q(category='')
             ).aggregate(
@@ -576,35 +640,38 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
             if uncategorized['total_amount']:
                 breakdown.append({
                     'category': 'Uncategorized Income',
-                    'total_amount': uncategorized['total_amount'],
+                    'total_amount': format_number(uncategorized['total_amount']),
                     'transaction_count': uncategorized['transaction_count']
                 })
 
             return breakdown
 
         def _analyze_expense_breakdown(expense_transactions):
-            """
-            Detailed breakdown of expense categories
-            """
-            return expense_transactions.values('category').annotate(
+            expense_data = expense_transactions.values('category').annotate(
                 total_amount=Sum('amount'),
                 transaction_count=Count('id')
             ).order_by('-total_amount')
 
+            return [{
+                'category': item['category'],
+                'total_amount': format_number(item['total_amount']),
+                'transaction_count': item['transaction_count']
+            } for item in expense_data]
+
         def _calculate_monthly_cash_flow(transactions):
-            """
-            Calculate monthly cash flow trends
-            """
-            return transactions.annotate(
+            cash_flow = transactions.annotate(
                 month=TruncMonth('date')
             ).values('month', 'transaction_type').annotate(
                 total_amount=Sum('amount')
             ).order_by('month')
 
+            return [{
+                'month': item['month'],
+                'transaction_type': item['transaction_type'],
+                'total_amount': format_number(item['total_amount'])
+            } for item in cash_flow]
+
         def generate_inventory_insights():
-            """
-            Generate comprehensive inventory analysis with enhanced low stock reporting
-            """
             date_filter = Q(
                 order_items__order__order_date__range=[start_date, end_date],
                 order_items__order__status__in=['delivered', 'shipped']
@@ -656,30 +723,32 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
                 'total_sales'
             ).order_by('stock')
 
+            total_stock_value = inventory_data.aggregate(
+                total=Sum(F('stock') * F('price'))
+            )['total'] or Decimal('0.00')
+
             return {
                 'total_product_count': inventory_data.count(),
-                'total_stock_value': inventory_data.aggregate(
-                    total=Sum(F('stock') * F('price'))
-                )['total'] or Decimal('0.00'),
+                'total_stock_value': format_number(total_stock_value),
                 'inventory_status': {
                     'status': 'Healthy' if not low_stock_products else 'Attention Required',
                     'low_stock_count': low_stock_products.count()
                 },
-                'low_stock_products': low_stock_products,
-                'top_selling_products': inventory_data.filter(
+                'low_stock_products': list(low_stock_products),
+                'top_selling_products': [{
+                    'name': product['name'],
+                    'total_sales': product['total_sales'],
+                    'total_revenue': format_number(product['total_revenue'])
+                } for product in inventory_data.filter(
                     Q(total_sales__gt=0) | Q(total_revenue__gt=0)
                 ).order_by('-total_sales')[:10].values(
                     'name',
                     'total_sales',
                     'total_revenue'
-                )
+                )]
             }
 
         def generate_performance_metrics():
-            """
-            Calculate key performance indicators
-            """
-            # Calculate customer metrics using order items
             date_filter = Q(orders__order_date__range=[start_date, end_date])
             customer_metrics = Customer.objects.annotate(
                 total_orders=Count('orders'),
@@ -693,7 +762,6 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
                 )
             )
 
-            # Calculate order performance using order items
             order_performance = Order.objects.filter(
                 order_date__range=[start_date, end_date]
             ).aggregate(
@@ -718,9 +786,8 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
                 )
             )
 
-
             def _calculate_sales_trend():
-                return Order.objects.filter(
+                sales_data = Order.objects.filter(
                     order_date__range=[start_date, end_date]
                 ).annotate(
                     month=TruncMonth('order_date')
@@ -732,21 +799,36 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
                     )
                 ).order_by('month')
 
+                return [{
+                    'month': item['month'],
+                    'total_sales': format_number(item['total_sales'])
+                } for item in sales_data]
+
             return {
                 'customer_metrics': {
                     'total_customers': customer_metrics.count(),
                     'average_orders_per_customer': float(
                         statistics.mean([c.total_orders for c in customer_metrics] or [0])
                     ),
-                    'top_customers': customer_metrics.order_by('-total_spend')[:5].values(
+                    'top_customers': [{
+                        'id': customer['id'],
+                        'first_name': customer['first_name'],
+                        'last_name': customer['last_name'],
+                        'email': customer['email'],
+                        'total_orders': customer['total_orders'],
+                        'total_spend': format_number(customer['total_spend'])
+                    } for customer in customer_metrics.order_by('-total_spend')[:5].values(
                         'id', 'first_name', 'last_name', 'email', 'total_orders', 'total_spend'
-                    )
+                    )]
                 },
-                'order_performance': order_performance,
+                'order_performance': {
+                    'total_orders': order_performance['total_orders'],
+                    'average_order_value': format_number(order_performance['average_order_value']),
+                    'total_revenue': format_number(order_performance['total_revenue'])
+                },
                 'sales_trend': _calculate_sales_trend()
             }
 
-        # Main report generation logic
         transactions = Transaction.objects.filter(
             date__range=[start_date, end_date]
         )
@@ -754,14 +836,16 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
         revenue = transactions.filter(
             transaction_type='income'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        
+
         cost_of_services = transactions.filter(
             transaction_type='cost_of_services'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        
+
         operating_expenses = transactions.filter(
             transaction_type='expense'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        net_profit = revenue - cost_of_services - operating_expenses
 
         return {
             'report_metadata': {
@@ -769,10 +853,10 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
                 'period_end': end_date.strftime('%Y-%m-%d')
             },
             'financial_overview': {
-                'total_revenue': revenue,
-                'cost_of_services': cost_of_services,
-                'operating_expenses': operating_expenses,
-                'net_profit': revenue - cost_of_services - operating_expenses,
+                'total_revenue': format_number(revenue),
+                'cost_of_services': format_number(cost_of_services),
+                'operating_expenses': format_number(operating_expenses),
+                'net_profit': format_number(net_profit),
                 'income_breakdown': _analyze_income_breakdown(
                     transactions.filter(transaction_type='income')
                 ),
@@ -789,12 +873,9 @@ def generate_comprehensive_report(report, start_date_str: Optional[str], end_dat
         raise ValueError(f"Error generating report: {str(e)}")
 
 def create_revenue_trend_chart(financial_data, width, height):
-    """
-    Create an enhanced line chart showing revenue trends with legends and value labels.
-    """
     drawing = Drawing(width, height)
     chart = HorizontalLineChart()
-    
+
     chart.x = 60
     chart.y = 50
     chart.width = width - 120
@@ -802,7 +883,7 @@ def create_revenue_trend_chart(financial_data, width, height):
 
     try:
         revenue_data = financial_data.get('monthly_revenue', [])
-        
+
         if not revenue_data:
             chart.data = [[0, 0]]
             chart.categoryAxis.categoryNames = ['No Data', '']
@@ -810,18 +891,18 @@ def create_revenue_trend_chart(financial_data, width, height):
             chart.valueAxis.valueMax = 100
             drawing.add(chart)
             return drawing
-            
+
         def sort_key(x):
             date = datetime.strptime(f"{x['month']} {x['year']}", '%B %Y')
             return date
-            
+
         sorted_data = sorted(revenue_data, key=sort_key)
-        
+
         if len(sorted_data) == 1:
             sorted_data.append(sorted_data[0].copy())
-            
+
         revenue_values = [float(entry['revenue']) for entry in sorted_data]
-        
+
         months = []
         prev_year = None
         for entry in sorted_data:
@@ -844,7 +925,7 @@ def create_revenue_trend_chart(financial_data, width, height):
             chart.data = [revenue_values, moving_averages]
         else:
             chart.data = [revenue_values]
-            
+
         chart.categoryAxis.categoryNames = months
 
         min_value = min(revenue_values) if revenue_values else 0
@@ -854,7 +935,6 @@ def create_revenue_trend_chart(financial_data, width, height):
         chart.valueAxis.valueMin = float(min_value - padding)
         chart.valueAxis.valueMax = float(max_value + padding)
 
-        # Enhanced styling
         chart.categoryAxis.labels.boxAnchor = 'ne'
         chart.categoryAxis.labels.angle = 30
         chart.categoryAxis.labels.fontSize = 8
@@ -875,7 +955,6 @@ def create_revenue_trend_chart(financial_data, width, height):
         chart.valueAxis.strokeWidth = 1
         chart.valueAxis.strokeColor = colors.HexColor('#424242')
 
-        # Add y-axis label
         y_axis_label = String(
             15, height / 2, 'Revenue',
             fontSize=10, fontName='Helvetica',
@@ -884,41 +963,28 @@ def create_revenue_trend_chart(financial_data, width, height):
         )
         drawing.add(y_axis_label)
 
-        # Format currency values
-        def format_value(value):
-            if value >= 1_000_000:
-                return f'${value/1_000_000:.1f}M'
-            elif value >= 1_000:
-                return f'${value/1_000:.0f}K'
-            else:
-                return f'${value:,.0f}'
+        chart.valueAxis.labelTextFormat = lambda x: format_number(x, include_suffix=True)
 
-        chart.valueAxis.labelTextFormat = format_value
-
-        # Line styling
         chart.lines[0].strokeWidth = 3
         chart.lines[0].strokeColor = colors.HexColor('#1a237e')
         if len(chart.data) > 1:
             chart.lines[1].strokeWidth = 2
             chart.lines[1].strokeColor = colors.HexColor('#43a047')
 
-        # Add value labels on the chart
         for i, value in enumerate(revenue_values):
             label = String(
                 chart.x + (i + 0.5) * (chart.width / len(revenue_values)),
-                chart.y + chart.height * (value - chart.valueAxis.valueMin) / 
+                chart.y + chart.height * (value - chart.valueAxis.valueMin) /
                 (chart.valueAxis.valueMax - chart.valueAxis.valueMin),
-                format_value(value),
+                format_number(value, include_suffix=True),
                 fontSize=8,
                 fontName='Helvetica',
                 textAnchor='middle'
             )
             drawing.add(label)
 
-        # Add legend
         legend_y = height - 25
-        
-        # Legend for actual revenue
+
         drawing.add(Line(
             width - 220, legend_y, width - 190, legend_y,
             strokeWidth=3,
@@ -931,7 +997,6 @@ def create_revenue_trend_chart(financial_data, width, height):
             fontName='Helvetica'
         ))
 
-        # Legend for trend line (if exists)
         if len(chart.data) > 1:
             drawing.add(Line(
                 width - 120, legend_y, width - 90, legend_y,
@@ -956,27 +1021,14 @@ def create_revenue_trend_chart(financial_data, width, height):
     return drawing
 
 def create_category_pie_chart(data, width, height):
-    """
-    Create a pie chart showing revenue distribution by category.
-
-    Args:
-        data (list): List of dictionaries containing category revenue data
-        width (int): Width of the chart
-        height (int): Height of the chart
-
-    Returns:
-        Drawing: A ReportLab drawing object containing the pie chart
-    """
     drawing = Drawing(width, height)
     pie = Pie()
 
-    # Set chart position and dimensions
-    pie.width = min(width, height) - 120  # Allow margin
+    pie.width = min(width, height) - 120
     pie.height = min(width, height) - 120
     pie.x = (width - pie.width) / 2
     pie.y = (height - pie.height) / 2
 
-    # Process and validate data
     valid_categories = []
     for category in data:
         if (category.get('total_amount', 0) > 0 and
@@ -985,110 +1037,92 @@ def create_category_pie_chart(data, width, height):
             valid_categories.append(category)
 
     if not valid_categories:
-        # Create a placeholder chart if no valid data
         pie.data = [100]
         pie.labels = ['No Data']
     else:
-        # Prepare valid data for the chart
-        pie.data = [category['total_amount'] for category in valid_categories]
+        pie.data = [float(str(category['total_amount']).replace(',', ''))
+                   for category in valid_categories]
         pie.labels = [category['category'] for category in valid_categories]
 
-    # Style the pie chart
     pie.slices.strokeWidth = 1
-    pie.slices.strokeColor = colors.white  # White borders between slices
+    pie.slices.strokeColor = colors.white
 
-    # Add custom colors for slices (modern and vibrant palette)
     chart_colors = [
-        colors.HexColor('#1976d2'),  # Deep Blue
-        colors.HexColor('#26c6da'),  # Cyan
-        colors.HexColor('#66bb6a'),  # Green
-        colors.HexColor('#ffa726'),  # Orange
-        colors.HexColor('#ff7043'),  # Red
-        colors.HexColor('#ab47bc'),  # Purple
-        colors.HexColor('#ec407a'),  # Pink
+        colors.HexColor('#1976d2'),
+        colors.HexColor('#26c6da'),
+        colors.HexColor('#66bb6a'),
+        colors.HexColor('#ffa726'),
+        colors.HexColor('#ff7043'),
+        colors.HexColor('#ab47bc'),
+        colors.HexColor('#ec407a'),
     ]
     for i in range(len(pie.data)):
         pie.slices[i].fillColor = chart_colors[i % len(chart_colors)]
 
-    # Configure labels
-    pie.sideLabels = True  # Place labels outside the pie
-    pie.simpleLabels = False  # Use detailed labels
-    pie.slices.popout = 10  # Slight pop-out effect for better separation
+    pie.sideLabels = True
+    pie.simpleLabels = False
+    pie.slices.popout = 10
 
-    # Format labels with percentages
     total = sum(pie.data)
     if total > 0:
         percentages = [(value / total) * 100 for value in pie.data]
         pie.labels = [
-            f'{label} ({value:,.0f}) - {perc:.1f}%' 
+            f'{label} ({format_number(value)}) - {perc:.1f}%'
             for label, value, perc in zip(pie.labels, pie.data, percentages)
         ]
 
-    # Add a title (optional for better presentation)
     drawing.add(pie)
     return drawing
 
 def create_inventory_bar_chart(data, width, height):
-    """Create a bar chart for inventory levels"""
     drawing = Drawing(width, height)
-    
+
     chart = VerticalBarChart()
     chart.x = 50
     chart.y = 50
     chart.width = width - 100
     chart.height = height - 150
-    
-    # Configure chart
+
     chart.data = [data['stock_levels']]
     chart.categoryAxis.categoryNames = data['product_categories']
     chart.categoryAxis.labels.boxAnchor = 'ne'
     chart.categoryAxis.labels.angle = 30
-    
-    # Style the chart
-    # Bar colors with a gradient effect
-    chart.bars[0].fillColor = colors.HexColor('#1e88e5')  # Blue
-    chart.bars[0].strokeWidth = 0.5
-    chart.bars[0].strokeColor = colors.HexColor('#1565c0')  # Darker outline
 
-    # Gridlines
+    chart.bars[0].fillColor = colors.HexColor('#1e88e5')
+    chart.bars[0].strokeWidth = 0.5
+    chart.bars[0].strokeColor = colors.HexColor('#1565c0')
+
     chart.valueAxis.gridStrokeWidth = 0.5
     chart.valueAxis.gridStrokeColor = colors.HexColor('#e0e0e0')
 
-    # Configure axes
-    chart.valueAxis.valueMin = 0  # Start from 0
-    chart.valueAxis.labels.fontSize = 10  # Value labels font size
-    chart.valueAxis.labelTextFormat = lambda x: f'{x:,.0f}'  # Format values as numbers
+    chart.valueAxis.valueMin = 0
+    chart.valueAxis.labels.fontSize = 10
+    chart.valueAxis.labelTextFormat = lambda x: format_number(x, include_suffix=True)
     chart.categoryAxis.labels.boxAnchor = 'ne'
-    chart.categoryAxis.labels.angle = 45  # Rotate category names
-    chart.categoryAxis.labels.fontSize = 9  # Font size for categories
-    chart.categoryAxis.labels.fillColor = colors.HexColor('#424242')  # Dark Gray
+    chart.categoryAxis.labels.angle = 45
+    chart.categoryAxis.labels.fontSize = 9
+    chart.categoryAxis.labels.fillColor = colors.HexColor('#424242')
 
-    # Add a legend
     legend_label = String(
-        width - 150, height - 50, "Stock Levels", fontSize=12, fillColor=colors.HexColor('#1e88e5')
+        width - 150, height - 50, "Stock Value",
+        fontSize=12,
+        fillColor=colors.HexColor('#1e88e5')
     )
     drawing.add(legend_label)
 
-    # Add the chart to the drawing
     drawing.add(chart)
     return drawing
 
 def calculate_growth_rate(current_value, previous_value):
-    """
-    Calculate the percentage growth rate between two values.
-
-    Args:
-        current_value (float): The current period value
-        previous_value (float): The previous period value
-
-    Returns:
-        float: The percentage growth rate. Returns 0.0 if previous value is 0 or if
-              either value is None to avoid division by zero errors.
-    """
     if current_value is None or previous_value is None:
         return 0.0
 
     try:
+        if isinstance(current_value, str):
+            current_value = float(current_value.replace(',', ''))
+        if isinstance(previous_value, str):
+            previous_value = float(previous_value.replace(',', ''))
+
         if previous_value == 0:
             return 0.0 if current_value == 0 else 100.0
         return ((current_value - previous_value) / previous_value) * 100
@@ -1096,22 +1130,18 @@ def calculate_growth_rate(current_value, previous_value):
         return 0.0
 
 def calculate_inventory_turnover(inventory_data):
-    """
-    Calculate inventory turnover ratio based on provided inventory insights.
-    
-    Args:
-        inventory_data (dict): Dictionary containing inventory metrics and costs
-        
-    Returns:
-        float: Calculated inventory turnover ratio
-    """
     try:
         cost_of_goods_sold = inventory_data.get('cost_of_goods_sold', 0)
         average_inventory = inventory_data.get('average_inventory_value', 0)
-        
+
+        if isinstance(cost_of_goods_sold, str):
+            cost_of_goods_sold = float(cost_of_goods_sold.replace(',', ''))
+        if isinstance(average_inventory, str):
+            average_inventory = float(average_inventory.replace(',', ''))
+
         if average_inventory == 0:
             return 0
-            
+
         turnover_ratio = cost_of_goods_sold / average_inventory
         return round(turnover_ratio, 2)
     except (TypeError, ValueError, ZeroDivisionError):
@@ -1120,10 +1150,10 @@ def calculate_inventory_turnover(inventory_data):
 def generate_advanced_analysis(report_data):
     """
     Generate sophisticated business analysis and insights based on report data.
-    
+
     Args:
         report_data (dict): Comprehensive report data including financial and inventory metrics
-        
+
     Returns:
         dict: Structured analysis including trends, risks, and opportunities
     """
@@ -1133,58 +1163,54 @@ def generate_advanced_analysis(report_data):
         'opportunities': [],
         'kpi_analysis': {}
     }
-    
+
     try:
-        # Revenue Analysis
-        revenue_growth = calculate_growth_rate(
-            report_data['financial_overview']['total_revenue'],
-            report_data['financial_overview'].get('previous_revenue', 0)
-        )
-        
+        total_revenue = parse_number(report_data['financial_overview']['total_revenue'])
+        previous_revenue = parse_number(report_data['financial_overview'].get('previous_revenue', 0))
+
+        formatted_revenue = format_number(total_revenue)
+        formatted_previous_revenue = format_number(previous_revenue)
+
+        revenue_growth = calculate_growth_rate(total_revenue, previous_revenue)
+
         if revenue_growth > 0:
             analysis['trends'].append({
                 'metric': 'Revenue Growth',
                 'value': revenue_growth,
                 'impact': 'positive',
-                'insight': f'Revenue grown by {revenue_growth:.1f}% indicates strong market performance.'
+                'insight': f'Revenue grown by {revenue_growth:.1f}% (from {formatted_previous_revenue} to {formatted_revenue}) indicates strong market performance.'
             })
-        elif revenue_growth < 0:
-            analysis['risks'].append({
-                'category': 'Revenue',
-                'issue': 'Declining Revenue',
-                'impact': 'high',
-                'recommendation': 'Investigate revenue decline factors and develop recovery strategies.'
-            })
-        
-        # Profitability Analysis
+
         try:
-            profit_margin = (report_data['financial_overview']['net_profit'] /
-                           report_data['financial_overview']['total_revenue'] * 100)
-            
+            net_profit = parse_number(report_data['financial_overview']['net_profit'])
+            formatted_net_profit = format_number(net_profit)
+
+            # Calculate profit margin using decimal values
+            profit_margin = float(net_profit / total_revenue * 100) if float(total_revenue) > 0 else 0
+
             analysis['kpi_analysis']['profit_margin'] = {
                 'value': profit_margin,
                 'benchmark': 20.0,
-                'status': 'above_target' if profit_margin > 20 else 'below_target'
+                'status': 'above_target' if profit_margin > 20 else 'below_target',
+                'formatted_profit': formatted_net_profit
             }
-            
-            if profit_margin < 15:
-                analysis['risks'].append({
-                    'category': 'Profitability',
-                    'issue': 'Low Profit Margin',
-                    'impact': 'high',
-                    'recommendation': 'Review pricing strategy and cost structure.'
-                })
-        except (ZeroDivisionError, KeyError):
+        except (ZeroDivisionError, KeyError, decimal.InvalidOperation) as e:
+            logger.error(f"Error calculating profit margin: {str(e)}")
+            analysis['kpi_analysis']['profit_margin'] = {
+                'value': 0,
+                'benchmark': 20.0,
+                'status': 'below_target',
+                'formatted_profit': format_number(0)
+            }
             analysis['risks'].append({
                 'category': 'Financial Data',
                 'issue': 'Incomplete Profit Data',
                 'impact': 'medium',
                 'recommendation': 'Ensure complete financial data collection.'
             })
-        
-        # Inventory Analysis
+
         stock_turnover = calculate_inventory_turnover(report_data['inventory_insights'])
-        
+
         if stock_turnover > 0:
             if stock_turnover < 4:
                 analysis['risks'].append({
@@ -1200,13 +1226,19 @@ def generate_advanced_analysis(report_data):
                     'impact': 'positive',
                     'recommendation': 'Consider increasing stock levels to prevent stockouts.'
                 })
-        
+
     except Exception as e:
-        print(f"Error in advanced analysis generation: {str(e)}")
-        # Return basic analysis structure if error occurs
-        return analysis
-    
+        logger.error(f"Error in advanced analysis generation: {str(e)}")
+        # Ensure profit_margin key exists even in case of error
+        analysis['kpi_analysis']['profit_margin'] = {
+            'value': 0,
+            'benchmark': 20.0,
+            'status': 'below_target',
+            'formatted_profit': format_number(0)
+        }
+
     return analysis
+
 
 def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_data=None):
     if report_data is None:
@@ -1241,6 +1273,7 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
         ]
     }
 
+    # Use the font in your styles
     styles = getSampleStyleSheet()
     
     # Main Title Style
@@ -1346,12 +1379,14 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
                 if entry['transaction_type'] == 'income':
                     # Directly use the month field from the entry
                     transaction_date = entry['month']
+
+                    revenue_amount = parse_number(entry['total_amount'])
                 
                     monthly_data.append({
                         'month_year': transaction_date,
                         'month': transaction_date.strftime('%B'),
                         'year': transaction_date.year,
-                        'revenue': float(entry['total_amount'])
+                        'revenue': revenue_amount
                     })
 
             # Sort the data by the datetime object
@@ -1377,18 +1412,18 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
         logger.info(f"Income breakdown data: {income_breakdown}")
     
         formatted_data = []
-        total_amount = sum(item['total_amount'] for item in income_breakdown)
-    
+        total_amount = sum(parse_number(item['total_amount']) for item in income_breakdown)
+
         if total_amount > 0:
             for item in income_breakdown:
-                if item['total_amount'] > 0:
+                amount = parse_number(item['total_amount'])
+                if amount > 0:
                     category_name = item['category'] if item['category'] else 'Uncategorized Income'
                     formatted_data.append({
                         'category': category_name,
-                        'total_amount': float(item['total_amount'])  # Convert Decimal to float
+                        'total_amount': amount
                     })
-    
-        # Add logging for the formatted output
+
         logger.info(f"Formatted category data: {formatted_data}")
         return formatted_data
 
@@ -1396,26 +1431,40 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
         try:
             products = inventory_insights['low_stock_products']
         
-            # Convert queryset to list and get required fields
-            product_list = list(products.values('name', 'stock')[:10])
-        
-            if not product_list:
-                logger.warning("No low stock products found")
+            # Handle case where products is already a list
+            if isinstance(products, list):
+                product_list = products[:10]  # Take first 10 items
+            
+                if not product_list:
+                    logger.warning("No low stock products found")
+                    return {
+                        'product_categories': ['No Low Stock Items'],
+                        'stock_levels': [[0]]
+                    }
+
+                # Ensure each product has required fields
+                categories = []
+                stock_levels = []
+            
+                for product in product_list:
+                    name = product.get('name', 'Unknown Product')
+                    stock = float(product.get('stock', 0))
+                    categories.append(name)
+                    stock_levels.append(stock)
+
+                logger.info(f"Inventory chart data - Categories: {categories}, Levels: {stock_levels}")
+
                 return {
-                    'product_categories': ['No Low Stock Items'],
+                    'product_categories': categories,
+                    'stock_levels': [stock_levels]  # Wrap in list to maintain expected format
+                }
+            else:
+                logger.warning("Invalid product data format")
+                return {
+                    'product_categories': ['Data Unavailable'],
                     'stock_levels': [[0]]
                 }
-        
-            # Separate the data into two lists
-            categories = [p['name'] for p in product_list]
-            stock_levels = [[p['stock'] for p in product_list]]
-        
-            logger.info(f"Inventory chart data - Categories: {categories}, Levels: {stock_levels}")
-        
-            return {
-                'product_categories': categories,
-                'stock_levels': stock_levels
-            }
+            
         except Exception as e:
             logger.error(f"Error in prepare_inventory_chart_data: {str(e)}")
             return {
@@ -1457,14 +1506,18 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
     content.append(Paragraph("Executive Dashboard", styles['SectionHeader']))
 
     # Create KPI Summary Cards
+    net_profit = parse_number(report_data['financial_overview']['net_profit'])
+    total_revenue = parse_number(report_data['financial_overview']['total_revenue'])
+
     kpi_data = [
-        ['Revenue', f"${report_data['financial_overview']['total_revenue']:,.2f}",
+        ['Revenue', format_number(total_revenue, include_suffix=True),
          f"{calculate_growth_rate(report_data['financial_overview']['total_revenue'], report_data['financial_overview'].get('previous_revenue', 0)):+.1f}%"],
-        ['Profit Margin', f"{(report_data['financial_overview']['net_profit'] / report_data['financial_overview']['total_revenue'] * 100):.1f}%",
+        ['Profit Margin', f"{((net_profit / total_revenue) * 100 if total_revenue else 0):.1f}%",
          'Target: 20%'],
         ['Customer Base', f"{report_data['performance_metrics']['customer_metrics']['total_customers']:,}",
          f"{calculate_growth_rate(report_data['performance_metrics']['customer_metrics']['total_customers'], report_data['performance_metrics']['customer_metrics'].get('previous_total_customers', 0)):+.1f}%"]
     ]
+
 
     # Create KPI cards with enhanced styling
     kpi_table = create_kpi_dashboard(kpi_data, doc.width, styles)
@@ -1517,15 +1570,27 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
         ))
 
     # Financial Performance Section with enhanced table structure
-    content.append(Paragraph("Financial Performance Overview", styles['SectionHeader']))
     financial_data = report_data['financial_overview']
-    
+
+    total_revenue = parse_number(financial_data['total_revenue'])
+    cost_of_services = parse_number(financial_data['cost_of_services'])
+    operating_expenses = parse_number(financial_data['operating_expenses'])
+    net_profit = parse_number(financial_data['net_profit'])
+
     financial_summary = [
         ['Key Metrics', 'Amount', 'Analysis'],
-        ['Total Revenue', f"${financial_data['total_revenue']:,.2f}", 'Total business income generated during the period'],
-        ['Cost of Services', f"${financial_data['cost_of_services']:,.2f}", 'Direct costs associated with service delivery'],
-        ['Operating Expenses', f"${financial_data['operating_expenses']:,.2f}", 'General and administrative expenses'],
-        ['Net Profit', f"${financial_data['net_profit']:,.2f}", 'Final profit after all deductions']
+        ['Total Revenue',
+         format_number(total_revenue, include_suffix=True),
+         'Total business income generated during the period'],
+        ['Cost of Services',
+         format_number(cost_of_services, include_suffix=True),
+         'Direct costs associated with service delivery'],
+        ['Operating Expenses',
+         format_number(operating_expenses, include_suffix=True),
+         'General and administrative expenses'],
+        ['Net Profit',
+         format_number(net_profit, include_suffix=True),
+         'Final profit after all deductions']
     ]
 
     # Create table with adjusted column widths for better proportions
@@ -1554,16 +1619,17 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
         'Trend'
     ]]
     
-    total_revenue = report_data['financial_overview']['total_revenue']
-    
+    total_revenue = parse_number(report_data['financial_overview']['total_revenue'])
+
     for category in income_data:
-        share = (category['total_amount'] / total_revenue) * 100
+        amount = parse_number(category['total_amount'])
+        share = (amount / total_revenue) * 100 if total_revenue > 0 else 0
         trend_indicator = '↑' if category.get('growth_rate', 0) > 0 else '↓'
         trend_color = corporate_colors['success'] if category.get('growth_rate', 0) > 0 else corporate_colors['warning']
-        
+
         income_table_data.append([
             category['category'],
-            f"${category['total_amount']:,.2f}",
+            format_number(amount, include_suffix=True),
             f"{category['transaction_count']:,}",
             f"{share:.1f}%",
             Paragraph(f"{trend_indicator} {abs(category.get('growth_rate', 0)):.1f}%",
@@ -1592,69 +1658,78 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
     
     inventory_data = report_data['inventory_insights']
     
-    # Create enhanced inventory metrics table
+    # Handle low stock products count properly
+    low_stock_count = len(inventory_data['low_stock_products']) if isinstance(inventory_data['low_stock_products'], list) else 0
+    
+    # Parse total stock value using the currency formatter
+    total_stock_value = parse_number(inventory_data['total_stock_value'])
+
+    # Create enhanced inventory metrics table with proper data handling
     inventory_metrics = [
         ['Metric', 'Current Value', 'Status', 'Recommendation'],
-        ['Total SKUs', 
+        ['Total SKUs',
          str(inventory_data['total_product_count']),
          'Active Inventory',
          'Monitor product mix diversity'],
         ['Total Stock Value',
-         f"${inventory_data['total_stock_value']:,.2f}",
+         format_number(total_stock_value, include_suffix=True),
          'Invested Capital',
          'Optimize working capital allocation'],
         ['Low Stock Items',
-         str(inventory_data['low_stock_products'].count()),
-         'Requires Attention' if inventory_data['low_stock_products'].count() > 0 else 'Optimal',
+         str(low_stock_count),
+         'Requires Attention' if low_stock_count > 0 else 'Optimal',
          'Review reorder points and lead times'],
         ['Inventory Turnover',
-         f"{inventory_data.get('inventory_turnover', 0):.2f}x",
+         f"{float(inventory_data.get('inventory_turnover', 0)):.2f}x",
          'Stock Efficiency',
          'Analyze slow-moving items']
     ]
 
     inventory_table = Table(
-        inventory_metrics, 
+        inventory_metrics,
         colWidths=[doc.width * 0.2, doc.width * 0.2, doc.width * 0.2, doc.width * 0.4]
     )
     inventory_table.setStyle(enhanced_table_style)
     content.append(inventory_table)
     content.append(Spacer(1, 20))
 
-    # Add this where you want the inventory chart to appear
+    # Enhanced inventory chart handling with better error checking
     try:
         content.append(Paragraph("Inventory Stock Levels", styles['SubHeader']))
-        inventory_data = prepare_inventory_chart_data(report_data['inventory_insights'])
-    
-        # Log the prepared data
-        logger.info(f"Prepared inventory data: {inventory_data}")
-    
-        if inventory_data['product_categories'][0] not in ['No Low Stock Items', 'Data Unavailable']:
+        inventory_chart_data = prepare_inventory_chart_data(report_data['inventory_insights'])
+        
+        logger.info(f"Prepared inventory data: {inventory_chart_data}")
+
+        if (isinstance(inventory_chart_data['product_categories'], list) and 
+            inventory_chart_data['product_categories'][0] not in ['No Low Stock Items', 'Data Unavailable']):
             width, height = validate_chart_dimensions(500, 200)
-            inventory_chart = create_inventory_bar_chart(inventory_data, width, height)
+            inventory_chart = create_inventory_bar_chart(inventory_chart_data, width, height)
             content.append(inventory_chart)
         else:
             content.append(Paragraph("No low stock items to display", styles['BodyText']))
-    
+
         content.append(Spacer(1, 20))
     except Exception as e:
         logger.error(f"Error adding inventory chart to report: {str(e)}")
         content.append(Paragraph("Unable to generate inventory chart", styles['BodyText']))
         content.append(Spacer(1, 20))
 
-    # Business Performance Metrics with Enhanced Analytics
+    # Business Performance Metrics section with enhanced currency handling
     content.append(Paragraph("Business Performance & Customer Metrics", styles['SectionHeader']))
-    
+
     performance_insight = """
-    This section analyzes key business performance indicators and customer metrics, providing insights 
-    into operational efficiency and customer engagement levels. The metrics help identify trends and 
+    This section analyzes key business performance indicators and customer metrics, providing insights
+    into operational efficiency and customer engagement levels. The metrics help identify trends and
     areas for strategic focus.
     """
     content.append(Paragraph(performance_insight.strip(), styles['BodyText']))
-    
+
     performance_data = report_data['performance_metrics']
     
-    # Create comprehensive performance metrics table
+    # Parse currency values for average order calculations
+    current_aov = parse_number(performance_data['order_performance']['average_order_value'])
+    previous_aov = parse_number(performance_data['order_performance'].get('previous_average_order_value', 0))
+
     performance_metrics = [
         ['Key Performance Indicator', 'Current Value', 'Previous Period', 'Change'],
         ['Total Customers',
@@ -1663,22 +1738,22 @@ def generate_pdf_report(report, start_date_str=None, end_date_str=None, report_d
          calculate_change(performance_data['customer_metrics']['total_customers'],
                         performance_data['customer_metrics'].get('previous_total_customers', 0))],
         ['Average Order Value',
-         f"${performance_data['order_performance']['average_order_value']:,.2f}",
-         f"${performance_data['order_performance'].get('previous_average_order_value', 0):,.2f}",
-         calculate_change(performance_data['order_performance']['average_order_value'],
-                        performance_data['order_performance'].get('previous_average_order_value', 0))],
+         format_number(current_aov, include_suffix=True),
+         format_number(previous_aov, include_suffix=True),
+         calculate_change(current_aov, previous_aov)],
         ['Customer Retention Rate',
-         f"{performance_data['customer_metrics'].get('retention_rate', 0):.1f}%",
-         f"{performance_data['customer_metrics'].get('previous_retention_rate', 0):.1f}%",
-         calculate_change(performance_data['customer_metrics'].get('retention_rate', 0),
-                        performance_data['customer_metrics'].get('previous_retention_rate', 0))],
+         f"{float(performance_data['customer_metrics'].get('retention_rate', 0)):.1f}%",
+         f"{float(performance_data['customer_metrics'].get('previous_retention_rate', 0)):.1f}%",
+         calculate_change(float(performance_data['customer_metrics'].get('retention_rate', 0)),
+                        float(performance_data['customer_metrics'].get('previous_retention_rate', 0)))],
         ['Average Orders per Customer',
-         f"{performance_data['customer_metrics']['average_orders_per_customer']:.2f}",
-         f"{performance_data['customer_metrics'].get('previous_average_orders', 0):.2f}",
-         calculate_change(performance_data['customer_metrics']['average_orders_per_customer'],
-                        performance_data['customer_metrics'].get('previous_average_orders', 0))]
+         f"{float(performance_data['customer_metrics']['average_orders_per_customer']):.2f}",
+         f"{float(performance_data['customer_metrics'].get('previous_average_orders', 0)):.2f}",
+         calculate_change(
+             float(performance_data['customer_metrics']['average_orders_per_customer']),
+             float(performance_data['customer_metrics'].get('previous_average_orders', 0)))]
     ]
-
+    
     performance_table = Table(performance_metrics, colWidths=[doc.width * 0.4, doc.width * 0.2,
                                                             doc.width * 0.2, doc.width * 0.2])
     performance_table.setStyle(enhanced_table_style)
@@ -1775,20 +1850,26 @@ def create_kpi_dashboard(kpi_data, width, styles):
     return table
 
 def generate_strategic_recommendations(analysis):
-    """Generate actionable strategic recommendations based on advanced analysis"""
     recommendations = []
-    
-    # Financial Strategy Recommendations
-    if analysis['kpi_analysis']['profit_margin']['status'] == 'below_target':
+
+    # Safely access profit margin data
+    profit_margin_data = analysis.get('kpi_analysis', {}).get('profit_margin', {})
+    if profit_margin_data.get('status') == 'below_target':
         recommendations.append({
             'action': 'Implement Cost Optimization Program',
             'rationale': 'Current profit margins are below target. Focus on operational efficiency and pricing strategy.',
             'priority': 'high'
         })
-    
-    # Add more recommendation logic based on analysis
-    return recommendations
-    
+
+    # Add default recommendation if list is empty
+    if not recommendations:
+        recommendations.append({
+            'action': 'Review Business Metrics',
+            'rationale': 'Conduct comprehensive review of all business metrics to identify areas for improvement.',
+            'priority': 'medium'
+        })
+
+    return recommendations 
 
 def send_report_email(report, recipient_email, request=None, include_summary=True, include_charts=True, start_date_str=None, end_date_str=None):
     try:
@@ -1850,12 +1931,12 @@ def export_styled_report(report, start_date_str=None, end_date_str=None):
     """
     Generates a visually enhanced financial report with professional styling and formatting.
     Returns a single CSV file with enhanced formatting.
-    
+
     Args:
         report: Report object containing the business data
         start_date_str: Optional start date for filtering (str)
         end_date_str: Optional end date for filtering (str)
-    
+
     Returns:
         ContentFile: CSV file with enhanced formatting
     """
@@ -1863,10 +1944,10 @@ def export_styled_report(report, start_date_str=None, end_date_str=None):
     SEPARATOR_LINE = ["=" * 80]
     SECTION_SEPARATOR = ["-" * 80]
     INDENT = "    "
-    
+
     report_data = generate_comprehensive_report(report, start_date_str, end_date_str)
     rows = []
-    
+
     # Header Section with clear separation
     rows.extend(SEPARATOR_LINE)
     rows.extend([
@@ -1879,65 +1960,68 @@ def export_styled_report(report, start_date_str=None, end_date_str=None):
         [f"{INDENT}Last Modified:", report.updated_at.strftime('%B %d, %Y %H:%M')],
         [""]
     ])
-    
+
     # Financial Highlights Section
     rows.extend(SECTION_SEPARATOR)
     fo = report_data.get('financial_overview', {})
-    total_revenue = fo.get('total_revenue', 0)
-    cost_of_services = fo.get('cost_of_services', 0)
-    operating_expenses = fo.get('operating_expenses', 0)
-    calculated_gross_margin = total_revenue - cost_of_services
-    net_profit = fo.get('net_profit', calculated_gross_margin - operating_expenses)
     
+    # Use parse_number to ensure numeric values
+    total_revenue = parse_number(fo.get('total_revenue', 0))
+    cost_of_services = parse_number(fo.get('cost_of_services', 0))
+    operating_expenses = parse_number(fo.get('operating_expenses', 0))
+    
+    calculated_gross_margin = total_revenue - cost_of_services
+    net_profit = parse_number(fo.get('net_profit', 0)) or (calculated_gross_margin - operating_expenses)
+
     rows.extend([
         ["FINANCIAL HIGHLIGHTS"],
         [""],
-        [f"{INDENT}Key Performance Indicators", "Amount ($)", "% of Revenue", "Analysis"],
-        [f"{INDENT}Total Revenue", f"{total_revenue:,.2f}", "100.00%", "Primary income stream"],
-        [f"{INDENT}Cost of Services", f"{cost_of_services:,.2f}", 
+        [f"{INDENT}Key Performance Indicators", "Amount", "% of Revenue", "Analysis"],
+        [f"{INDENT}Total Revenue", format_number(total_revenue), "100.00%", "Primary income stream"],
+        [f"{INDENT}Cost of Services", format_number(cost_of_services),
          f"{(cost_of_services/total_revenue*100 if total_revenue else 0):.2f}%", "Direct service costs"],
-        [f"{INDENT}Gross Margin", f"{calculated_gross_margin:,.2f}", 
+        [f"{INDENT}Gross Margin", format_number(calculated_gross_margin),
          f"{(calculated_gross_margin/total_revenue*100 if total_revenue else 0):.2f}%", "Operating efficiency"],
-        [f"{INDENT}Operating Expenses", f"{operating_expenses:,.2f}", 
+        [f"{INDENT}Operating Expenses", format_number(operating_expenses),
          f"{(operating_expenses/total_revenue*100 if total_revenue else 0):.2f}%", "Overhead costs"],
-        [f"{INDENT}Net Profit", f"{net_profit:,.2f}", 
+        [f"{INDENT}Net Profit", format_number(net_profit),
          f"{(net_profit/total_revenue*100 if total_revenue else 0):.2f}%", "Bottom line"],
         [""]
     ])
-    
+
     # Revenue Analysis Section
     rows.extend(SECTION_SEPARATOR)
     rows.extend([
         ["REVENUE ANALYSIS"],
         [""],
-        [f"{INDENT}Revenue Stream", "Amount ($)", "Transaction Volume", "Share of Revenue"]
+        [f"{INDENT}Revenue Stream", "Amount", "Transaction Volume", "Share of Revenue"]
     ])
-    
+
     for category in fo.get('income_breakdown', []):
         transaction_count = category.get('transaction_count', 0)
-        total_amount = category.get('total_amount', 0)
+        total_amount = parse_number(category.get('total_amount', 0))
         revenue_share = (total_amount / total_revenue) if total_revenue > 0 else 0
-        
+
         rows.append([
             f"{INDENT}{category.get('category', 'Uncategorized')}",
-            f"{total_amount:,.2f}",
+            format_number(total_amount),
             f"{transaction_count:,}",
             f"{revenue_share:.2%}"
         ])
     rows.append([""])
-    
+
     # Operational Metrics Section
     rows.extend(SECTION_SEPARATOR)
     inventory_insights = report_data.get('inventory_insights', {})
     pm = report_data.get('performance_metrics', {})
-    
+
     rows.extend([
         ["OPERATIONAL METRICS"],
         [""],
         [f"{INDENT}Category", "Current Value", "Target", "Impact"],
         [""],
         [f"{INDENT}Inventory Management"],
-        [f"{INDENT}{INDENT}Total Stock Value", f"${inventory_insights.get('total_stock_value', 0):,.2f}", 
+        [f"{INDENT}{INDENT}Total Stock Value", format_number(parse_number(inventory_insights.get('total_stock_value', 0))),
          "Variable", "Working Capital"],
         [f"{INDENT}{INDENT}Low Stock Items", str(len(inventory_insights.get('low_stock_products', []))),
          "0", "Service Level"],
@@ -1945,26 +2029,26 @@ def export_styled_report(report, start_date_str=None, end_date_str=None):
         [f"{INDENT}Customer Metrics"],
         [f"{INDENT}{INDENT}Active Customers", f"{pm.get('customer_metrics', {}).get('total_customers', 0):,}",
          "Growing", "Market Share"],
-        [f"{INDENT}{INDENT}Avg. Order Value", f"${pm.get('order_performance', {}).get('average_order_value', 0):,.2f}",
+        [f"{INDENT}{INDENT}Avg. Order Value", format_number(parse_number(pm.get('order_performance', {}).get('average_order_value', 0))),
          "Growing", "Revenue Growth"]
     ])
-    
+
     rows.extend(SEPARATOR_LINE)
-    
+
     # Write to CSV with enhanced formatting
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     for row in rows:
         writer.writerow(row if isinstance(row, list) else [row])
-    
+
     csv_content = buffer.getvalue().encode('utf-8')
     buffer.close()
-    
+
     # Create file with formatted name
     csv_file = ContentFile(csv_content)
     formatted_date = datetime.now().strftime("%Y%m%d_%H%M")
     csv_file.name = f"{report.name}_financial_analysis_{formatted_date}.csv"
-    
+
     return csv_file
 
 def create_excel_styles(workbook):
@@ -2270,11 +2354,11 @@ def export_report_to_excel(report, start_date_str=None, end_date_str=None):
 
             # 2. Financial Overview
             fo = report_data.get('financial_overview', {})
-            total_revenue = fo.get('total_revenue', 0)
-            cost_of_services = fo.get('cost_of_services', 0)
-            operating_expenses = fo.get('operating_expenses', 0)
+            total_revenue = parse_number(fo.get('total_revenue', 0))
+            cost_of_services = parse_number(fo.get('cost_of_services', 0))
+            operating_expenses = parse_number(fo.get('operating_expenses', 0))
             calculated_gross_margin = total_revenue - cost_of_services
-            net_profit = fo.get('net_profit', calculated_gross_margin - operating_expenses)
+            net_profit = parse_number(fo.get('net_profit', calculated_gross_margin - operating_expenses))
 
             financial_data = pd.DataFrame([
                 {'Section': 'FINANCIAL OVERVIEW', 'Metric': '', 'Value': '', 'Description': ''},
@@ -2305,10 +2389,10 @@ def export_report_to_excel(report, start_date_str=None, end_date_str=None):
                 revenue_data = pd.DataFrame([
                     {'Section': '',
                      'Metric': cat.get('category', 'Uncategorized'),
-                     'Value': cat.get('total_amount', 0),
+                     'Value': parse_number(cat.get('total_amount', 0)),
                      'Description': f"Count: {cat.get('transaction_count', 0)} | "
-                                  f"Avg Value: {cat.get('total_amount', 0) / cat.get('transaction_count', 1) if cat.get('transaction_count', 0) > 0 else 0:.2f} | "
-                                  f"Share: {(cat.get('total_amount', 0) / total_revenue * 100 if total_revenue > 0 else 0):.1f}%"
+                                  f"Avg Value: {format_number(parse_number(cat.get('total_amount', 0)) / cat.get('transaction_count', 1) if cat.get('transaction_count', 0) > 0 else 0)} | "
+                                  f"Share: {(parse_number(cat.get('total_amount', 0)) / total_revenue * 100 if total_revenue > 0 else 0):.1f}%"
                     } for cat in income_breakdown
                 ])
                 data_frames.append(revenue_data)
@@ -2316,20 +2400,23 @@ def export_report_to_excel(report, start_date_str=None, end_date_str=None):
 
             # 4. Inventory Insights
             inventory_insights = report_data.get('inventory_insights', {})
+            low_stock_count = len(inventory_insights.get('low_stock_products', [])) if isinstance(inventory_insights.get('low_stock_products', []), list) else 0
+
             inventory_data = pd.DataFrame([
                 {'Section': '', 'Metric': '', 'Value': '', 'Description': ''},
                 {'Section': 'INVENTORY MANAGEMENT', 'Metric': '', 'Value': '', 'Description': ''},
-                {'Section': '', 'Metric': 'Total Products', 
+                {'Section': '', 'Metric': 'Total Products',
                  'Value': inventory_insights.get('total_product_count', 0),
                  'Description': 'Current inventory item count'},
                 {'Section': '', 'Metric': 'Total Stock Value',
-                 'Value': inventory_insights.get('total_stock_value', 0),
+                 'Value': parse_number(inventory_insights.get('total_stock_value', 0)),
                  'Description': 'Current inventory value'},
                 {'Section': '', 'Metric': 'Low Stock Items',
-                 'Value': getattr(inventory_insights.get('low_stock_products', []), 'count', lambda: 0)(),
+                 'Value': low_stock_count,
                  'Description': 'Items below threshold'},
                 {'Section': '', 'Metric': '', 'Value': '', 'Description': ''}
             ])
+
             data_frames.append(inventory_data)
             current_row += len(inventory_data)
 
@@ -2344,16 +2431,19 @@ def export_report_to_excel(report, start_date_str=None, end_date_str=None):
                  'Value': customer_metrics.get('total_customers', 0),
                  'Description': 'Total active customers'},
                 {'Section': '', 'Metric': 'Average Orders/Customer',
-                 'Value': customer_metrics.get('average_orders_per_customer', 0),
+                 'Value': float(customer_metrics.get('average_orders_per_customer', 0)),
                  'Description': 'Customer engagement level'},
                 {'Section': '', 'Metric': 'Average Order Value',
-                 'Value': order_performance.get('average_order_value', 0),
+                 'Value': parse_number(order_performance.get('average_order_value', 0)),
                  'Description': 'Transaction value analysis'}
             ])
+
             data_frames.append(performance_data)
 
             # Combine all sections
             consolidated_data = pd.concat(data_frames, ignore_index=True)
+            workbook.create_sheet('Business Analysis')
+
             consolidated_data.to_excel(writer, sheet_name='Business Analysis', index=False)
 
             # Format the consolidated worksheet

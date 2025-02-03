@@ -10,6 +10,7 @@ from transactions.models import Transaction
 from .models import Customer, Order, OrderItem, Address, CompanyInfo, Promotion
 import logging
 from decimal import Decimal
+from .utils.currency import currency_formatter
 from users.constants import PermissionConstants
 from django.contrib.auth import get_user_model
 
@@ -300,7 +301,7 @@ class OrderSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         from invoices.serializers import InvoiceSerializer
         representation = super().to_representation(instance)
-        representation['total_price'] = str(instance.total_price)
+        representation['total_price'] = currency_formatter.format_currency(instance.total_price)
         if instance.invoice:
             representation['invoice'] = InvoiceSerializer(instance.invoice).data
         else:

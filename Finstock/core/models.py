@@ -13,6 +13,7 @@ from decimal import Decimal
 import hashlib
 import uuid
 import logging
+from core.utils.currency import currency_formatter
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +135,12 @@ class Order(TimeStampedModel):
         ('expense', 'Expense'),
         ('cost_of_services', 'Cost of Services'),
     ], default='income')
+
+    @property
+    def formatted_total_price(self):
+        return currency_formatter.format_currency(self.total_price)
+
+
 
     def __str__(self):
         customer_name = self.customer.get_full_name() if self.customer else "No Customer"

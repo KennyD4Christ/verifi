@@ -6,6 +6,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class VisitTrackingMiddleware(MiddlewareMixin):
     """
     Middleware to track unique visits to the application.

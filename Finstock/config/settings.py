@@ -89,6 +89,13 @@ CACHES = {
     }
 }
 
+# Currency settings
+CURRENCY_SYMBOL = '₦'
+CURRENCY_DECIMAL_PLACES = 2
+USE_THOUSAND_SEPARATOR = True
+THOUSAND_SEPARATOR = ','
+DECIMAL_SEPARATOR = '.'
+
 # Configure django-user-agents to use caching
 USER_AGENTS_CACHE = 'default'
 
