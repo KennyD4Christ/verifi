@@ -77,6 +77,7 @@ const authService = {
       throw new Error(error.response?.data?.detail || 'Failed to fetch user data');
     }
   },
+
   //Get current user data
   getCurrentUser: async () => {
     console.log('getCurrentUser called');

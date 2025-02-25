@@ -58,19 +58,33 @@ const VideoCard = ({ testimonial, onClick }) => {
     ];
     return colors[testimonial.id % colors.length];
   };
-
+  
   return (
-    <Card 
+    <Card
       className="overflow-hidden bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer"
       onClick={onClick}
     >
-      {/* Video Thumbnail Section */}
+      {/* Video Thumbnail Section - Enhanced */}
       <div className="relative group">
         <div className="aspect-video bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
-          <Play className="w-12 h-12 text-white opacity-75 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300" />
+          {/* Circular play button with improved visibility */}
+          <div className="bg-white bg-opacity-15 p-4 rounded-full group-hover:bg-opacity-25 transition-all duration-300">
+            <Play className="w-10 h-10 text-white group-hover:scale-110 transition-all duration-300" />
+          </div>
+          
+          {/* Video duration indicator */}
+          <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+            2:45
+          </div>
+          
+          {/* Video label */}
+          <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full flex items-center">
+            <Play className="w-3 h-3 mr-1" />
+            <span>VIDEO</span>
+          </div>
         </div>
       </div>
-
+      
       {/* Company Information Section */}
       <div className="p-6">
         <div className="flex items-center mb-4">
@@ -81,13 +95,19 @@ const VideoCard = ({ testimonial, onClick }) => {
             <h3 className="font-semibold text-gray-900">{testimonial.company}</h3>
           </div>
         </div>
-
+        
         {/* Testimonial Content */}
         <div className="relative">
           <Quote className="w-8 h-8 text-gray-200 absolute -top-2 -left-2" />
           <p className="text-gray-600 text-sm pl-6 pt-2 italic">
             {testimonial.testimonial}
           </p>
+        </div>
+        
+        {/* Explicit watch video text */}
+        <div className="mt-4 flex items-center text-blue-600 font-medium text-sm">
+          <Play className="w-4 h-4 mr-1" />
+          <span>Watch video testimonial</span>
         </div>
       </div>
     </Card>

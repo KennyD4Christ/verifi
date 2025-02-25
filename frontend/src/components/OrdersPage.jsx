@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrders } from '../context/OrderContext';
-import { fetchProducts, fetchCustomers, fetchOrders, fetchCurrentUser } from '../services/api';
+import { fetchProducts, fetchCustomers, fetchOrders, fetchCurrentUser, addScannedItemToOrder } from '../services/api';
 import CreateOrderModal from '../modals/CreateOrderModal';
 import OrderDetailsModal from '../modals/OrderDetailsModal';
 import { format } from 'date-fns';
 import { formatCurrency } from '../utils/dataTransformations';
 import styled, { ThemeProvider } from 'styled-components';
+import { ScanOutlined } from '@ant-design/icons';
+import { fetchProductByBarcode } from '../services/api';
 import { debounce } from 'lodash';
 import {
   Table,
@@ -239,6 +241,9 @@ const OrdersPage = () => {
   const [sortField, setSortField] = useState('order_date');
   const [sortDirection, setSortDirection] = useState('descend');
   const [currentUser, setCurrentUser] = useState(null);
+  const [barcodeBuffer, setBarcodeBuffer] = useState('');
+  const [lastScanTime, setLastScanTime] = useState(0);
+  const [scannedProduct, setScannedProduct] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -299,6 +304,56 @@ const OrdersPage = () => {
     fetchData();
   }, []);
 
+  const handleBarcodeInput = useCallback(async (event) => {
+    const currentTime = Date.now();
+    const SCAN_TIMEOUT = 100; // Configure timeout for manual vs scanner input
+
+    // Debounce manual input
+    if (currentTime - lastScanTime > SCAN_TIMEOUT) {
+      setBarcodeBuffer('');
+    }
+    setLastScanTime(currentTime);
+
+    try {
+      if (event.key === 'Enter' && barcodeBuffer) {
+        const product = await fetchProductByBarcode(barcodeBuffer);
+      
+        if (product) {
+          setScannedProduct({
+            product_id: product.id,
+            quantity: 1,
+            unit_price: product.price,
+            status: 'pending'
+          });
+          setIsCreateModalOpen(true);
+          message.success(`Product found: ${product.name}`);
+        } else {
+          message.error('No product found for barcode: ' + barcodeBuffer);
+        }
+        setBarcodeBuffer('');
+      } else if (event.key.length === 1 && /[\d]/.test(event.key)) {
+        // Only add numeric characters to buffer
+        setBarcodeBuffer(prev => prev + event.key);
+      }
+    } catch (error) {
+      console.error('Error processing barcode:', error);
+      message.error('Failed to process barcode scan');
+      setBarcodeBuffer('');
+    }
+  }, [barcodeBuffer, lastScanTime]);
+
+  useEffect(() => {
+    const handleKeyPress = (event) => handleBarcodeInput(event);
+    window.addEventListener('keypress', handleKeyPress);
+  
+    return () => {
+      window.removeEventListener('keypress', handleKeyPress);
+      // Clear any pending state
+      setBarcodeBuffer('');
+      setLastScanTime(0);
+    };
+  }, [handleBarcodeInput]); 
+
   const fetchOrdersWithParams = useCallback(() => {
     const params = {
       page: currentPage,
@@ -313,6 +368,27 @@ const OrdersPage = () => {
   useEffect(() => {
     fetchOrdersWithParams();
   }, [fetchOrdersWithParams]);
+
+  const handleScannedItem = async (orderId, scannedData) => {
+    try {
+      const result = await addScannedItemToOrder(orderId, scannedData);
+      message.success('Item successfully added to order');
+      
+      // Refresh the orders list to show updated data
+      await fetchOrdersWithParams();
+      
+      // If the scanned item was added to the currently selected order, update it
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(prev => ({
+          ...prev,
+          items: [...prev.items, result.scanned_items[result.scanned_items.length - 1]]
+        }));
+      }
+    } catch (error) {
+      console.error('Error adding scanned item:', error);
+      message.error('Failed to add scanned item: ' + error.message);
+    }
+  };
 
   const debouncedSearch = useCallback(
     debounce((value) => {
@@ -549,6 +625,13 @@ const OrdersPage = () => {
             >
               Add New Order
             </ActionButton>
+	    <ActionButton
+              type="primary"
+              icon={<ScanOutlined />}
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              Scan Product
+            </ActionButton>
             <ActionButton
               danger
               icon={<DeleteOutlined />}
@@ -614,11 +697,16 @@ const OrdersPage = () => {
 
       <CreateOrderModal
         open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setScannedProduct(null);
+        }}
         onOrderCreated={handleOrderCreated}
+	onScannedItem={handleScannedItem}
         customers={customers}
         products={products}
         currentUser={currentUser}
+	scannedProduct={scannedProduct}
       />
       
       {selectedOrder && (
@@ -627,6 +715,7 @@ const OrdersPage = () => {
           onClose={() => setIsDetailsModalOpen(false)}
           order={selectedOrder}
           onApplyPromotion={handleApplyPromotion}
+	  onScannedItem={(scannedData) => handleScannedItem(selectedOrder.id, scannedData)}
         />
       )}
     </PageContainer>

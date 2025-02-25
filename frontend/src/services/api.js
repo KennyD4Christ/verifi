@@ -81,6 +81,23 @@ axiosInstance.interceptors.response.use(
 
 export default axiosInstance;
 
+export const addScannedItemToOrder = async (orderId, scannedData) => {
+  try {
+    const response = await axiosInstance.post(`/core/orders/${orderId}/add-scanned-item/`, scannedData);
+    console.log('API Response for adding scanned item:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error adding scanned item:', error.response?.data || error.message);
+    if (error.response?.data?.errors) {
+      const errorMessages = Object.entries(error.response.data.errors)
+        .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+        .join('; ');
+      throw new Error(errorMessages);
+    }
+    throw error;
+  }
+};
+
 // Function to create an order
 export const createOrder = async (orderData) => {
   try {
@@ -329,6 +346,32 @@ export const fetchProducts = async (params = {}) => {
     }
   } catch (error) {
     console.error('Error fetching products:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const fetchProductByBarcode = async (barcode) => {
+  try {
+    const response = await axiosInstance.get(`/products/products/barcode/${barcode}/`);
+    if (response.status === 200) {
+      return response.data;
+    }
+    throw new Error('Failed to fetch product');
+  } catch (error) {
+    console.error('Error fetching product by barcode:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const scanBarcodeProduct = async (productId, data) => {
+  try {
+    const response = await axiosInstance.post(`/products/products/${productId}/scan-barcode/`, data);
+    if (response.status === 201) {
+      return response.data;
+    }
+    throw new Error('Failed to process barcode scan');
+  } catch (error) {
+    console.error('Error processing barcode scan:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -645,29 +688,72 @@ export const fetchConversionRateData = async (startDate, endDate) => {
 
 export const fetchInventoryLevels = async (startDate, endDate) => {
   try {
-    console.log('fetched Inventory Levels input dates:', { startDate, endDate });
-
-    // Process the date range properly
-    const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(startDate, endDate);
+    console.group('🔍 Inventory Levels Fetch Debug');
     
-    const params = {
-      start_date: formattedStartDate,
-      end_date: formattedEndDate
-    };
+    const authHeader = getAuthHeader();
+    if (!authHeader) {
+      throw new Error('Authentication token is missing');
+    }
 
-    console.log('API request params:', params);
-
-    const response = await axiosInstance.get('/inventory/levels/', {
-      headers: getAuthHeader(),
-      params,
+    console.log('Request Configuration:', {
+      endpoint: '/inventory/levels/',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        start_date: startDate,
+        end_date: endDate
+      }
     });
 
-    console.log('Inventory API response:', response.data);
-    return response.data;
+    const response = await axiosInstance.get('/inventory/levels/', {
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        start_date: startDate,
+        end_date: endDate
+      },
+      validateStatus: (status) => {
+        return status < 500; // Resolve only if status code is less than 500
+      }
+    });
+
+    if (response.status === 200) {
+      const inventoryData = response.data?.data || [];
+      console.log('✅ Successful Response:', {
+        status: response.status,
+        dataLength: inventoryData.length,
+        data: inventoryData
+      });
+      console.groupEnd();
+      return inventoryData;
+    } else {
+      throw new Error(`Unexpected response status: ${response.status}`);
+    }
+
   } catch (error) {
-    console.error('Error fetching inventory levels:', error);
-    console.error('Error details:', error.response?.data);
-    return [];
+    console.error('❌ Inventory Fetch Error Details:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      responseData: error.response?.data,
+      requestConfig: error.config
+    });
+
+    // Format the error for better handling in the UI
+    const formattedError = {
+      message: error.response?.data?.detail || error.message,
+      status: error.response?.status,
+      timestamp: new Date().toISOString(),
+      requestParams: { startDate, endDate },
+      technical_details: error.response?.data?.error || error.response?.data
+    };
+
+    console.groupEnd();
+    throw formattedError;
   }
 };
 

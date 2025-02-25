@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { createTransaction } from '../services/api';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
 
-const AddTransactionModal = ({ show, handleClose, handleAddTransaction }) => {
+const AddTransactionModal = ({ show, handleClose, handleAddTransaction, initialData }) => {
   const [transactionData, setTransactionData] = useState({
     payment_method: '',
     amount: '',
@@ -14,6 +14,19 @@ const AddTransactionModal = ({ show, handleClose, handleAddTransaction }) => {
   });
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+
+  useEffect(() => {
+    if (initialData) {
+      setTransactionData(prevData => ({
+        ...prevData,
+        ...initialData,
+        // Ensure required fields are populated
+        payment_method: initialData.payment_method || prevData.payment_method,
+        status: initialData.status || 'pending',
+        category: initialData.category || prevData.category
+      }));
+    }
+  }, [initialData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,7 +54,9 @@ const AddTransactionModal = ({ show, handleClose, handleAddTransaction }) => {
   return (
     <Modal show={show} onHide={handleClose}>
       <Modal.Header closeButton>
-        <Modal.Title>Add Transaction</Modal.Title>
+        <Modal.Title>
+          {initialData ? 'Complete Scanned Transaction' : 'Add Transaction'}
+        </Modal.Title>
       </Modal.Header>
       <Form onSubmit={handleSubmit}>
         <Modal.Body>
@@ -153,6 +168,7 @@ AddTransactionModal.propTypes = {
   show: PropTypes.bool.isRequired,
   handleClose: PropTypes.func.isRequired,
   handleAddTransaction: PropTypes.func.isRequired,
+  initialData: PropTypes.object,
 };
 
 export default AddTransactionModal;

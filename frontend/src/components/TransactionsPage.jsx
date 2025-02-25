@@ -9,6 +9,7 @@ import AddTransactionModal from '../modals/AddTransactionModal';
 import EditTransactionModal from '../modals/EditTransactionModal';
 import { deleteTransaction, fetchCustomers } from '../services/api';
 import { ThemeProvider } from "styled-components";
+import { QRDisplay, QRScannerModal } from './QRCodeComponents';
 
 
 const getThemeValue = (path, fallback) => props => {
@@ -321,6 +322,7 @@ const TransactionsPage = () => {
     totalPages: 0,
     currentPage: 1,
   });
+  const [showQRScannerModal, setShowQRScannerModal] = useState(false);
 
   const debouncedFetch = useCallback(
     debounce((filters) => {
@@ -399,6 +401,12 @@ const TransactionsPage = () => {
       setLoading(false);
     }
   }, [authChecked, isInitialized, isAuthenticated, transactionsPerPage]);
+
+  const handleScanComplete = (verifiedData) => {
+    setShowAddModal(true);
+    setCurrentTransaction(verifiedData);
+    setShowQRScannerModal(false);
+  };
 
   const handleTableChange = (newPagination, filters, sorter) => {
     const sortField = sorter.field || 'date';
@@ -637,7 +645,7 @@ const TransactionsPage = () => {
 
         <ActionButtonContainer>
           <ActionButton onClick={() => setShowCreateModal(true)}>
-            Create New Transaction
+            Create Transaction
           </ActionButton>
           <ActionButton
             onClick={() => setShowEditModal(true)}
@@ -656,6 +664,10 @@ const TransactionsPage = () => {
           </ActionButton>
           <ActionButton onClick={handleExportPdf}>
             Export PDF
+          </ActionButton>
+
+	  <ActionButton onClick={() => setShowQRScannerModal(true)}>
+            Scan QR Code
           </ActionButton>
         </ActionButtonContainer>
 
@@ -680,6 +692,7 @@ const TransactionsPage = () => {
                     <Th>Status</Th>
                     <Th>Category</Th>
                     <Th>Created By</Th>
+		    <Th>QR Code</Th>
                     <Th>Actions</Th>
                   </tr>
                 </thead>
@@ -700,6 +713,9 @@ const TransactionsPage = () => {
                         <Td>{transaction.status || 'N/A'}</Td>
                         <Td>{transaction.category || 'N/A'}</Td>
                         <Td>{transaction.created_by_username || transaction.created_by?.username || 'N/A'}</Td>
+			<Td>
+                          <QRDisplay transactionData={transaction} />
+                        </Td>
                         <Td>
                           <Button
                             variant="info"
@@ -820,6 +836,12 @@ const TransactionsPage = () => {
           transaction={currentTransaction}
         />
       )}
+
+      <QRScannerModal
+        show={showQRScannerModal}
+        handleClose={() => setShowQRScannerModal(false)}
+        onScanComplete={handleScanComplete}
+      />
     </>
   );
 };

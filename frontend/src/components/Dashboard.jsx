@@ -164,6 +164,10 @@ const FixedElementsWrapper = styled.div`
   padding: clamp(16px, 2vw, 24px);
   border-bottom: 1px solid ${props => props.theme.border};
   width: 100%;
+  max-width: 1920px;
+  min-width: 300px;
+  margin: 0 auto;
+  padding-right: clamp(80px, 10vw, 120px);
 `;
 
 const ContentWrapper = styled.div`
@@ -275,19 +279,21 @@ export const ErrorMessage = styled.div`
   font-weight: 500;
 `;
 
+const PageWrapper = styled.div`
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
+`;
+
 const PreferencesPanel = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: clamp(8px, 1.5vw, 16px);
+  gap: clamp(1px, 0.5vw, 4px);
   margin-bottom: clamp(16px, 2.5vw, 32px);
   width: 100%;
+  max-width: 1920px;
+  min-width: 300px;
   border: 1px solid ${getThemeValue('colors.border', '#e2e8f0')};
-  
-  /* Ensure proper spacing on smaller screens */
-  @media (max-width: 768px) {
-    gap: 12px;
-    margin-bottom: 20px;
-  }
 `;
 
 const ToggleButton = styled.button`
@@ -528,13 +534,22 @@ export const ChartContainer = styled.div`
 `;
 
 const SafeMetricDisplay = ({ value, formatter = (v) => v, defaultValue = 'N/A' }) => {
-  if (value === undefined || value === null || isNaN(value)) {
-    return defaultValue;
-  }
   try {
+    // Handle empty values
+    if (value === undefined || value === null) {
+      return defaultValue;
+    }
+
+    // If formatter is formatCurrency, first ensure we have a clean numeric value
+    if (formatter.name === 'formatCurrency') {
+      const numericValue = extractNumericValue(value);
+      return formatter(numericValue);
+    }
+
+    // For other formatters, process value directly
     return formatter(value);
   } catch (error) {
-    console.error('Error formatting metric:', error);
+    console.error('Error in SafeMetricDisplay:', error);
     return defaultValue;
   }
 };
@@ -571,41 +586,29 @@ const Dashboard = () => {
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   const fetchDashboardData = useCallback(async (startDate, endDate) => {
+    console.group('🔍 Dashboard Data Fetch Comprehensive Debug');
+    console.log('📅 Initial Date Range:', dateRange);
+
     if (!dateRange[0] || !dateRange[1]) {
-      console.log('Date range not set, skipping data fetch');
+      console.warn('⚠️ Date range not set');
       const defaultRange = dateUtils.getPresetDateRange('30days');
       updateDateRange([defaultRange.startDate, defaultRange.endDate]);
+      console.log('🔄 Applied Default Date Range:', defaultRange);
+      console.groupEnd();
       return;
     }
 
-    console.log('fetchDashboardData triggered with dateRange:', dateRange);
     setLoading(true);
     setError(null);
 
     try {
-      // Process date range using our utility
       const { formattedStartDate, formattedEndDate } = dateUtils.processDateRange(
         dateRange[0],
         dateRange[1]
       );
+      console.log('🕒 Processed Dates:', { formattedStartDate, formattedEndDate });
 
-      console.log('Processed dates for API:', {
-        formattedStartDate,
-        formattedEndDate
-      });
-
-      // Fetch all data in parallel with proper error handling
-      const [
-        summary,
-        sales,
-        products,
-        transactions,
-        netProfitData,
-        conversionRateData,
-        preferences,
-        inventory,
-        cashFlowData
-      ] = await Promise.all([
+      const fetchResults = await Promise.allSettled([
         fetchSummaryData(formattedStartDate, formattedEndDate),
         fetchSalesData(formattedStartDate, formattedEndDate),
         fetchTopProducts(formattedStartDate, formattedEndDate),
@@ -617,7 +620,34 @@ const Dashboard = () => {
         fetchCashFlow(formattedStartDate, formattedEndDate)
       ]);
 
-      // Update all states with proper null checks
+      const summary = fetchResults[0].status === 'fulfilled' ? fetchResults[0].value : null;
+      const sales = fetchResults[1].status === 'fulfilled' ? fetchResults[1].value : null;
+      const products = fetchResults[2].status === 'fulfilled' ? fetchResults[2].value : null;
+      const transactions = fetchResults[3].status === 'fulfilled' ? fetchResults[3].value : null;
+      const netProfitData = fetchResults[4].status === 'fulfilled' ? fetchResults[4].value : null;
+      const conversionRateData = fetchResults[5].status === 'fulfilled' ? fetchResults[5].value : null;
+      const preferences = fetchResults[6].status === 'fulfilled' ? fetchResults[6].value : null;
+      const cashFlowData = fetchResults[8].status === 'fulfilled' ? fetchResults[8].value : null;
+
+      // Inventory error handling
+      const inventoryResult = fetchResults[7];
+      if (inventoryResult.status === 'fulfilled') {
+        const inventoryData = inventoryResult.value;
+        if (Array.isArray(inventoryData) && inventoryData.length > 0) {
+          setInventoryLevels(inventoryData);
+          console.log('✅ Inventory Levels Set Successfully:', inventoryData);
+        } else {
+          console.warn('⚠️ No inventory data available');
+          setInventoryLevels([]);
+          setError('No inventory data available for the selected date range');
+        }
+      } else {
+        console.error('❌ Inventory fetch failed:', inventoryResult.reason);
+        setInventoryLevels([]);
+        setError(`Failed to load inventory data: ${inventoryResult.reason.message || 'Unknown error'}`);
+      }
+
+      // State updates for other data
       if (summary) setSummaryData(summary);
       if (Array.isArray(sales)) setSalesData(sales);
       if (Array.isArray(products)) setTopProducts(products);
@@ -625,21 +655,21 @@ const Dashboard = () => {
       if (netProfitData) setNetProfit(netProfitData);
       if (conversionRateData) setConversionRate(conversionRateData);
       if (preferences) setUserPreferences(preferences);
-      if (Array.isArray(inventory)) setInventoryLevels(inventory);
       if (Array.isArray(cashFlowData)) setCashFlow(cashFlowData);
 
-      // Update metric data state
       setMetricData({
         ...summary,
         netProfit: netProfitData?.value || 0,
         conversionRate: conversionRateData?.value || 0
       });
 
+      console.log('🎉 Dashboard Data Fetch Completed Successfully');
     } catch (err) {
-      console.error('Error in fetchDashboardData:', err);
+      console.error('❌ Dashboard Data Fetch Error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
+      console.groupEnd();
     }
   }, [dateRange, updateDateRange]);
 
@@ -1010,17 +1040,23 @@ const Dashboard = () => {
   }, [topProducts]);
 
   const formatInventoryData = useMemo(() => {
-    console.log('Raw inventory data:', inventoryLevels);
+    console.group('Inventory Data Debugging');
+    console.log('Raw inventoryLevels:', inventoryLevels);
+    console.log('inventoryLevels type:', typeof inventoryLevels);
+    console.log('inventoryLevels length:', inventoryLevels?.length);
 
     if (!Array.isArray(inventoryLevels) || inventoryLevels.length === 0) {
-      console.warn('No inventory data available');
+      console.warn('❌ No inventory data available');
+      console.trace('Stack trace for empty inventory');
+      console.groupEnd();
       return [];
     }
 
-    const formattedData = inventoryLevels
+    const processedData = inventoryLevels
       .map(item => {
+        console.log('Processing item:', item);
         if (!item.name || item.stock === undefined) {
-          console.warn('Invalid inventory item:', item);
+          console.warn('❌ Invalid inventory item:', item);
           return null;
         }
 
@@ -1034,8 +1070,9 @@ const Dashboard = () => {
       })
       .filter(item => item !== null);
 
-    console.log('Formatted inventory data:', formattedData);
-    return formattedData;
+    console.log('Processed inventory data:', processedData);
+    console.groupEnd();
+    return processedData;
   }, [inventoryLevels]);
 
   const formatCashFlowData = useMemo(() => {
@@ -1100,84 +1137,68 @@ const Dashboard = () => {
           chartConfig = getChartOptions(chartType, 'Revenue');
           break;
         case 'inventory':
-          const inventoryData = formatInventoryData;
-
-          if (inventoryData.length === 0) {
-            throw new Error('No valid inventory data available');
-          }
-
-          if (chartType === 'pie') {
-            data = {
-              labels: inventoryData.map(item => `${item.product} (${item.sku})`),
-              datasets: [{
-                data: inventoryData.map(item => item.quantity),
-                backgroundColor: inventoryData.map(() => getRandomColor()),
-                borderColor: inventoryData.map(() => getRandomColor()),
-                borderWidth: 1
-              }]
-            };
-          } else if (chartType === 'bar') {
-            data = {
-              labels: inventoryData.map(item => item.product),
-              datasets: [{
-                label: 'Current Stock Level',
-                data: inventoryData.map(item => item.quantity),
-                backgroundColor: getRandomColor(),
-                borderColor: getRandomColor(),
-                borderWidth: 1
-              }]
-            };
-          } else { // line chart - show as bar since we don't have time series data
-            data = {
-              labels: inventoryData.map(item => item.product),
-              datasets: [{
-                label: 'Current Stock Level',
-                data: inventoryData.map(item => item.quantity),
-                backgroundColor: getRandomColor(),
-                borderColor: getRandomColor(),
-                borderWidth: 2,
-                tension: 0.1
-              }]
-            };
-          }
-
-          chartConfig = {
-            responsive: true,
-            plugins: {
-              legend: {
-                position: 'top',
-              },
-              title: {
-                display: true,
-                text: 'Inventory Levels'
-              },
-              tooltip: {
-                callbacks: {
-                  label: function(context) {
-                    const item = inventoryData[context.dataIndex];
-                    return `Stock: ${item.quantity} units | SKU: ${item.sku}`;
-                  }
-                }
-              }
-            },
-            scales: chartType !== 'pie' ? {
-              y: {
-                beginAtZero: true,
-                title: {
-                  display: true,
-                  text: 'Stock Level'
-                }
-              },
-              x: {
-                title: {
-                  display: true,
-                  text: 'Products'
-                }
-              }
-            } : undefined
+          const transformConfig = {
+            xKey: 'name',
+    	    yKey: 'stock',
+            colorKey: 'sku'
           };
+
+          const chartData = transformChartData(inventoryLevels, chartType, transformConfig);
+
+          // Select the appropriate chart component based on type
+          const ChartComponent = {
+            'line': Line,
+            'bar': Bar,
+            'pie': Pie
+          }[chartType];
+
+          if (!ChartComponent) {
+            return <div>Unsupported chart type</div>;
+          }
+
+          return (
+            <ChartComponent
+              data={chartData}
+              options={{
+                responsive: true,
+                plugins: {
+                  legend: {
+                    position: chartType === 'pie' ? 'right' : 'top'
+                  },
+                  title: {
+                    display: true,
+                    text: 'Inventory Levels'
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: function(context) {
+                        const dataPoint = inventoryLevels[context.dataIndex];
+                        return dataPoint ? `${dataPoint.name}: ${dataPoint.stock} units` : '';
+                      }
+                    }
+                  }
+                },
+                scales: chartType !== 'pie' ? {
+                  y: {
+                    beginAtZero: true,
+                    title: {
+                      display: true,
+                      text: 'Stock Level'
+                    }
+                  },
+                  x: {
+                    title: {
+                      display: true,
+                      text: 'Products'
+                    }
+                  }
+                } : undefined
+              }}
+            />
+          );
+          return <Chart type={chartType} data={chartData} options={chartOptions} />;
           break;
-        case 'cashFlow':
+	case 'cashFlow':
           data = transformChartData(
             formatCashFlowData,
             chartType,
@@ -1307,6 +1328,7 @@ const Dashboard = () => {
       <ErrorBoundary FallbackComponent={ErrorFallback} onReset={handleErrorReset}>
 	<DashboardRoot>
         <DashboardContainer>
+	  <PageWrapper>
 	  <FixedElementsWrapper>
           <ThemeToggle onClick={toggleTheme}>
             {isDarkMode ? 'Light Mode' : 'Dark Mode'}
@@ -1350,7 +1372,7 @@ const Dashboard = () => {
             >
               Net Profit
             </ToggleButton>
-            <ToggleButton
+	    <ToggleButton
               active={userPreferences.showConversionRate}
               onClick={() => togglePreference('showConversionRate')}
               aria-label="Toggle conversion rate widget visibility"
@@ -1509,7 +1531,6 @@ const Dashboard = () => {
               <Option value="revenue">Revenue</Option>
               <Option value="inventory">Inventory Levels</Option>
               <Option value="cashFlow">Cash Flow</Option>
-              <Option value="conversionRate">Conversion Rate</Option>
               <Option value="topProducts">Top Products</Option>
             </StyledSelect>
             <StyledSelect defaultValue="line" onChange={(value) => setChartType(value)}>
@@ -1574,6 +1595,7 @@ const Dashboard = () => {
             </TransactionList>
           </Card>
 	  </ContentWrapper>
+	  </PageWrapper>
         </DashboardContainer>
       </DashboardRoot>
       </ErrorBoundary>

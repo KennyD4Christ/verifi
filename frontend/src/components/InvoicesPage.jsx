@@ -9,6 +9,7 @@ import { formatCurrency } from '../utils/dataTransformations';
 import { generateInvoicePDF, markInvoiceAsPaid, fetchInvoices, exportPdf, createInvoice, updateInvoice, deleteInvoice, bulkDeleteInvoices } from '../services/api';
 import { Button, Badge, Table, Form, Container, Row, Col, Spinner, Alert, Modal, ButtonGroup } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { InvoiceQRCode, QRCodeModal } from './QRCode';
 
 
 const getThemeValue = (path, fallback) => props => {
@@ -365,11 +366,11 @@ const InvoicesPage = () => {
 
   // Selected invoices state
   const [selectedInvoices, setSelectedInvoices] = useState([]);
-
   const [debugInfo, setDebugInfo] = useState(null);
-
   const [exportFormat, setExportFormat] = useState('detailed');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrInvoiceData, setQRInvoiceData] = useState(null);
 
   // Export format options
   const exportFormatOptions = [
@@ -461,6 +462,17 @@ const InvoicesPage = () => {
   const handleMaxAmountChange = (event) => {
     setMaxAmount(event.target.value);
     setCurrentPage(1);
+  };
+
+  const handleQRCodeScan = (qrData) => {
+    try {
+      const invoiceData = JSON.parse(qrData);
+  
+      setSelectedInvoice(invoiceData);
+      setShowDetailsModal(true);
+    } catch (error) {
+      setError('Error processing QR code');
+    }
   };
 
   const formatInvoiceNumber = (uuid) => {
@@ -841,6 +853,7 @@ const InvoicesPage = () => {
           <thead>
             <tr>
               <Th className="text-center"><Form.Check type="checkbox" onChange={handleSelectAll} /></Th>
+	      <Th className="text-center">QR Code</Th>
               <Th className="text-center" onClick={() => handleSort('issue_date')}>Date {sortField === 'issue_date' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
               <Th className="text-center" onClick={() => handleSort('customer__id')}>Customer ID {sortField === 'customer__id' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
               <Th className="text-center" onClick={() => handleSort('invoice_number')}>Invoice Number {sortField === 'invoice_number' && (sortDirection === 'asc' ? '▲' : '▼')}</Th>
@@ -857,6 +870,13 @@ const InvoicesPage = () => {
                     type="checkbox"
                     checked={selectedInvoices.includes(invoice.id)}
                     onChange={() => handleSelectInvoice(invoice.id)}
+                  />
+                </Td>
+		<Td className="text-center">
+                  <InvoiceQRCode
+                    invoice={invoice}
+                    size="60px"
+                    onScan={handleQRCodeScan}
                   />
                 </Td>
                 <Td className="text-center">{invoice.issue_date || 'N/A'}</Td>
@@ -900,6 +920,12 @@ const InvoicesPage = () => {
           </tbody>
         </StyledTable>
 	</TableWrapper>
+
+	<QRCodeModal
+          isOpen={showQRModal}
+          onClose={() => setShowQRModal(false)}
+          invoiceData={qrInvoiceData}
+        />
 
         {pagination.totalPages > 0 && (
           <PaginationContainer>

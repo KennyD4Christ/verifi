@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Modal, Form, Input, Select, Button, message, InputNumber, Typography, Table } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { fetchProducts } from '../services/api';
 import { formatCurrency } from '../utils/dataTransformations';
+import { PlusOutlined, DeleteOutlined, QrcodeOutlined } from '@ant-design/icons';
+import QRScannerModal from './QRScannerModal';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -10,12 +11,13 @@ const { Text } = Typography;
 
 const STATUS_OPTIONS = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 
-const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUser }) => {
+const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUser, scannedProduct }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [orderItems, setOrderItems] = useState([]);
+  const [orderItems, setOrderItems] = useState([]);        
   const [products, setProducts] = useState([]);
   const [fetchingProducts, setFetchingProducts] = useState(false);
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
 
   const TRANSACTION_CATEGORIES = [
     { value: 'income', label: 'Income' },
@@ -27,7 +29,7 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
     if (open && currentUser) {
       form.setFieldsValue({
         sales_rep_id: currentUser.id,
-	sales_rep_name: `${currentUser.firstName} ${currentUser.lastName}`
+        sales_rep_name: `${currentUser.firstName} ${currentUser.lastName}`
       });
     }
   }, [open, currentUser, form]);
@@ -48,9 +50,9 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
   const fetchProductList = async () => {
     setFetchingProducts(true);
     try {
-      const fetchedProducts = await fetchProducts();
+      const fetchedProducts = await fetchProducts();       
       // Ensure fetchedProducts is an array and has the expected structure
-      if (Array.isArray(fetchedProducts.results)) {
+      if (Array.isArray(fetchedProducts.results)) {        
         setProducts(fetchedProducts.results);
       } else if (Array.isArray(fetchedProducts)) {
         setProducts(fetchedProducts);
@@ -58,15 +60,56 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
         console.error('Unexpected product data structure:', fetchedProducts);
         setProducts([]);
       }
-      console.log('Fetched products:', fetchedProducts);
+      console.log('Fetched products:', fetchedProducts);   
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Error fetching products:', error);    
       message.error('Failed to fetch products. Please try again.');
       setProducts([]);
     } finally {
       setFetchingProducts(false);
     }
   };
+
+  const handleScannedProduct = (scannedItem) => {
+    setOrderItems(prevItems => [...prevItems, {
+      ...scannedItem,
+      tempId: `${scannedItem.product_id}-${Date.now()}` // Add unique identifier
+    }]);
+    message.success('Product added successfully');
+  };
+
+  useEffect(() => {
+    if (scannedProduct && open) {
+      const existingItemIndex = orderItems.findIndex(
+        item => item.product_id === scannedProduct.product_id
+      );
+
+      if (existingItemIndex >= 0) {
+        setOrderItems(prevItems => {
+          const newItems = [...prevItems];
+          newItems[existingItemIndex].quantity += scannedProduct.quantity;
+          return newItems;
+        });
+      } else {
+        setOrderItems(prevItems => [...prevItems, scannedProduct]);
+      }
+    }
+  }, [scannedProduct, open]);
+
+  const handleKeyDown = useCallback((event) => {
+    if (event.key === 'Enter' && event.ctrlKey) {
+      handleSubmit();
+    }
+  }, [handleSubmit]);
+
+  useEffect(() => {
+    if (open) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [open, handleKeyDown]);
 
   const handleSubmit = async (values) => {
     console.log('Submitting order:', values);
@@ -78,22 +121,22 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
     setLoading(true);
     try {
       const orderData = {
-	sales_rep_id: currentUser.id,
-	sales_rep_name: `${currentUser.firstName} ${currentUser.lastName}`,
+        sales_rep_id: currentUser.id,
+        sales_rep_name: `${currentUser.firstName} ${currentUser.lastName}`,
         customer_id: values.customer_id || null,
-	transaction_category: values.transaction_category,
-        special_instructions: values.special_instructions,
+        transaction_category: values.transaction_category, 
+        special_instructions: values.special_instructions, 
         items: orderItems.map(item => ({
           product: item.product_id,
           quantity: item.quantity,
           unit_price: parseFloat(item.unit_price),
         })),
-	status: values.status
+        status: values.status
       };
 
-      console.log('Processed order data:', orderData);
+      console.log('Processed order data:', orderData);     
       await onOrderCreated(orderData);
-      message.success('Order created successfully');
+      message.success('Order created successfully');       
       onClose();
     } catch (err) {
       console.error('Error creating order:', err);
@@ -112,12 +155,12 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
     console.log('Available products:', products);
     const selectedProduct = products.find(p => p.id === value);
     if (!selectedProduct) {
-      console.error(`Product with id ${value} not found`);
+      console.error(`Product with id ${value} not found`); 
       message.error(`Product with id ${value} not found. Please select a valid product.`);
       return;
     }
 
-    console.log('Selected product:', selectedProduct);
+    console.log('Selected product:', selectedProduct);     
 
     setOrderItems(prevItems => {
       const newItems = [...prevItems];
@@ -159,13 +202,13 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
         <Select
           style={{ width: 200 }}
           value={value}
-          onChange={(v) => handleProductChange(v, index)}
+          onChange={(v) => handleProductChange(v, index)}  
           placeholder="Select product"
-	  loading={fetchingProducts}
+          loading={fetchingProducts}
           disabled={fetchingProducts}
         >
           {products.map(product => (
-            <Option key={product.id} value={product.id}>
+            <Option key={product.id} value={product.id}>   
               {product.name}
             </Option>
           ))}
@@ -180,7 +223,7 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
         <InputNumber
           min={1}
           value={value}
-          onChange={(v) => handleQuantityChange(v, index)}
+          onChange={(v) => handleQuantityChange(v, index)} 
         />
       ),
     },
@@ -198,7 +241,7 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
         <Select
           style={{ width: 120 }}
           value={value}
-          onChange={(v) => handleStatusChange(v, index)}
+          onChange={(v) => handleStatusChange(v, index)}   
         >
           {STATUS_OPTIONS.map(status => (
             <Option key={status} value={status}>
@@ -220,6 +263,7 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
   ];
 
   return (
+  <>
     <Modal
       title="Create New Order"
       open={open}
@@ -242,9 +286,9 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
         <Form.Item name="customer_id" label="Customer (Optional)">
           <Select placeholder="Select customer">
             {customers.map(customer => (
-              <Option key={customer.id} value={customer.id}>
+              <Select.Option key={customer.id} value={customer.id}>
                 {`${customer.first_name} ${customer.last_name}`}
-              </Option>
+              </Select.Option>
             ))}
           </Select>
         </Form.Item>
@@ -255,10 +299,10 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
           rules={[{ required: true, message: 'Please select a transaction category' }]}
         >
           <Select placeholder="Select transaction category">
-            {TRANSACTION_CATEGORIES.map(category => (
-              <Option key={category.value} value={category.value}>
+            {TRANSACTION_CATEGORIES.map(category => (      
+              <Select.Option key={category.value} value={category.value}>
                 {category.label}
-              </Option>
+              </Select.Option>
             ))}
           </Select>
         </Form.Item>
@@ -268,11 +312,11 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
           label="Order Status"
           rules={[{ required: true, message: 'Please select an order status' }]}
         >
-          <Select placeholder="Select order status">
+          <Select placeholder="Select order status">       
             {STATUS_OPTIONS.map(status => (
-              <Option key={status} value={status}>
+              <Select.Option key={status} value={status}>  
                 {status.charAt(0).toUpperCase() + status.slice(1)}
-              </Option>
+              </Select.Option>
             ))}
           </Select>
         </Form.Item>
@@ -282,17 +326,25 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
             dataSource={orderItems}
             columns={columns}
             pagination={false}
-            rowKey={(record, index) => index}
+            rowKey={(record) => record.tempId}
           />
-          <Button
-            type="dashed"
-            onClick={handleAddProduct}
-            block
-            icon={<PlusOutlined />}
-            style={{ marginTop: 16 }}
-          >
-            Add Product
-          </Button>
+          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+            <Button
+              type="dashed"
+              onClick={handleAddProduct}
+              icon={<PlusOutlined />}
+              style={{ flex: 1 }}
+            >
+              Add Product
+            </Button>
+            <Button
+              type="dashed"
+              onClick={() => setIsQRScannerOpen(true)}     
+              icon={<QrcodeOutlined />}
+            >
+              Scan QR Code
+            </Button>
+          </div>
         </Form.Item>
 
         <Form.Item name="special_instructions" label="Special Instructions">
@@ -314,7 +366,16 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
         </Form.Item>
       </Form>
     </Modal>
-  );
+
+    <QRScannerModal
+      open={isQRScannerOpen}
+      onClose={() => setIsQRScannerOpen(false)}
+      onScan={handleScannedProduct}
+      products={products}
+    />
+  </>
+);
+
 };
 
 export default CreateOrderModal;

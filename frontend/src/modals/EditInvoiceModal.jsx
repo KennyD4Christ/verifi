@@ -5,6 +5,7 @@ import styled from 'styled-components';
 import AsyncSelect from 'react-select/async';
 import { searchCustomers, getCustomerById, fetchCompanyInfo, updateCompanyInfo, fetchProducts } from '../services/api';
 import CompanyInfoForm from '../components/CompanyInfoForm';
+import { InvoiceQRCode } from '../components/QRCode';
 
 const StyledModal = styled(Modal)`
   .modal-dialog {
@@ -101,6 +102,18 @@ const EditInvoiceModal = ({ isOpen, onClose, invoice, onSave }) => {
       setValue(`items.${index}.product_id`, '');
       setValue(`items.${index}.unit_price`, 0);
       setValue(`items.${index}.description`, '');
+    }
+  };
+
+  const handleQRCodeScan = (qrData) => {
+    try {
+      const invoiceData = JSON.parse(qrData);
+      
+      // You can customize this behavior
+      setSelectedInvoice(invoiceData);
+      setShowDetailsModal(true);
+    } catch (error) {
+      setError('Error processing QR code');
     }
   };
 
@@ -276,6 +289,19 @@ const EditInvoiceModal = ({ isOpen, onClose, invoice, onSave }) => {
           <Form.Group className="mt-3">
             <Form.Label>Total Amount: ${total.toFixed(2)}</Form.Label>
           </Form.Group>
+          
+          {invoice && invoice.id && (
+            <div className="mt-4">
+              <h5>Invoice QR Code</h5>
+              <div className="d-flex justify-content-center my-3">
+                <InvoiceQRCode
+                  invoice={invoice}
+                  size="120px"
+                  onScan={handleQRCodeScan}
+                />
+              </div>
+            </div>
+          )}
         </Form>
       </Modal.Body>
       <Modal.Footer>
