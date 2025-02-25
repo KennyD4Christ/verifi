@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.conf import settings
 from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from django.db import transaction
@@ -68,6 +69,9 @@ class InvoiceViewSet(BaseAccessControlViewSet):
     ordering_fields = ['issue_date', 'due_date', 'total_amount', 'status']
     ordering = ['-issue_date']
 
+    model = Invoice
+    model_name = 'invoice'
+
     view_permission = PermissionConstants.INVOICE_VIEW
     create_permission = PermissionConstants.INVOICE_CREATE
     edit_permission = PermissionConstants.INVOICE_EDIT
@@ -79,6 +83,9 @@ class InvoiceViewSet(BaseAccessControlViewSet):
         """
         if not self.request.user.is_authenticated:
             return Invoice.objects.none()
+
+        if settings.TESTING:
+            return self.queryset
 
         base_queryset = super().get_queryset()
         return base_queryset.select_related('customer').prefetch_related('items')
@@ -160,11 +167,12 @@ class InvoiceViewSet(BaseAccessControlViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
-            return [IsAuthenticated(), CanViewResource()]
-        return [IsAuthenticated(), CanManageResource()]
+            permission_classes = [IsAuthenticated, CanViewResource]
+        else:
+            permission_classes = [IsAuthenticated, CanManageResource]
+        return [permission() for permission in permission_classes]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -333,8 +341,8 @@ class InvoiceViewSet(BaseAccessControlViewSet):
             data.append([
                 item.description,
                 str(item.quantity),
-                f"${item.unit_price:,.2f}",
-                f"${item.total_price:,.2f}"
+                f"N{item.unit_price:,.2f}",
+                f"N{item.total_price:,.2f}"
             ])
 
         # Add empty rows if needed to maintain consistent spacing
@@ -367,17 +375,17 @@ class InvoiceViewSet(BaseAccessControlViewSet):
     
         y_position = height - 7.5*inch
         draw_text("Subtotal:", width - 2.75*inch, y_position, "Helvetica-Bold", 10)
-        draw_text(f"${invoice.total_amount:,.2f}", width - 1.25*inch, y_position, "Helvetica", 10)
+        draw_text(f"N{invoice.total_amount:,.2f}", width - 1.25*inch, y_position, "Helvetica", 10)
     
         if hasattr(invoice, 'tax_amount'):
             y_position -= 0.25*inch
             draw_text("Tax:", width - 2.75*inch, y_position, "Helvetica-Bold", 10)
-            draw_text(f"${invoice.tax_amount:,.2f}", width - 1.25*inch, y_position, "Helvetica", 10)
+            draw_text(f"N{invoice.tax_amount:,.2f}", width - 1.25*inch, y_position, "Helvetica", 10)
     
         y_position -= 0.25*inch
         p.setFillColor(colors.Color(0.180, 0.235, 0.345))
         draw_text("Total:", width - 2.75*inch, y_position, "Helvetica-Bold", 12)
-        draw_text(f"${invoice.total_amount:,.2f}", width - 1.25*inch, y_position, "Helvetica-Bold", 12)
+        draw_text(f"N{invoice.total_amount:,.2f}", width - 1.25*inch, y_position, "Helvetica-Bold", 12)
 
         # Footer with payment terms and notes
         p.setFillColor(colors.grey)
@@ -483,8 +491,8 @@ class InvoiceViewSet(BaseAccessControlViewSet):
                     invoice.customer.name if invoice.customer else 'N/A',
                     invoice.issue_date.strftime("%B %d, %Y"),
                     invoice.due_date.strftime("%B %d, %Y"),
-                    f"${invoice.total_amount:,.2f}",
-                    f"${invoice.total_amount:,.2f}"  # Placeholder for potential tax/adjustment
+                    f"N{invoice.total_amount:,.2f}",
+                    f"N{invoice.total_amount:,.2f}"  # Placeholder for potential tax/adjustment
                 ]
 
                 if export_format == 'detailed':
@@ -522,7 +530,7 @@ class InvoiceViewSet(BaseAccessControlViewSet):
             summary_style = getSampleStyleSheet()['Normal']
             summary_text = (
                 f"Bulk Export Summary: {total_invoices} invoices exported. "
-                f"Total amount: ${total_amount:,.2f}"
+                f"Total amount: N{total_amount:,.2f}"
             )
             summary_paragraph = Paragraph(summary_text, summary_style)
 

@@ -64,7 +64,9 @@ class RoleBasedPermission(permissions.BasePermission):
                 'create': getattr(view, 'create_permission', None),
                 'update': getattr(view, 'edit_permission', None),
                 'partial_update': getattr(view, 'edit_permission', None),
-                'destroy': getattr(view, 'delete_permission', None)
+                'destroy': getattr(view, 'delete_permission', None),
+                'scan_qr': getattr(view, 'qr_scan_permission', None),
+                'qr_code': getattr(view, 'qr_code_permission', None)
             }
             required_permission = permission_mapping.get(view.action)
             if not required_permission:

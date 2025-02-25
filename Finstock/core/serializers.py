@@ -145,6 +145,7 @@ class OrderSerializer(serializers.ModelSerializer):
     previous_status = serializers.CharField(read_only=True)
     invoice = InvoiceSerializer(read_only=True)
     sales_rep = serializers.PrimaryKeyRelatedField(read_only=True)
+    qr_scanned_items = serializers.JSONField(read_only=True)
 
     def get_sales_rep_name(self, obj):
         if obj.sales_rep:
@@ -164,9 +165,9 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'customer', 'customer_id', 'customer_name', 'order_date', 'user', 'shipped_date', 'is_paid', 'is_shipped',
             'items', 'created', 'modified', 'status', 'total_price', 'previous_status', 'sales_rep', 'sales_rep_name',
-            'special_instructions', 'invoice', 'transaction_category'
+            'special_instructions', 'invoice', 'transaction_category', 'qr_scanned_items'
         ]
-        read_only_fields = ['id', 'user', 'sales_rep']
+        read_only_fields = ['id', 'user', 'sales_rep', 'qr_scanned_items']
 
     def to_internal_value(self, data):
         logger.debug(f"OrderSerializer to_internal_value called with data: {data}")
@@ -283,20 +284,7 @@ class OrderSerializer(serializers.ModelSerializer):
         return instance
 
     def update_stock(self, order, previous_status):
-        if order.status in ['shipped', 'delivered'] and previous_status not in ['shipped', 'delivered']:
-            # Decrease stock
-            for item in order.items.all():
-                product = item.product
-                product.stock -= item.quantity
-                if product.stock < 0:
-                    raise serializers.ValidationError(f"Insufficient stock for product {product.name}")
-                product.save()
-        elif previous_status in ['shipped', 'delivered'] and order.status not in ['shipped', 'delivered']:
-            # Increase stock (e.g., order cancelled)
-            for item in order.items.all():
-                product = item.product
-                product.stock += item.quantity
-                product.save()
+        pass
 
     def to_representation(self, instance):
         from invoices.serializers import InvoiceSerializer

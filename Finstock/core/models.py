@@ -130,11 +130,38 @@ class Order(TimeStampedModel):
     estimated_delivery = models.DateTimeField(blank=True, null=True)
     previous_status = models.CharField(max_length=20, null=True, blank=True)
     invoice = models.OneToOneField('invoices.Invoice', on_delete=models.SET_NULL, null=True, blank=True, related_name='related_order')
+    qr_scanned_items = models.JSONField(default=list, blank=True)
     transaction_category = models.CharField(max_length=50, choices=[
         ('income', 'Income'),
         ('expense', 'Expense'),
         ('cost_of_services', 'Cost of Services'),
     ], default='income')
+
+    def add_scanned_item(self, product_data, quantity=1):
+        """Add item scanned via QR code to the order"""
+        if not self.qr_scanned_items:
+            self.qr_scanned_items = []
+
+        scanned_item = {
+            'product_id': product_data['id'],
+            'sku': product_data['sku'],
+            'quantity': quantity,
+            'scanned_at': timezone.now().isoformat(),
+            'price': str(product_data['price'])
+        }
+
+        self.qr_scanned_items.append(scanned_item)
+        self.save()
+
+        # Create or update OrderItem
+        OrderItem.objects.update_or_create(
+            order=self,
+            product_id=product_data['id'],
+            defaults={
+                'quantity': quantity,
+                'unit_price': product_data['price']
+            }
+        )
 
     @property
     def formatted_total_price(self):
@@ -265,8 +292,7 @@ class Order(TimeStampedModel):
 
 @receiver(post_save, sender=Order)
 def order_post_save(sender, instance, created, **kwargs):
-    if not created and instance.previous_status != instance.status:
-        instance.update_stock()
+    pass
 
 
 class OrderItem(models.Model):

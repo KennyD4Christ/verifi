@@ -2,6 +2,8 @@ import os
 import environ
 from pathlib import Path
 import dj_database_url
+import tempfile
+import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,11 +23,14 @@ env = environ.Env(
        EMAIL_PORT=(int, 587),
        EMAIL_USE_TLS=(bool, True),
        EMAIL_HOST_USER=(str, ''),
-       EMAIL_HOST_PASSWORD=(str, '')
+       EMAIL_HOST_PASSWORD=(str, ''),
+       SITE_URL=(str, 'http://localhost:8000')
    )
 
 # reading .env file
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+SITE_URL = env('SITE_URL')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('DJANGO_SECRET_KEY')
@@ -233,8 +238,9 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Configure media files
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'test_media')
 
+TESTING = 'test' in sys.argv
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field

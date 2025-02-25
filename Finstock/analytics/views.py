@@ -11,6 +11,7 @@ from transactions.serializers import TransactionSerializer
 from django.db.models import Sum, Case, When, F, DecimalField, Q, IntegerField
 from django.db.models.functions import TruncDate, Coalesce
 from rest_framework import status
+import traceback
 from django_filters import rest_framework as filters
 from datetime import datetime, timedelta, time
 import logging
@@ -285,33 +286,107 @@ class InventoryLevelsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        logger.debug("InventoryLevelsView accessed")
+        logger.info("=== Starting InventoryLevelsView.get ===")
+        logger.info(f"Request params: {request.query_params}")
+        logger.info(f"Request user: {request.user}")
+
         try:
+            # Extract and validate date parameters
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
+            
+            logger.debug(f"Processing date range: {start_date} to {end_date}")
 
-            logger.debug(f"Raw date params received - start_date: {start_date}, end_date: {end_date}")
+            # Basic queryset to verify database connection
+            try:
+                # First, test if we can access the Product model at all
+                test_query = Product.objects.first()
+                logger.info(f"Initial product query successful: {test_query is not None}")
+            except Exception as db_error:
+                logger.error(f"Database connection error: {str(db_error)}")
+                logger.error(traceback.format_exc())
+                return Response({
+                    "error": "Database connection error",
+                    "detail": str(db_error)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+            # Initialize the base queryset
             queryset = Product.objects.all()
-            if start_date:
-                parsed_start = parse_date(start_date)
-                start_datetime = make_aware(datetime.combine(parsed_start, datetime.min.time()), timezone=utc)
-                logger.debug(f"Parsed start_date: {parsed_start}, start_datetime: {start_datetime}")
-                queryset = queryset.filter(stock_adjustments__adjustment_date__gte=start_datetime)
-            if end_date:
-                parsed_end = parse_date(end_date)
-                end_datetime = make_aware(datetime.combine(parsed_end, datetime.max.time()), timezone=utc)
-                logger.debug(f"Parsed end_date: {parsed_end}, end_datetime: {end_datetime}")
-                queryset = queryset.filter(stock_adjustments__adjustment_date__lte=end_datetime)
+            logger.info(f"Base queryset created successfully")
 
-            # Use distinct to ensure no duplicates due to multiple stock adjustments
-            inventory_items = queryset.distinct()
-            serializer = ProductSerializer(inventory_items, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Apply date filters if provided
+            if start_date and end_date:
+                try:
+                    parsed_start = parse_date(start_date)
+                    parsed_end = parse_date(end_date)
+                    
+                    if not parsed_start or not parsed_end:
+                        return Response({
+                            "error": "Invalid date format",
+                            "detail": "Dates must be in YYYY-MM-DD format"
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                    start_datetime = make_aware(datetime.combine(parsed_start, datetime.min.time()))
+                    end_datetime = make_aware(datetime.combine(parsed_end, datetime.max.time()))
+                    
+                    logger.debug(f"Parsed date range: {start_datetime} to {end_datetime}")
+                    
+                    # Log the query before execution
+                    queryset = queryset.filter(
+                        stock_adjustments__adjustment_date__gte=start_datetime,
+                        stock_adjustments__adjustment_date__lte=end_datetime
+                    )
+                    logger.debug(f"Query SQL: {queryset.query}")
+                    
+                except Exception as date_error:
+                    logger.error(f"Date processing error: {str(date_error)}")
+                    logger.error(traceback.format_exc())
+                    return Response({
+                        "error": "Date processing error",
+                        "detail": str(date_error)
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                # Execute query with distinct to avoid duplicates
+                inventory_items = queryset.distinct()
+                
+                # Log the count before serialization
+                items_count = inventory_items.count()
+                logger.info(f"Query returned {items_count} items")
+                
+                # Verify serializer is imported and accessible
+                from .serializers import ProductSerializer
+                serializer = ProductSerializer(inventory_items, many=True)
+                
+                logger.info("=== Successfully completed InventoryLevelsView.get ===")
+                return Response({
+                    "data": serializer.data,
+                    "count": items_count
+                }, status=status.HTTP_200_OK)
+                
+            except Exception as query_error:
+                logger.error(f"Query execution error: {str(query_error)}")
+                logger.error(traceback.format_exc())
+                return Response({
+                    "error": "Query execution error",
+                    "detail": str(query_error)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except ImportError as import_error:
+            logger.error(f"Import error: {str(import_error)}")
+            logger.error(traceback.format_exc())
+            return Response({
+                "error": "Configuration error",
+                "detail": "Required models or serializers not found"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
         except Exception as e:
-            logger.error(f"Error in InventoryLevelsView: {str(e)}")
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            logger.error(f"Unexpected error: {str(e)}")
+            logger.error(traceback.format_exc())
+            return Response({
+                "error": "Unexpected error",
+                "detail": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class CashFlowView(APIView):
     permission_classes = [IsAuthenticated]

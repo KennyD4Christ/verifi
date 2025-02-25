@@ -2,6 +2,10 @@ from django.db import models
 from core.models import TimeStampedModel, Customer
 from django.contrib.auth import get_user_model
 from django.db.models import Sum, F
+import qrcode
+from io import BytesIO
+from django.core.files.base import ContentFile
+from django.utils.dateparse import parse_date
 import uuid
 from products.models import Product
 
@@ -31,6 +35,7 @@ class Invoice(TimeStampedModel):
         choices=STATUS_CHOICES,
         default='draft'
     )
+    qr_code = models.ImageField(upload_to='invoice_qr_codes/', null=True, blank=True)
 
     def __str__(self):
         return f"Invoice {self.invoice_number} for {self.customer or self.user.username}"
@@ -40,6 +45,49 @@ class Invoice(TimeStampedModel):
             total=Sum(F('quantity') * F('unit_price'))
         )['total'] or 0
         self.save(update_fields=['total_amount'])
+
+    def generate_qr_code(self):
+        issue_date = self.issue_date
+        due_date = self.due_date
+    
+        if isinstance(issue_date, str):
+            issue_date = parse_date(issue_date)
+        if isinstance(due_date, str):
+            due_date = parse_date(due_date)
+        
+        qr_data = {
+            'invoice_number': str(self.invoice_number),
+            'total_amount': str(self.total_amount),
+            'customer': f"{self.customer.first_name} {self.customer.last_name}" if self.customer else self.user.username,
+            'customer_email': self.customer.email if self.customer else '',
+            'issue_date': issue_date.isoformat(),
+            'due_date': due_date.isoformat(),
+            'status': self.status
+        }
+    
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(str(qr_data))
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+        blob = BytesIO()
+        img.save(blob, 'PNG')
+
+        self.qr_code.save(
+            f'invoice_qr_{self.invoice_number}.png',
+            ContentFile(blob.getvalue()),
+            save=False
+        )
+
+    def save(self, *args, **kwargs):
+        if not self.qr_code:
+            self.generate_qr_code()
+        super().save(*args, **kwargs)
 
 class InvoiceItem(models.Model):
     """

@@ -1,4 +1,6 @@
 from rest_framework import viewsets, filters, status, permissions
+from django.db import transaction
+from core.models import Customer, Order, OrderItem
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
@@ -79,6 +81,19 @@ class ProductViewSet(BaseAccessControlViewSet):
     create_permission = PermissionConstants.PRODUCT_CREATE
     edit_permission = PermissionConstants.PRODUCT_EDIT
     delete_permission = PermissionConstants.PRODUCT_DELETE
+    qr_scan_permission = PermissionConstants.PRODUCT_VIEW
+
+    permission_map = {
+        'list': [PermissionConstants.PRODUCT_VIEW],
+        'retrieve': [PermissionConstants.PRODUCT_VIEW],
+        'create': [PermissionConstants.PRODUCT_CREATE],
+        'update': [PermissionConstants.PRODUCT_EDIT],
+        'partial_update': [PermissionConstants.PRODUCT_EDIT],
+        'destroy': [PermissionConstants.PRODUCT_DELETE],
+        'qr_scan': [PermissionConstants.PRODUCT_VIEW],
+        'qr_scan_info': [PermissionConstants.PRODUCT_VIEW],
+        'regenerate_qr': [PermissionConstants.PRODUCT_EDIT]
+    }
 
     def apply_role_based_filtering(self):
         user = self.request.user
@@ -139,31 +154,191 @@ class ProductViewSet(BaseAccessControlViewSet):
         instance.delete()
 
     def get_permissions(self):
-        permission_map = {
-            'list': [PermissionConstants.PRODUCT_VIEW],
-            'retrieve': [PermissionConstants.PRODUCT_VIEW],
-            'create': [PermissionConstants.PRODUCT_CREATE],
-            'update': [PermissionConstants.PRODUCT_EDIT],
-            'partial_update': [PermissionConstants.PRODUCT_EDIT],
-            'destroy': [PermissionConstants.PRODUCT_DELETE]
-        }
+        print(f"\nDEBUG: Permission check for action: {self.action}")
+        
+        # Get the required permissions for the current action
+        required_permissions = self.permission_map.get(self.action, [])
+        print(f"DEBUG: Required permissions: {required_permissions}")
 
-        # Get the required permission for the current action
-        required_permissions = permission_map.get(self.action, [])
-    
         class DynamicPermission(permissions.BasePermission):
-            def has_permission(self, request, view):
+            def has_permission(self_permission, request, view):
+                print(f"DEBUG: Checking permissions for user: {request.user.username}")
+                
                 # Superusers always have access
                 if request.user.is_superuser:
+                    print("DEBUG: User is superuser - access granted")
                     return True
-            
-                # Check if user has any of the required permissions
-                return any(
-                    request.user.has_perm(perm) 
-                    for perm in required_permissions
-                )
+
+                # Check each required permission
+                for permission in required_permissions:
+                    has_perm = request.user.has_perm(permission)
+                    print(f"DEBUG: Checking permission {permission}: {has_perm}")
+                    if has_perm:
+                        return True
+                
+                print("DEBUG: No required permissions found - access denied")
+                return False
 
         return [IsAuthenticated(), DynamicPermission()]
+
+    @action(detail=True, methods=['GET'])
+    def regenerate_qr(self, request, pk=None):
+        """Endpoint to regenerate QR code for a product"""
+        if not self.has_action_permission('change'):
+            raise PermissionDenied("You do not have permission to regenerate QR codes")
+
+        product = self.get_object()
+        product.generate_qr_code()
+
+        return Response({
+            'message': 'QR code regenerated successfully',
+            'qr_code_url': request.build_absolute_uri(product.qr_code.url)
+        })
+
+    @action(detail=True, methods=['GET'], url_path='qr-scan-info')
+    def qr_scan_info(self, request, pk=None):
+        """Endpoint to handle QR code scanning"""
+        product = self.get_object()
+
+        # Update stock count if specified in query params
+        quantity_change = request.query_params.get('quantity_change')
+        if quantity_change:
+            try:
+                quantity_change = int(quantity_change)
+                product.update_stock(quantity_change)
+            except ValueError as e:
+                return Response({'error': str(e)}, status=400)
+
+        return Response({
+            'id': product.id,
+            'name': product.name,
+            'sku': product.sku,
+            'current_stock': product.stock,
+            'price': product.price
+        })
+
+    def check_permissions(self, request):
+        """
+        Check if the request should be permitted.
+        Raises an appropriate exception if the request is not permitted.
+        """
+        print(f"\nDEBUG: Starting permission check for action: {self.action}")
+        print(f"DEBUG: User: {request.user.username}")
+        
+        try:
+            super().check_permissions(request)
+            print("DEBUG: Permission check passed successfully")
+        except Exception as e:
+            print(f"DEBUG: Permission check failed: {str(e)}")
+            raise
+
+    @action(detail=True, methods=['POST'], url_path='qr-scan')
+    def qr_scan(self, request, pk=None):
+        print(f"\nDEBUG: QR scan action started")
+        print(f"DEBUG: Product ID: {pk}")
+        
+        try:
+            # First attempt to get the product
+            try:
+                product = Product.objects.get(pk=pk)
+                print(f"DEBUG: Product found: {product.name}")
+            except Product.DoesNotExist:
+                print(f"DEBUG: Product not found with ID: {pk}")
+                return Response(
+                    {'error': 'Product not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            customer_id = request.data.get('customer_id')
+            quantity = int(request.data.get('quantity', 1))
+
+            with transaction.atomic():
+                customer = Customer.objects.get(id=customer_id) if customer_id else None
+                
+                order = Order.objects.create(
+                    customer=customer,
+                    user=request.user,
+                    sales_rep=request.user,
+                    status='processing'
+                )
+
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    quantity=quantity,
+                    unit_price=product.price
+                )
+
+                return Response({
+                    'message': 'Order created successfully from QR scan',
+                    'order_id': order.id,
+                    'invoice_id': order.invoice.id if order.invoice else None,
+                    'product_id': product.id,
+                    'quantity': quantity,
+                    'total_price': float(product.price * quantity)
+                }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print(f"DEBUG: Error in qr_scan: {str(e)}")
+            raise
+
+    @action(detail=False, methods=['GET'], url_path='barcode/(?P<barcode>[^/.]+)')
+    def get_by_barcode(self, request, barcode=None):
+        """Endpoint to fetch product by barcode"""
+        try:
+            product = self.queryset.get(barcode=barcode)
+            serializer = self.get_serializer(product)
+            return Response(serializer.data)
+        except Product.DoesNotExist:
+            return Response(
+                {'error': 'Product not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=True, methods=['POST'])
+    def scan_barcode(self, request, pk=None):
+        """Endpoint to handle barcode scanning"""
+        product = self.get_object()
+
+        try:
+            quantity = int(request.data.get('quantity', 1))
+            customer_id = request.data.get('customer_id')
+
+            with transaction.atomic():
+                customer = Customer.objects.get(id=customer_id) if customer_id else None
+
+                # Create order similar to your existing QR scan logic
+                order = Order.objects.create(
+                    customer=customer,
+                    user=request.user,
+                    sales_rep=request.user,
+                    status='processing'
+                )
+
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    quantity=quantity,
+                    unit_price=product.price
+                )
+
+                return Response({
+                    'message': 'Order created successfully from barcode scan',
+                    'order_id': order.id,
+                    'product_id': product.id,
+                    'quantity': quantity,
+                    'total_price': float(product.price * quantity)
+                }, status=status.HTTP_201_CREATED)
+
+        except ValueError as e:
+            return Response(
+                {'error': 'Invalid quantity'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=False, methods=['get'])
     def export_csv(self, request):
@@ -210,7 +385,7 @@ class ProductViewSet(BaseAccessControlViewSet):
                 str(product.id),
                 product.name,
                 product.sku,
-                f"${product.price:.2f}",
+                f"N{product.price:.2f}",
                 product.category.name if product.category else 'N/A',
                 'Yes' if product.is_active else 'No'
             ])
@@ -220,15 +395,14 @@ class ProductViewSet(BaseAccessControlViewSet):
 
         # Add style to table
         style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),  # Professional header color
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 14),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),  # White body background
             ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 12),
             ('TOPPADDING', (0, 1), (-1, -1), 6),

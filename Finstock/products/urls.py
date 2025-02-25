@@ -24,4 +24,6 @@ def products_api_root(request, format=None):
 urlpatterns = [
     path('', products_api_root, name='api-root'),    
     path('', include(router.urls)),
+    path('products/<int:pk>/qr-scan/', views.ProductViewSet.as_view({'post': 'qr_scan'}), name='product-qr-scan'),
+    path('products/<int:pk>/qr-regenerate/', views.ProductViewSet.as_view({'post': 'regenerate_qr'}), name='product-qr-regenerate'),
 ]

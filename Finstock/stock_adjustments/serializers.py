@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import StockAdjustment
 from products.models import Product
 from products.serializers import ProductSerializer
+from django.urls import reverse
 
 class StockAdjustmentSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
@@ -9,10 +10,25 @@ class StockAdjustmentSerializer(serializers.ModelSerializer):
         queryset=Product.objects.all(), source='product', required=False
     )
     adjustment_date = serializers.DateField(format="%Y-%m-%d")
+    qr_code = serializers.SerializerMethodField()
+    qr_code_url = serializers.SerializerMethodField()
 
     class Meta:
         model = StockAdjustment
-        fields = ['id', 'product', 'product_id', 'quantity', 'adjustment_type', 'adjustment_date', 'reason']
+        fields = ['id', 'product', 'product_id', 'quantity', 'adjustment_type', 'adjustment_date', 'reason', 'qr_code_url', 'qr_code_data', 'qr_code']
+
+    def get_qr_code(self, obj):
+        if obj.qr_code:
+            request = self.context.get('request')
+            return request.build_absolute_uri(reverse('stockadjustment-qr-code', 
+                                                    kwargs={'pk': obj.pk}))
+        return None
+        
+    def get_qr_code_url(self, obj):
+        if obj.qr_code:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.qr_code.url)
+        return None
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)

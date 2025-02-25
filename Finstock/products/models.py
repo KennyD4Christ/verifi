@@ -1,6 +1,11 @@
 from django.conf import settings
 from django.db import models
 from django.db.models import Sum
+import qrcode
+import uuid
+from io import BytesIO
+from django.core.files.base import ContentFile
+from PIL import Image
 
 class Category(models.Model):
     name = models.CharField(max_length=255)
@@ -32,6 +37,9 @@ class Product(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
     category = models.ForeignKey(Category, related_name='products', on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)
+    qr_code = models.ImageField(upload_to='product_qr_codes/', blank=True, null=True)
+    qr_code_data = models.JSONField(default=dict, blank=True)
+    barcode = models.CharField(max_length=100, unique=True, null=True, blank=True)
     low_stock_threshold = models.PositiveIntegerField(
         default=10,
         help_text="Minimum stock level that triggers low stock alert"
@@ -40,16 +48,74 @@ class Product(models.Model):
     def __str__(self):
         return f"{self.name} (ID: {self.id})"
 
-    def update_stock(self, quantity_change):
-        self.stock += quantity_change
-        if self.stock < 0:
-            raise ValueError(f"Stock cannot be negative for product {self.name}")
-        self.save()
+    def update_stock(self, quantity_change, reason="Manual adjustment", adjusted_by=None):
+        """
+        Updates product stock by creating a StockAdjustment record.
+        This method should be used for all stock modifications.
+        """
+        adjustment_type = 'ADD' if quantity_change > 0 else 'REMOVE'
+        
+        try:
+            StockAdjustment.objects.create(
+                product=self,
+                quantity=abs(quantity_change),  # Store absolute value
+                adjustment_type=adjustment_type,
+                reason=reason,
+                adjusted_by=adjusted_by
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error creating stock adjustment for product {self.id}: {str(e)}")
+            raise
 
     def get_sales_in_range(self, start_date, end_date):
         return self.order_items.filter(
             order__order_date__range=[start_date, end_date]
         ).aggregate(total_sales=Sum('quantity'))['total_sales'] or 0
+
+    def generate_qr_code(self):
+        """Generate QR code containing product information"""
+        qr_data = {
+            'id': self.id,
+            'sku': self.sku,
+            'name': self.name,
+            'price': str(self.price),
+            'stock': self.stock,
+            'barcode': self.barcode  # Add barcode to QR data
+        }
+        # Create QR code instance
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        # Add data
+        qr.add_data(str(qr_data))
+        qr.make(fit=True)
+        # Create image
+        img = qr.make_image(fill_color="black", back_color="white")
+        # Save QR code image
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        filename = f'qr_code_{self.sku}.png'
+        # Save to model
+        self.qr_code.save(filename, ContentFile(buffer.getvalue()), save=False)
+        self.qr_code_data = qr_data
+        self.save()
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        
+        # Generate barcode for new products if not provided
+        if is_new and not self.barcode:
+            self.barcode = f"PRD{str(uuid.uuid4())[:8].upper()}"
+            
+        super().save(*args, **kwargs)
+        
+        # Generate QR code for new products or if SKU/barcode changed
+        if is_new or self.qr_code_data.get('sku') != self.sku or self.qr_code_data.get('barcode') != self.barcode:
+            self.generate_qr_code()
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)

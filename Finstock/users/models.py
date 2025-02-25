@@ -1,6 +1,9 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
+from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 
 class Permission(models.Model):
     """
@@ -79,14 +82,25 @@ class CustomUser(AbstractUser):
         return role_name in self.get_roles()
 
     def has_role_permission(self, permission_name):
-        """
-        Check if user has a specific permission through any of their roles
-        """
-        return Permission.objects.filter(
+        if self.is_superuser:
+            return True
+
+        # Check custom role-based permissions
+        has_custom_permission = Permission.objects.filter(
             roles__users=self,
             name=permission_name,
             is_active=True
         ).exists()
+
+        if has_custom_permission:
+            return True
+
+        # Check Django permissions
+        try:
+            app_label, codename = permission_name.split('.')
+            return self.has_perm(f'{app_label}.{codename}')
+        except ValueError:
+            return False
 
     def has_module_perms(self, app_label):
         """
@@ -122,6 +136,63 @@ class CustomUser(AbstractUser):
         )
 
         return current_active_permissions.exists()
+
+    def add_role_permission(self, permission):
+        """
+        Adds a permission to the user via their roles.
+        If no suitable role exists, creates a new one.
+        """
+        # Get or create a default role for the user
+        if not isinstance(permission, Permission):
+            return False
+            
+        # Get or create a default role for the user
+        default_role, _ = Role.objects.get_or_create(
+            name=f'role_{self.username}',
+            defaults={'description': f'Default role for {self.username}'}
+        )
+        
+        # Add the role to the user if not already added
+        if default_role not in self.roles.all():
+            self.roles.add(default_role)
+            
+        # Add the permission to the role
+        default_role.permissions.add(permission)
+        return True
+
+    def remove_role_permission(self, permission):
+        """
+        Removes a permission from all of the user's roles.
+        Accepts either a Permission object or a permission name string.
+        """
+        try:
+            if isinstance(permission, Permission):
+                permission_obj = permission
+            else:
+                app_label, codename = permission.split('.')
+                permission_obj = Permission.objects.get(
+                    content_type__app_label=app_label,
+                    codename=codename
+                )
+
+            removed = False
+            for role in self.roles.all():
+                if permission_obj in role.permissions.all():
+                    role.permissions.remove(permission_obj)
+                    removed = True
+
+            return removed
+
+        except (ValueError, AttributeError, Permission.DoesNotExist):
+            return False
+
+
+    def clear_role_permissions(self):
+        """
+        Removes all permissions from all of the user's roles.
+        """
+        for role in self.roles.all():
+            role.permissions.clear()
 
     def __str__(self):
         return self.username

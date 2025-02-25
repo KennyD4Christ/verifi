@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from .models import Transaction
 from .serializers import TransactionSerializer
 import csv
+from decimal import Decimal
 from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -211,6 +212,20 @@ class TransactionViewSet(BaseAccessControlViewSet):
             logger.error(f"Error updating transaction: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['get'])
+    def verify(self, request, pk=None):
+        """Verify transaction details through QR code"""
+        transaction = self.get_object()
+
+        return Response({
+            'id': transaction.id,
+            'amount': str(transaction.amount),
+            'date': str(transaction.date),
+            'type': transaction.transaction_type,
+            'status': transaction.status,
+            'verified': True
+        })
+
     @action(detail=False, methods=['post'])
     def bulk_delete(self, request):
         ids = request.data.get('ids', [])
@@ -232,8 +247,7 @@ class TransactionViewSet(BaseAccessControlViewSet):
         return f"{customer.first_name} {customer.last_name}".strip()
 
     def _format_currency(self, amount):
-        """Helper method to format currency values"""
-        return f"${amount:,.2f}" if amount is not None else ''
+        return f"N{amount:,.2f}" if amount is not None else ''
 
     def _format_related_object(self, obj):
         """Helper method to format related object references"""

@@ -3,9 +3,15 @@ from django.contrib.auth.models import User
 from .models import Transaction
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from transactions.models import TransactionQRCode
 import logging
 
 logger = logging.getLogger(__name__)
+
+class TransactionQRCodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TransactionQRCode
+        fields = ['qr_image']
 
 class TransactionSerializer(serializers.ModelSerializer):
     amount = serializers.DecimalField(
@@ -21,7 +27,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         model = Transaction
         fields = '__all__'
         ref_name = 'TransactionSerializer'
-        read_only_fields = ('created_by', 'created_by_username', 'created_by_id')
+        read_only_fields = ('created_by', 'created_by_username', 'created_by_id', 'qr_code')
 
     def validate(self, data):
         # Simpler checks that don't require database queries

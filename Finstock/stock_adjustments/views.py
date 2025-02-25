@@ -10,6 +10,7 @@ from django.http import HttpResponse
 from .models import StockAdjustment
 from .serializers import StockAdjustmentSerializer
 from users.views import BaseAccessControlViewSet
+from users.permissions import RoleBasedPermission
 from users.models import CustomUser
 from users.constants import PermissionConstants
 import logging
@@ -66,32 +67,48 @@ class StockAdjustmentViewSet(BaseAccessControlViewSet):
     edit_permission = PermissionConstants.STOCK_ADJUSTMENT_EDIT
     delete_permission = PermissionConstants.STOCK_ADJUSTMENT_DELETE
 
+    qr_code_permission = PermissionConstants.STOCK_ADJUSTMENT_VIEW
+
     def get_permissions(self):
+        """
+        Modified permissions method to handle QR code related actions
+        """
+        
         permission_map = {
-            'list': [PermissionConstants.STOCK_ADJUSTMENT_VIEW],
-            'retrieve': [PermissionConstants.STOCK_ADJUSTMENT_VIEW],
-            'create': [PermissionConstants.STOCK_ADJUSTMENT_CREATE],
-            'update': [PermissionConstants.STOCK_ADJUSTMENT_EDIT],
-            'partial_update': [PermissionConstants.STOCK_ADJUSTMENT_EDIT],
-            'destroy': [PermissionConstants.STOCK_ADJUSTMENT_DELETE]
+            'list': [self.view_permission],
+            'retrieve': [self.view_permission],
+            'create': [self.create_permission],
+            'update': [self.edit_permission],
+            'partial_update': [self.edit_permission],
+            'destroy': [self.delete_permission],
+            'qr_code': [self.qr_code_permission],
+            'scan_qr': [self.qr_code_permission]
         }
 
-        # Get the required permission for the current action
+        if self.action in ['qr_code', 'scan_qr']:
+            return [permissions.IsAuthenticated(), RoleBasedPermission()]
+        
+        return super().get_permissions()
+
         required_permissions = permission_map.get(self.action, [])
 
         class DynamicPermission(permissions.BasePermission):
             def has_permission(self, request, view):
-                # Superusers always have access
                 if request.user.is_superuser:
                     return True
+                return any(request.user.has_perm(perm) for perm in required_permissions)
 
-                # Check if user has any of the required permissions
-                return any(
-                    request.user.has_perm(perm)
-                    for perm in required_permissions
-                )
+            def has_object_permission(self, request, view, obj):
+                if request.user.is_superuser:
+                    return True
+                    
+                # Allow access for users with appropriate role
+                if request.user.is_role('Administrator') or request.user.is_role('Inventory Manager'):
+                    return True
+                    
+                return False
 
-        return [IsAuthenticated(), DynamicPermission()]
+        return [permissions.IsAuthenticated(), DynamicPermission()]
 
     def apply_role_based_filtering(self):
         user = self.request.user
@@ -150,6 +167,66 @@ class StockAdjustmentViewSet(BaseAccessControlViewSet):
                 "next": None,
                 "previous": None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['get'])
+    def qr_code(self, request, pk=None):
+        try:
+            logger.info(f"Attempting to get QR code for adjustment {pk}")
+            instance = self.get_object()
+        
+            if not instance:
+                logger.error(f"No StockAdjustment found with pk {pk}")
+                return Response(
+                    {'error': 'Stock adjustment not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            if not instance.qr_code:
+                logger.warning(f"QR code not found for adjustment {pk}")
+                return Response(
+                    {'error': 'QR code not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            try:
+                with instance.qr_code.open('rb') as f:
+                    response = HttpResponse(f.read(), content_type='image/png')
+                    response['Content-Disposition'] = f'inline; filename="{instance.qr_code.name}"'
+                    return response
+            except IOError as e:
+                logger.error(f"Error reading QR code file for adjustment {pk}: {str(e)}", exc_info=True)
+                return Response(
+                    {'error': 'Error reading QR code file'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        except Exception as e:
+            logger.error(f"Unexpected error serving QR code for adjustment {pk}: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Internal server error'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['get'])
+    def scan_qr(self, request, pk=None):
+        """
+        Enhanced scan QR endpoint with better error handling
+        """
+        try:
+            instance = self.get_object()
+            if not instance.qr_code_data:
+                logger.warning(f"QR code data not found for adjustment {pk}")
+                return Response(
+                    {'error': 'QR code data not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            return Response(instance.qr_code_data)
+        except Exception as e:
+            logger.error(f"Error retrieving QR code data for adjustment {pk}: {str(e)}")
+            return Response(
+                {'error': 'Error retrieving QR code data'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=False, methods=['post'])
     def bulk_delete(self, request):
@@ -217,10 +294,11 @@ class StockAdjustmentViewSet(BaseAccessControlViewSet):
     @action(detail=False, methods=['get'])
     def export_pdf(self, request):
         queryset = self.filter_queryset(self.get_queryset())
+
         # Create a file-like buffer to receive PDF data
         buffer = BytesIO()
 
-        # Create the PDF object, using the buffer as its "file"
+        # Create the PDF object using SimpleDocTemplate
         doc = SimpleDocTemplate(buffer, pagesize=letter)
 
         # Container for the 'Flowable' objects
@@ -249,19 +327,18 @@ class StockAdjustmentViewSet(BaseAccessControlViewSet):
             ])
 
         # Create the table
-        table = Table(data, colWidths=[0.5*inch, 1.5*inch, 1*inch, 1*inch, 1*inch, 3*inch])
+        table = Table(data, colWidths=[0.5 * inch, 1.5 * inch, 1 * inch, 1 * inch, 1 * inch, 3 * inch])
 
         # Add style to the table
         style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),  # Professional header color
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 14),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),  # White body background
             ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 12),
             ('TOPPADDING', (0, 1), (-1, -1), 6),

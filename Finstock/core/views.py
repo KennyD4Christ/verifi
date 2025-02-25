@@ -133,6 +133,35 @@ class OrderViewSet(BaseAccessControlViewSet):
             logger.error(f"Error in apply_role_based_filtering for user {user.id}: {str(e)}")
             return self.model.objects.none()
 
+    @action(detail=True, methods=['POST'])
+    def add_scanned_item(self, request, pk=None):
+        """Add a scanned item to the order"""
+        order = self.get_object()
+        
+        if not request.data.get('product_data'):
+            return Response(
+                {'error': 'Product data is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            quantity = int(request.data.get('quantity', 1))
+            product_data = request.data['product_data']
+            
+            order.add_scanned_item(product_data, quantity)
+            
+            return Response({
+                'message': 'Item added successfully',
+                'order_id': order.id,
+                'scanned_items': order.qr_scanned_items
+            })
+        except Exception as e:
+            logger.error(f"Error adding scanned item to order {order.id}: {str(e)}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

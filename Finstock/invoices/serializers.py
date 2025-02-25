@@ -39,11 +39,12 @@ class InvoiceSerializer(serializers.ModelSerializer):
         allow_null=True
     )
     status = serializers.ChoiceField(choices=Invoice.status.field.choices, required=True)
+    qr_code = serializers.ImageField(read_only=True)
 
     class Meta:
         model = Invoice
-        fields = ['id', 'user', 'customer', 'customer_id', 'invoice_number', 'issue_date', 'due_date', 'status', 'items', 'total_amount']
-        read_only_fields = ['total_amount', 'user', 'invoice_number']
+        fields = ['id', 'user', 'customer', 'customer_id', 'invoice_number', 'issue_date', 'due_date', 'status', 'items', 'total_amount', 'qr_code']
+        read_only_fields = ['total_amount', 'user', 'invoice_number', 'qr_code']
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')

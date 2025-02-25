@@ -22,4 +22,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('customers/search/', CustomerViewSet.as_view({'get': 'search'}), name='customer-search'),
     path('sales-reps/', sales_representatives_view, name='sales-representatives'),
+    path('orders/<int:pk>/add-scanned-item/', OrderViewSet.as_view({'post': 'add_scanned_item'}), name='order-add-scanned-item'),
 ]

@@ -35,6 +35,7 @@ class ReviewSerializer(serializers.ModelSerializer):
         ref_name = 'ReviewSerializer'
 
 class ProductSerializer(serializers.ModelSerializer):
+    qr_code_url = serializers.SerializerMethodField()
     category = CategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(),
@@ -46,8 +47,13 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'price', 'sku', 'stock', 'sales', 'category', 'category_id', 'images', 'reviews', 'low_stock_threshold']
+        fields = ['id', 'name', 'description', 'price', 'sku', 'stock', 'sales', 'category', 'category_id', 'images', 'reviews', 'low_stock_threshold', 'qr_code', 'qr_code_url']
         ref_name = 'ProductSerializer'
+
+    def get_qr_code_url(self, obj):
+        if obj.qr_code:
+            return self.context['request'].build_absolute_uri(obj.qr_code.url)
+        return None
 
     def validate_low_stock_threshold(self, value):
         """
