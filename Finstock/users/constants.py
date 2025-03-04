@@ -46,6 +46,11 @@ class PermissionConstants:
     REPORT_EDIT = 'reports.edit_report'
     REPORT_DELETE = 'reports.delete_report'
 
+    RECEIPT_VIEW = 'receipt_view'
+    RECEIPT_CREATE = 'receipt_create'
+    RECEIPT_EDIT = 'receipt_edit'
+    RECEIPT_DELETE = 'receipt_delete'
+
     # System Permissions
     SYSTEM_FULL_ACCESS = 'system.full_access'
     SYSTEM_ANALYTICS_ACCESS = 'system.analytics_access'

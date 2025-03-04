@@ -8,6 +8,7 @@ from products.serializers import ProductSerializer
 from transactions.serializers import TransactionSerializer
 from transactions.models import Transaction
 from .models import Customer, Order, OrderItem, Address, CompanyInfo, Promotion
+from receipts.models import Receipt
 import logging
 from decimal import Decimal
 from .utils.currency import currency_formatter
@@ -214,17 +215,16 @@ class OrderSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items')
         user = validated_data.get('user')
 
-        # Create order with initial status
+        # Save the order and related items in one transaction
         order = Order.objects.create(**validated_data)
         logger.info(f"Initial order {order.id} created")
 
         total_amount = Decimal('0')
-        
-        # Create order items and stock adjustments
+    
         for item_data in items_data:
             order_item = OrderItem.objects.create(order=order, **item_data)
             total_amount += order_item.quantity * order_item.unit_price
-            
+
             StockAdjustment.objects.create(
                 product=order_item.product,
                 quantity=-order_item.quantity,
@@ -234,13 +234,23 @@ class OrderSerializer(serializers.ModelSerializer):
             )
             logger.info(f"Created stock adjustment for order {order.id}, item {order_item.product.name}")
 
-        # Create invoice after all items are added
+        # Create invoice in this transaction
         invoice = order.create_invoice()
-        logger.info(f"Created invoice {invoice.id} for order {order.id}")
-
-        # If order status requires transaction, create it here
+    
         if order.status in ['shipped', 'delivered']:
             self._create_transaction(order, user)
+    
+        # After the transaction completes, create the receipt in a separate transaction
+        if invoice:
+            try:
+                # This is intentionally outside the main transaction
+                receipt = order.create_receipt_for_invoice(invoice)
+                if receipt:
+                    logger.info(f"Created receipt {receipt.receipt_number} for order {order.id}")
+                else:
+                    logger.warning(f"No receipt created for order {order.id}")
+            except Exception as e:
+                logger.error(f"Exception creating receipt for order {order.id}: {str(e)}")
 
         order.refresh_from_db()
         return order

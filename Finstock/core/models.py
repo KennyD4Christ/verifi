@@ -195,7 +195,7 @@ class Order(TimeStampedModel):
                 user=self.user,
                 customer=self.customer,
                 issue_date=timezone.now().date(),
-                due_date=timezone.now().date() + timezone.timedelta(days=30),  # Set due date to 30 days from now
+                due_date=timezone.now().date() + timezone.timedelta(days=30),
                 status='sent' if self.status in ['shipped', 'delivered'] else 'draft'
             )
 
@@ -204,7 +204,6 @@ class Order(TimeStampedModel):
             order_items = self.items.all()
             logger.info(f"Order {self.id} has {order_items.count()} items")
 
-            # Create invoice items based on order items
             for order_item in self.items.all():
                 invoice_item = InvoiceItem.objects.create(
                     invoice=invoice,
@@ -215,36 +214,108 @@ class Order(TimeStampedModel):
                 )
 
                 logger.info(f"Created invoice item {invoice_item.id} for order item {order_item.id}")
-        
-            # Update the total amount of the invoice
+
             invoice.update_total_amount()
             logger.info(f"Updated total amount for invoice {invoice.id}: {invoice.total_amount}")
-        
+
             self.invoice = invoice
-            self.save()
+            self.save(update_fields=['invoice'])
             logger.info(f"Saved invoice {invoice.id} to order {self.id}")
+            
         else:
             logger.info(f"Invoice already exists for order {self.id}")
+            
         return self.invoice
+
+    def create_receipt_for_invoice(self, invoice):
+        from receipts.models import Receipt
+    
+        if invoice is None:
+            logger.warning(f"Cannot create receipt: No invoice provided for order {self.id}")
+            return None
+
+        logger.info(f"Attempting to create receipt for invoice {invoice.id}, current status: {invoice.status}")
+    
+        try:
+            with transaction.atomic():
+                # Explicitly set invoice to paid first
+                if invoice.status != 'paid':
+                    logger.info(f"Setting invoice {invoice.id} status to paid before creating receipt")
+                    invoice.status = 'paid'
+                    invoice.save(update_fields=['status'])
+            
+                # Use select_for_update to lock the row during checking
+                existing_receipt = Receipt.objects.filter(invoice=invoice).select_for_update(nowait=True).first()
+                if existing_receipt:
+                    logger.info(f"Receipt {existing_receipt.receipt_number} already exists for invoice {invoice.id}")
+                    return existing_receipt
+                
+                # Create the receipt since none exists
+                receipt = Receipt.objects.create(
+                    user=self.user or invoice.user,
+                    invoice=invoice,
+                    amount_paid=invoice.total_amount,
+                    payment_date=timezone.now(),
+                    payment_method='online',
+                    notes=f"Automatically generated receipt for Order #{self.id}"
+                )
+                logger.info(f"Successfully created receipt {receipt.receipt_number} for invoice {invoice.id}")
+                return receipt
+        except Exception as e:
+            logger.error(f"Error creating receipt for invoice {invoice.id}: {str(e)}", exc_info=True)
+            return None
 
     @property
     def is_shipped(self):
         return self.status == 'shipped'
 
     def save(self, *args, **kwargs):
-        if self.pk:
-            old_instance = Order.objects.get(pk=self.pk)
-            self.previous_status = old_instance.status
+        is_new = self.pk is None
+        was_paid = False
+        had_invoice = False
+        
+        # Check if this is an update to an existing order
+        if not is_new:
+            try:
+                old_instance = Order.objects.get(pk=self.pk)
+                self.previous_status = old_instance.status
+                was_paid = old_instance.is_paid
+                had_invoice = hasattr(old_instance, 'invoice') and old_instance.invoice is not None
+            except Order.DoesNotExist:
+                self.previous_status = None
         else:
             self.previous_status = None
-
+            
+        # For new orders or if payment status changed
+        payment_status_changed = was_paid != self.is_paid
+        logger.info(f"Order {self.pk if self.pk else 'new'} save: is_new={is_new}, was_paid={was_paid}, is_paid={self.is_paid}, payment_status_changed={payment_status_changed}")
+        
+        # Special handling for update_fields to prevent recursion
+        update_fields = kwargs.get('update_fields')
+        is_internal_update = update_fields is not None and 'invoice' in update_fields and len(update_fields) == 1
+        
+        # Save the order
         super().save(*args, **kwargs)
 
-        # Call update_stock directly after saving
+        # Update stock if needed
         if self.status in ['shipped', 'delivered'] and self.previous_status not in ['shipped', 'delivered']:
             self.update_stock()
 
-        self.create_invoice()
+        # Skip invoice creation for internal updates to prevent recursion
+        if not is_internal_update:
+            # Always create invoice for new orders or if there isn't one
+            if is_new or not had_invoice:
+                logger.info(f"Creating invoice for {'new' if is_new else 'existing'} order {self.id}")
+                self.create_invoice()
+            elif payment_status_changed and self.is_paid:
+                # Order was just marked as paid, make sure receipt exists
+                logger.info(f"Order {self.id} was just marked as paid, checking for receipt")
+                if hasattr(self, 'invoice') and self.invoice:
+                    # Update invoice status
+                    if self.invoice.status != 'paid':
+                        self.invoice.status = 'paid'
+                        self.invoice.save(update_fields=['status'])
+                        logger.info(f"Updated invoice {self.invoice.id} status to paid")
 
     @transaction.atomic
     def update_stock(self):

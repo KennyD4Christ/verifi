@@ -19,6 +19,7 @@ from datetime import datetime
 from reportlab.lib.fonts import addMapping
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from receipts.models import Receipt
 from products.models import Product
 from products.serializers import ProductSerializer
 from decimal import Decimal
@@ -207,6 +208,15 @@ class InvoiceViewSet(BaseAccessControlViewSet):
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def has_receipt(self, request, pk=None):
+        """
+        Check if a receipt exists for this invoice
+        """
+        instance = self.get_object()
+        has_receipt = Receipt.objects.filter(invoice=instance).exists()
+        return Response({'has_receipt': has_receipt})
 
     @action(detail=False, methods=['post'], permission_classes=[CanViewResource, CanManageResource])
     def associate_with_customer(self, request):

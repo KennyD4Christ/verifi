@@ -127,6 +127,7 @@ INSTALLED_APPS = [
     'users',
     'products',
     'reports',
+    'receipts',
     'stock_adjustments',
     'django_filters',
     'reportlab',
