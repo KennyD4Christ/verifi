@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../../context/AuthContext';
 import VerifiLogo from './VerifiLogo';
-import { FaBars, FaTimes, FaHome, FaExchangeAlt, FaFileInvoiceDollar, FaBox, 
+import { FaBars, FaTimes, FaHome, FaReceipt, FaExchangeAlt, FaFileInvoiceDollar, FaBox, 
          FaLayerGroup, FaShoppingCart, FaUsers, FaUserShield, FaChartBar } from 'react-icons/fa';
 
 
@@ -149,6 +149,8 @@ const LogoutButton = styled.button`
 const navigationItems = [
   { path: '/dashboard', label: 'Dashboard', icon: FaHome },
   { path: '/transactions', label: 'Transactions', icon: FaExchangeAlt },
+  { path: '/invoices', label: 'Invoices', icon: FaFileInvoiceDollar },
+  { path: '/receipts', label: 'Receipts', icon: FaReceipt },
   { path: '/stock-levels', label: 'Stock Levels', icon: FaLayerGroup },
   { path: '/user-roles', label: 'User Roles', icon: FaUserShield },
   { path: '/user-management', label: 'User Management', icon: FaUsers },
@@ -156,7 +158,6 @@ const navigationItems = [
   { path: '/products', label: 'Products', icon: FaBox },
   { path: '/customers', label: 'Customers', icon: FaUsers },
   { path: '/orders', label: 'Orders', icon: FaShoppingCart },
-  { path: '/invoices', label: 'Invoices', icon: FaFileInvoiceDollar },
 ];
 
 const Navbar = forwardRef(({ onMenuClick, isMobile, collapsed, setHeaderHeight, setIsSidebarOpen }, ref) => {

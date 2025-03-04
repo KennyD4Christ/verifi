@@ -32,6 +32,7 @@
     "chartjs-plugin-annotation": "^3.0.1",
     "chartjs-plugin-zoom": "^2.0.1",
     "date-fns": "^2.30.0",
+    "file-saver": "^2.0.5",
     "framer-motion": "^11.3.29",
     "html5-qrcode": "^2.3.8",
     "http-proxy-middleware": "^3.0.0",

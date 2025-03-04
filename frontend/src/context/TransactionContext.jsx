@@ -110,9 +110,9 @@ const TransactionProvider = ({ children }) => {
   const fetchTransactions = useCallback(async (params = {}) => {
     console.log('fetchTransactions called with params:', params);
   
-    if (!authChecked) {
-      console.log('Waiting for auth check to complete');
-      return;
+    if (!authChecked || !isInitialized) {
+      console.log('Authentication check not complete, deferring transaction fetch');
+      return Promise.resolve(null);
     }
 
     if (!isAuthenticated()) {
@@ -123,7 +123,7 @@ const TransactionProvider = ({ children }) => {
         next: null,
         previous: null,
       });
-      return;
+      return Promise.resolve(null);
     }
   
     setLoading(true);
@@ -160,7 +160,7 @@ const TransactionProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, authChecked]);
+  }, [isAuthenticated, authChecked, isInitialized]);
 
 
   const bulkUpdate = async (updatedTransactions) => {

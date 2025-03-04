@@ -2,6 +2,8 @@ import axios from 'axios';
 import { isTokenPresent, getAuthHeader } from '../utils/auth';
 import { dateUtils } from '../utils/dateUtils';
 import moment from 'moment-timezone';
+import { saveAs } from 'file-saver';
+import { format } from 'date-fns';
 import { formatCurrency, extractNumericValue } from '../utils/dataTransformations';
 
 const BASE_URL = 'http://localhost:8000/api'
@@ -782,6 +784,168 @@ export const fetchCashFlow = async (startDate, endDate) => {
     console.error('Error fetching cash flow:', error);
     console.error('Error details:', error.response?.data);
     return [];
+  }
+};
+
+export const fetchReceipt = async (id) => {
+  try {
+    const response = await axiosInstance.get(`/receipts/${id}/`);
+    console.log('Receipt API response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('API error:', error);
+    throw error;
+  }
+};
+
+// Function to fetch receipts
+export const fetchReceipts = async (params) => {
+  console.log('fetchReceipts called with params:', params);
+  try {
+    console.log('Sending GET request to /receipts/');
+    const response = await axiosInstance.get('/receipts/', { params });
+    console.log('Raw response:', response);
+
+    if (response.status !== 200) {
+      throw new Error(`Unexpected status code: ${response.status}`);
+    }
+
+    if (!response.data) {
+      throw new Error('Response data is undefined');
+    }
+
+    console.log('Receipts fetched successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in fetchReceipts:', error);
+    throw error;
+  }
+};
+
+export const checkReceiptExists = async (invoiceId) => {
+  try {
+    const response = await fetch(`/invoices/invoices/${invoiceId}/has-receipt/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to check receipt status');
+    }
+
+    const data = await response.json();
+    return data.has_receipt;
+  } catch (error) {
+    console.error('Error checking receipt status:', error);
+    return false; // Default to false if check fails
+  }
+};
+
+// Function to create a new receipt
+export const createReceipt = async (receiptData) => {
+  try {
+    const response = await axiosInstance.post('/receipts/', receiptData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating receipt:', error);
+    throw error;
+  }
+};
+
+// Function to update a receipt
+export const updateReceipt = async (receiptId, receiptData) => {
+  try {
+    const response = await axiosInstance.put(`/receipts/${receiptId}/`, receiptData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating receipt:', error);
+    throw error;
+  }
+};
+
+// Function to delete a receipt
+export const deleteReceipt = async (receiptId) => {
+  try {
+    await axiosInstance.delete(`/receipts/${receiptId}/`);
+    return true;
+  } catch (error) {
+    console.error('Error deleting receipt:', error);
+    throw error;
+  }
+};
+
+// Function to bulk delete receipts
+export const bulkDeleteReceipts = async (receiptIds) => {
+  try {
+    await axiosInstance.post('/receipts/bulk-delete/', { receipt_ids: receiptIds });
+    return true;
+  } catch (error) {
+    console.error('Error bulk deleting receipts:', error);
+    throw error;
+  }
+};
+
+export const generateReceiptPDF = async (receiptId) => {
+  try {
+    const response = await axiosInstance.get(`/receipts/${receiptId}/pdf/`, {
+      responseType: 'blob',
+    });
+
+    // Create a URL for the blob
+    const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+    const today = format(new Date(), 'yyyy-MM-dd');
+
+    // Trigger download
+    saveAs(pdfBlob, `Receipt-${receiptId}-${today}.pdf`);
+
+    return response.data;
+  } catch (error) {
+    console.error('Error generating receipt PDF:', error);
+    throw error;
+  }
+};
+
+export const exportReceiptsPdf = async (ids, format = 'detailed') => {
+  try {
+    const response = await axiosInstance.post(
+      `/receipts/export/pdf/`,
+      {
+        ids,
+        format,
+      },
+      {
+        responseType: 'blob',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/pdf',
+        },
+      }
+    );
+
+    // Check if the response is valid
+    if (response.status !== 200 || !response.data) {
+      throw new Error(`Failed to generate PDF: ${response.statusText}`);
+    }
+
+    // Create a URL for the blob
+    const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+    const today = new Date().toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    const fileName = ids.length > 1
+      ? `receipts-export-${today}.pdf`
+      : `receipt-${ids[0]}-${today}.pdf`;
+
+    // Trigger download
+    saveAs(pdfBlob, fileName);
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error exporting to PDF:', error);
+    // Provide more detailed error information if available
+    if (error.response) {
+      console.error('Response data:', error.response.data);
+      console.error('Response status:', error.response.status);
+      console.error('Response headers:', error.response.headers);
+    }
+    throw error;
   }
 };
 

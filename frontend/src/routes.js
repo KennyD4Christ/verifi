@@ -1,6 +1,7 @@
 import Dashboard from './components/Dashboard';
 import TransactionsPage from './components/TransactionsPage';
 import InvoicesPage from './components/InvoicesPage';
+import ReceiptsPage from './components/ReceiptsPage';
 import ProductsPage from './components/ProductsPage';
 import StockLevelsPage from './components/StockLevelsPage';
 import OrdersPage from './components/OrdersPage';
@@ -30,6 +31,10 @@ const routes = [
   {
     path: '/invoices',
     component: InvoicesPage,
+  },
+  {
+    path: '/receipts',
+    component: ReceiptsPage,
   },
   {
     path: '/products',

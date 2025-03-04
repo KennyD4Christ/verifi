@@ -9,7 +9,7 @@ import { rgba, darken, lighten } from 'polished';
 import {
   FaHome, FaExchangeAlt, FaFileInvoiceDollar, FaBox,
   FaLayerGroup, FaShoppingCart, FaUsers, FaUserShield,
-  FaChartBar, FaChevronLeft, FaChevronRight, FaTimes
+  FaChartBar, FaChevronLeft, FaChevronRight, FaTimes, FaReceipt
 } from 'react-icons/fa';
 
 const defaultTheme = {
@@ -258,13 +258,14 @@ const Sidebar = ({
     { id: '1', label: 'Dashboard', path: '/', icon: FaHome, visible: true },
     { id: '2', label: 'Transactions', path: '/transactions', icon: FaExchangeAlt, visible: true },
     { id: '3', label: 'Invoices', path: '/invoices', icon: FaFileInvoiceDollar, visible: true },
-    { id: '4', label: 'Products', path: '/products', icon: FaBox, visible: true },
-    { id: '5', label: 'Stock Levels', path: '/stock-levels', icon: FaLayerGroup, visible: true },
-    { id: '6', label: 'Orders', path: '/orders', icon: FaShoppingCart, visible: true },
-    { id: '7', label: 'Customers', path: '/customers', icon: FaUsers, visible: true },
-    { id: '8', label: 'User Roles', path: '/user-roles', icon: FaUserShield, visible: true },
-    { id: '9', label: 'User Management', path: '/user-management', icon: FaUsers, visible: true },
-    { id: '10', label: 'Reports', path: '/reports', icon: FaChartBar, visible: true },
+    { id: '4', label: 'Receipts', path: '/receipts', icon: FaReceipt, visible: true },
+    { id: '5', label: 'Products', path: '/products', icon: FaBox, visible: true },
+    { id: '6', label: 'Stock Levels', path: '/stock-levels', icon: FaLayerGroup, visible: true },
+    { id: '7', label: 'Orders', path: '/orders', icon: FaShoppingCart, visible: true },
+    { id: '8', label: 'Customers', path: '/customers', icon: FaUsers, visible: true },
+    { id: '9', label: 'User Roles', path: '/user-roles', icon: FaUserShield, visible: true },
+    { id: '10', label: 'User Management', path: '/user-management', icon: FaUsers, visible: true },
+    { id: '11', label: 'Reports', path: '/reports', icon: FaChartBar, visible: true },
   ]);
 
   const handleWindowResize = useCallback(() => {
