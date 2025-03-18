@@ -1,0 +1,164 @@
+version: "3.1"
+intents:
+  - greet
+  - goodbye
+  - mood_great
+  - mood_unhappy
+  - affirm
+  - deny
+  - bot_challenge
+  - financial_report
+  - sales_analytics
+  - inventory_analysis
+  - product_inventory_check
+  - sales_comparison
+  - product_sales_query
+  - top_performing_products
+  - sales_by_category
+  - sales_trend
+  - customer_analytics
+  - sales_forecast
+  - nlu_fallback
+
+entities:
+  - time_period
+  - first_time_period
+  - second_time_period
+  - product_category
+  - product_name
+  - comparison_operator
+  - metric
+
+slots:
+  requested_slot:
+    type: text
+    influence_conversation: false
+    mappings:
+    - type: custom
+
+  time_period:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: time_period
+        not_intent: chitchat
+        conditions:
+          - active_loop: financial_report_form
+      - type: custom
+        action: action_parse_time_period  # Keep this if used elsewhere
+
+  first_time_period:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: first_time_period
+        conditions:
+          - active_loop: financial_report_form
+
+  second_time_period:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: second_time_period
+        conditions:
+          - active_loop: financial_report_form
+
+  product_category:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: product_category
+
+  product_name:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: product_name
+
+  report_detail_level:
+    type: categorical
+    values:
+      - summary
+      - detailed
+    influence_conversation: true
+    initial_value: summary  # Set default instead of forcing value via mappings
+    mappings:
+      - type: from_text
+        intent: financial_report
+        conditions:
+          - active_loop: financial_report_form
+      - type: from_intent
+        intent: affirm
+        value: detailed
+        conditions:
+          - active_loop: financial_report_form
+      - type: from_intent
+        intent: deny
+        value: summary
+        conditions:
+          - active_loop: financial_report_form
+
+  is_authenticated:
+    type: bool
+    initial_value: false
+    mappings:
+      - type: custom
+
+responses:
+  utter_greet:
+    - text: "Hello! I'm your financial assistant. How can I help you today?"
+    - text: "Welcome to Finstock Assistant. What financial information are you looking for?"
+  utter_goodbye:
+    - text: "Goodbye! Let me know if you need further business insights."
+  utter_happy:
+    - text: "Great! Is there anything else I can help you with?"
+  utter_cheer_up:
+    - text: "I hope I can provide some helpful insights to improve your mood."
+  utter_did_that_help:
+    - text: "Did the information help you?"
+  utter_iamabot:
+    - text: "I'm a Business Intelligence chatbot designed to help you analyze your business data."
+  utter_default:
+    - text: "I'm not sure I understand. Let's get back to your financial report. Please provide the information needed."
+  utter_ask_time_period:
+    - text: "What time period would you like to analyze? You can specify a single period or compare two periods."
+
+  utter_ask_first_time_period:
+    - text: "Please specify the first time period for comparison (e.g., 'January', 'Q1 2025')."
+
+  utter_ask_second_time_period:
+    - text: "Please specify the second time period for comparison (e.g., 'February', 'Q2 2025')."
+
+  utter_ask_report_detail_level:
+    - text: "Would you like a summary or detailed report?"
+
+actions:
+  - action_parse_time_period
+  - action_generate_financial_report
+  - action_sales_analytics
+  - action_inventory_analysis
+  - action_product_inventory_check
+  - action_sales_comparison
+  - action_product_sales_query
+  - action_top_performing_products
+  - action_sales_by_category
+  - action_sales_trend
+  - action_customer_analytics
+  - action_sales_forecast
+  - action_check_authorization
+  - action_get_personalized_data
+  - action_reset_form
+  - validate_financial_report_form
+
+forms:
+  financial_report_form:
+    required_slots:
+      - time_period
+      - first_time_period
+      - second_time_period
+      - report_detail_level

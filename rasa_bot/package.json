@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "chokidar": "^4.0.3",
+    "rasa-webchat": "^1.0.1",
+    "react-qr-reader": "^3.0.0-beta-1",
+    "socket.io": "^4.6.0",
+    "socket.io-client": "^4.6.0",
+    "terser-webpack-plugin": "^5.3.13",
+    "webpack": "^5.98.0"
+  }
+}

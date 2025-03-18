@@ -1,0 +1,17 @@
+# Ignore Python virtual environment
+venv/
+
+# Ignore trained Rasa models
+rasa_bot/models/
+
+# Ignore node_modules (large JavaScript dependencies)
+frontend/node_modules/
+rasa_bot/node_modules/
+
+# Ignore logs and cache
+*.log
+debug.log
+__pycache__/
+*.pyc
+*.pyo
+*.cache

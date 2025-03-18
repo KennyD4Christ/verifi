@@ -1,0 +1,10 @@
+rasa==3.6.21
+rasa-sdk==3.6.2
+aiohttp==3.9.0
+numpy==1.22.4
+attrs==21.2.0
+pytz==2022.7.1
+redis==4.5.3
+SQLAlchemy==1.4.29
+multidict==5.2.0
+cryptography==44.0.2

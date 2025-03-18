@@ -1,0 +1,10 @@
+Report Metadata
+Name,Description,Created By,Created At,Last Modified,Is Archived,Is Template
+Simple PDF Template,A basic template for generating PDF reports,admin,2024-09-28 16:13:33.338466+00:00,2024-09-28 16:13:33.338508+00:00,False,True
+
+Report Entries
+Title,Content,Order,Created By,Created At
+Generated CSV Report,Automatically generated CSV report,0,admin,2024-12-12 17:46:38.898178+00:00
+Introduction,This is an introduction to the report.,1,admin,2024-09-28 16:13:33.368181+00:00
+Main Content,This is the main content of the report.,2,admin,2024-09-28 16:13:33.394790+00:00
+Conclusion,This is the conclusion of the report.,3,admin,2024-09-28 16:13:33.407770+00:00

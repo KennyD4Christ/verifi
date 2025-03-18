@@ -1,0 +1,562 @@
+version: "3.1"
+
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - hello there
+    - good morning
+    - good evening
+    - hey there
+    - greetings
+    - hi there
+    - howdy
+    - hiya
+    - good afternoon
+    - what's up
+    - nice to meet you
+    - pleasure to meet you
+    - hey bot
+    - hello bot
+    - hi bot
+
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - see you around
+    - see you later
+    - catch you later
+    - until next time
+    - bye for now
+    - talk to you later
+    - have a good day
+    - have a nice day
+    - catch you later
+    - I'm off
+    - farewell
+    - that's all for now
+    - end conversation
+    - signing off
+
+- intent: mood_great
+  examples: |
+    - perfect
+    - very good
+    - great
+    - amazing
+    - wonderful
+    - I am feeling very good
+    - I am great
+    - I'm good
+    - I feel fantastic
+    - I'm doing great
+    - I'm doing very well
+    - excellent
+    - couldn't be better
+    - all good
+    - life is good
+    - things are going well
+    - I'm happy today
+    - I feel wonderful
+
+- intent: mood_unhappy
+  examples: |
+    - sad
+    - very sad
+    - unhappy
+    - bad
+    - very bad
+    - awful
+    - terrible
+    - not very good
+    - extremely sad
+    - so sad
+    - feeling down
+    - feeling low
+    - I'm disappointed
+    - I'm not feeling well
+    - I'm depressed
+    - I'm not happy
+    - I'm having a bad day
+    - things aren't going well
+    - I'm feeling terrible
+
+- intent: affirm
+  examples: |
+    - yes
+    - y
+    - indeed
+    - of course
+    - that sounds good
+    - correct
+    - sure
+    - absolutely
+    - definitely
+    - yeah
+    - yep
+    - right
+    - that's right
+    - I agree
+    - sounds good
+    - that works
+    - fine by me
+    - go ahead
+    - OK
+    - okay
+    - sounds perfect
+
+- intent: deny
+  examples: |
+    - no
+    - n
+    - never
+    - I don't think so
+    - don't like that
+    - no way
+    - not really
+    - nope
+    - not at all
+    - negative
+    - definitely not
+    - I disagree
+    - that's not right
+    - that's incorrect
+    - I don't want that
+    - not interested
+    - pass
+    - let's not do that
+    - not now
+    - maybe later
+
+- intent: bot_challenge
+  examples: |
+    - are you a bot?
+    - are you a human?
+    - am I talking to a bot?
+    - am I talking to a human?
+    - are you real?
+    - are you a real person?
+    - are you an AI?
+    - what are you?
+    - who are you?
+    - are you a chatbot?
+    - are you a virtual assistant?
+    - are you automated?
+    - is this a bot?
+    - is this automated?
+    - are you human?
+    - who am I talking to?
+    - am I speaking with a machine?
+    - are you a computer program?
+
+- intent: financial_report
+  examples: |
+    - Generate financial report
+    - Show revenue for [last month](time_period)
+    - What is the total revenue for [last month](time_period)?
+    - Show me the financial data for [this quarter](time_period)
+    - Generate report for [Q1 2025](time_period)
+    - Financial performance for [last year](time_period)
+    - Revenue summary for [this year](time_period) so far
+    - How did we perform in [January](time_period)?
+    - Financial metrics for [this month](time_period)
+    - Create a financial report for [2025](time_period)
+    - Generate financial report for [Q1 2025](time_period)
+    - Show me the financials for [January 2025](time_period)
+    - I need a financial report for [February](time_period)
+    - Financial overview for [the first quarter](time_period)
+    - Revenue report for [2025](time_period)
+    - Generate financial summary for [Q2 2025](time_period)
+    - How were our finances in [March 2025](time_period)?
+    - Financial data for [April](time_period)
+    - Show me a report for [May 2025](time_period)
+    - Revenue details for [June](time_period)
+    - Create a finance report for [Q3](time_period)
+    - Financial statement for [July 2025](time_period)
+    - Show me the financial results for [August](time_period)
+    - Revenue figures for [September 2025](time_period)
+    - Financial analytics for [October](time_period)
+    - Generate a report for [November 2025](time_period)
+    - Financial health for [December](time_period)
+    - Show me our financial position for [2025](time_period)
+    - I want to see the financial report for [Q4 2025](time_period)
+    - Generate a detailed financial report for [2025](time_period)
+    - Can I get a financial summary for [March](time_period)?
+    - Show me the quarterly financial report for [Q1](time_period)
+    - I need to see our financial performance for [2025](time_period)
+    - Give me the financial metrics for [January to March](time_period)
+    - Financial analytics for [Q2 2025](time_period)
+    - Show me the finances for [this year](time_period)
+    - Generate a financial statement for [today](time_period)
+    - Revenue report for [this week](time_period)
+    - Can you show me the financial data for [last quarter](time_period)?
+    - Financial overview for [year to date](time_period)
+    - Financial performance for [first half of 2025](time_period)
+    - Show me the financial health for [second half of 2025](time_period)
+
+- intent: sales_analytics
+  examples: |
+    - Show me sales analytics
+    - Sales data for [last month](time_period)
+    - Sales performance for [Q1](time_period)
+    - How are our sales doing?
+    - Show me sales metrics for [this year](time_period)
+    - Sales figures for [January](time_period)
+    - Analyze sales for [2025](time_period)
+    - Sales performance analytics for [Q2 2025](time_period)
+    - Show me detailed sales data for [March](time_period)
+    - Sales insights for [April 2025](time_period)
+    - Generate sales analytics for [last quarter](time_period)
+    - How did our sales perform in [May](time_period)?
+    - Sales statistics for [June 2025](time_period)
+    - Show me sales trends for [Q3](time_period)
+    - Sales analytics for [July 2025](time_period)
+    - Sales numbers for [August](time_period)
+    - Show me sales performance for [September 2025](time_period)
+    - Sales data analysis for [October](time_period)
+    - Generate sales report for [November 2025](time_period)
+    - Sales metrics for [December](time_period)
+    - Show me sales analytics for [2025](time_period)
+    - I need sales data for [Q4 2025](time_period)
+    - Show me how our sales are doing this [month](time_period)
+    - Can I get sales metrics for [this week](time_period)?
+    - Sales performance for [yesterday](time_period)
+    - Show me sales analytics for [last week](time_period)
+    - Sales data for [this quarter](time_period)
+    - I want to see our sales figures for [year to date](time_period)
+    - Show me sales data for [first half of 2025](time_period)
+    - Sales analysis for [second half of 2025](time_period)
+
+- intent: sales_comparison
+  examples: |
+    - Compare sales between [Jan 2025](first_time_period) and [Feb 2025](second_time_period)
+    - Sales difference between [Jan](first_time_period) and [Feb](second_time_period)
+    - Revenue comparison for [Q1 '24](first_time_period) vs [Q1 '25](second_time_period)
+    - Compare sales between [January 2025](first_time_period) and [February 2025](second_time_period)
+    - Show me sales comparison between [Q1](first_time_period) and [Q2](second_time_period)
+    - How did sales in [this month](first_time_period) compare to [last month](second_time_period)
+    - Compare revenue between [last year](first_time_period) and [this year](second_time_period)
+    - Sales difference between [January](first_time_period) and [February](second_time_period)
+    - Revenue comparison for [Q1 2024](first_time_period) vs [Q1 2025](second_time_period)
+    - How does [this quarter](first_time_period) compare to [last quarter](second_time_period) in terms of sales
+    - Compare product performance between [2024](first_time_period) and [2025](second_time_period)
+    - Sales growth from [January](first_time_period) to [March](second_time_period)
+    - How much did our sales [increase](comparison_operator) from [last month](first_time_period) to [this month](second_time_period)
+    - Compare revenue between [Q3 2024](first_time_period) and [Q3 2025](second_time_period)
+    - Sales difference between [March](first_time_period) and [April](second_time_period) 2025
+    - How do [April 2025](first_time_period) sales compare to [May 2025](second_time_period)?
+    - Revenue comparison between [Q2](first_time_period) and [Q3](second_time_period)
+    - Sales growth from [first half](first_time_period) to [second half](second_time_period) of 2025
+    - Compare sales performance between [May](first_time_period) and [June](second_time_period)
+    - How much did revenue [change](comparison_operator) from [Q3](first_time_period) to [Q4](second_time_period)?
+    - Sales comparison between [July 2025](first_time_period) and [August 2025](second_time_period)
+    - Revenue difference between [August](first_time_period) and [September](second_time_period)
+    - How did [September 2025](first_time_period) sales compare to [October 2025](second_time_period)?
+    - Compare sales between [Q4 2024](first_time_period) and [Q4 2025](second_time_period)
+    - Sales growth from [October](first_time_period) to [November](second_time_period)
+    - How much did our revenue [increase](comparison_operator) from [November 2024](first_time_period) to [November 2025](second_time_period)?
+    - Compare sales between [December 2024](first_time_period) and [December 2025](second_time_period)
+    - Revenue difference between [first quarter](first_time_period) and [second quarter](second_time_period)
+    - How did sales [change](comparison_operator) from [week 1](first_time_period) to [week 2](second_time_period)?
+    - Compare performance between [January 1-15](first_time_period) and [January 16-31](second_time_period)
+    - Sales difference between [yesterday](first_time_period) and [today](second_time_period)
+    - Revenue comparison for [this week](first_time_period) vs [last week](second_time_period)
+    - How much did sales [grow](comparison_operator) from [Monday](first_time_period) to [Friday](second_time_period)?
+    - Compare sales numbers between [morning](first_time_period) and [evening](second_time_period)
+    - Sales performance between [weekend](first_time_period) and [weekday](second_time_period)
+    - How did revenue [change](comparison_operator) from [holiday](first_time_period) to [non-holiday](second_time_period)?
+
+- intent: inventory_analysis
+  examples: |
+    - Show me inventory changes between [Q1](first_time_period) and [Q2](second_time_period)
+    - Compare inventory levels in [January](first_time_period) and [February](second_time_period)
+    - Stock levels of [Samsung TVs](product_name) for [December](time_period)
+    - Inventory turnover rate for [last month](time_period)
+    - How is our inventory health for [this quarter](time_period)?
+    - What's our inventory value as of [today](time_period)?
+    - Show me inventory status for [Q1 2025](time_period)
+    - Inventory analysis for [February 2025](time_period)
+    - What's our current inventory level for [Plasma TVs](product_name)?
+    - Show me inventory movement for [March](time_period)
+    - Inventory trends for [April 2025](time_period)
+    - How is our inventory performance for [Q2](time_period)?
+    - Show me stock levels for [May 2025](time_period)
+    - Inventory report for [June](time_period)
+    - How much [iPhone](product_name) inventory do we have?
+    - Show me inventory metrics for [July 2025](time_period)
+    - Inventory status for [August](time_period)
+    - Stock analysis for [September 2025](time_period)
+    - What's our inventory turnover for [Q3](time_period)?
+    - Show me inventory data for [October 2025](time_period)
+    - Inventory valuation for [November](time_period)
+    - How is our inventory health for [December 2025](time_period)?
+    - Show me inventory changes for [2025](time_period)
+    - Stock levels for [Q4 2025](time_period)
+    - What's our inventory position for [laptops](product_category)?
+    - Show me inventory aging for [January to March](time_period)
+    - Inventory movements between [Q1](first_time_period) and [Q3](second_time_period)
+    - Stock comparison between [last year](first_time_period) and [this year](second_time_period)
+    - Show me inventory turnover for [electronics](product_category)
+    - Inventory efficiency for [2025](time_period)
+    - Show me dead stock analysis for [Q2](time_period)
+    - Inventory shortage report for [March](time_period)
+    - What's our inventory cost for [April 2025](time_period)?
+    - Show me inventory value by [product category](product_category)
+    - Inventory write-offs for [Q3 2025](time_period)
+    - Stock discrepancies for [June](time_period)
+
+- intent: product_inventory_check
+  examples: |
+    - Check inventory for [Samsung TVs](product_name)
+    - How many [iPhones](product_name) do we have in stock?
+    - Current inventory of [Plasma TVs](product_name)
+    - Do we have [Sony headphones](product_name) in stock?
+    - Stock level for [Dell laptops](product_name)
+    - Check stock of [Nike shoes](product_name)
+    - How much [Adidas clothing](product_name) do we have?
+    - Inventory check for [PlayStation 5](product_name)
+    - Current stock of [Xbox Series X](product_name)
+    - How many [LG monitors](product_name) are available?
+    - Do we have [Samsung refrigerators](product_name) in stock?
+    - Check inventory of [Apple Watches](product_name)
+    - Stock status for [Bose speakers](product_name)
+    - How many [Canon cameras](product_name) do we have?
+    - Current inventory for [HP printers](product_name)
+    - Stock level of [Logitech keyboards](product_name)
+    - Check availability of [Fitbit trackers](product_name)
+    - How many [Lenovo tablets](product_name) are in stock?
+    - Inventory level for [Asus laptops](product_name)
+    - Current stock of [JBL headphones](product_name)
+    - How many units of [Samsung phones](product_name) do we have?
+    - Check stock for [Microsoft Surface](product_name)
+    - Inventory of [Google Pixel](product_name) devices
+    - How many [Acer monitors](product_name) are available?
+    - Current stock level for [Sony TVs](product_name)
+    - Check inventory of [Philips lighting](product_name)
+    - How many [Dyson vacuums](product_name) do we have?
+    - Stock status for [GoPro cameras](product_name)
+    - Current inventory of [Amazon Echo](product_name) devices
+    - How many [Razer gaming](product_name) accessories do we have?
+
+- intent: product_sales_query
+  examples: |
+    - How much of [Plasma](product_name) did we sell in [January](first_time_period) vs [February](second_time_period)
+    - [Plasma TV](product_name) sales for [last quarter](time_period)
+    - How many [Samsung phones](product_name) did we sell in [January](time_period)
+    - Sales of [plasma](product_name) in [Q1](time_period)
+    - [Plasma](product_name) revenue for [this month](time_period)
+    - Units sold for [plasma](product_name) in [2025](time_period)
+    - [iPhone](product_name) sales for [February 2025](time_period)
+    - How many [Sony TVs](product_name) did we sell in [Q1](time_period)?
+    - [Dell laptop](product_name) sales in [March](time_period)
+    - Revenue from [Nike shoes](product_name) in [April 2025](time_period)
+    - How many [Bose headphones](product_name) were sold in [Q2](time_period)?
+    - [Samsung Galaxy](product_name) sales for [May](time_period)
+    - [Apple Watch](product_name) revenue in [June 2025](time_period)
+    - Units sold for [PlayStation](product_name) in [Q3](time_period)
+    - How many [Xbox](product_name) did we sell in [July](time_period)?
+    - [LG TV](product_name) sales for [August 2025](time_period)
+    - Revenue from [Canon cameras](product_name) in [September](time_period)
+    - How many [HP printers](product_name) were sold in [Q4](time_period)?
+    - [Lenovo laptop](product_name) sales in [October](time_period)
+    - [Asus computer](product_name) revenue for [November 2025](time_period)
+    - Units sold for [JBL speakers](product_name) in [December](time_period)
+    - How many [Fitbit](product_name) did we sell [last week](time_period)?
+    - [Acer monitor](product_name) sales for [this month](time_period)
+    - Revenue from [Google Pixel](product_name) in [2025](time_period)
+    - How many [Microsoft Surface](product_name) were sold in [Q1 2025](time_period)?
+    - [Razer gaming](product_name) sales in [January](time_period)
+    - [Logitech keyboard](product_name) revenue for [February 2025](time_period)
+    - Units sold for [Dyson vacuum](product_name) in [March](time_period)
+    - How many [GoPro cameras](product_name) did we sell in [Q2 2025](time_period)?
+    - [Amazon Echo](product_name) sales for [April](time_period)
+
+- intent: top_performing_products
+  examples: |
+    - What are our top performing products?
+    - Show me the best selling products for [Q1](time_period)
+    - Top products by revenue in [January](time_period)
+    - Which products sold the most in [2025](time_period)?
+    - Best performing products for [last month](time_period)
+    - What were our top sellers in [February](time_period)?
+    - Show me highest revenue products for [Q2 2025](time_period)
+    - Top performing items in [March](time_period)
+    - Which products generated the most revenue in [April 2025](time_period)?
+    - Best sellers for [Q3](time_period)
+    - What were our top products in [May](time_period)?
+    - Show me top performers by units sold in [June 2025](time_period)
+    - Most profitable products for [Q4](time_period)
+    - Which items sold best in [July](time_period)?
+    - Top revenue generators for [August 2025](time_period)
+    - What were our best selling products in [September](time_period)?
+    - Show me top performers by margin in [October 2025](time_period)
+    - Best products by sales in [November](time_period)
+    - Which items were most popular in [December 2025](time_period)?
+    - Top performing products by category for [Q1](time_period)
+    - What were our best sellers in [electronics](product_category) for [January](time_period)?
+    - Show me top performers in [clothing](product_category) for [February 2025](time_period)
+    - Best products in [home appliances](product_category) for [Q2](time_period)
+    - Which [smartphones](product_category) sold best in [March](time_period)?
+    - Top performing [laptops](product_category) for [April 2025](time_period)
+    - What were our best selling [TVs](product_category) in [Q3](time_period)?
+    - Show me top performers in [audio](product_category) for [May](time_period)
+    - Best products in [gaming](product_category) for [June 2025](time_period)
+    - Which [kitchen appliances](product_category) sold best in [Q4](time_period)?
+    - Top performing [furniture](product_category) for [July](time_period)
+
+- intent: sales_by_category
+  examples: |
+    - Show me sales by category
+    - Sales breakdown by category for [Q1](time_period)
+    - How did each category perform in [January](time_period)?
+    - Category sales for [2025](time_period)
+    - Revenue by product category in [February](time_period)
+    - Show me category performance for [Q2 2025](time_period)
+    - Sales distribution across categories for [March](time_period)
+    - How much did each category sell in [April 2025](time_period)?
+    - Category revenue breakdown for [Q3](time_period)
+    - Sales by product type for [May](time_period)
+    - Show me category sales for [June 2025](time_period)
+    - How did our categories perform in [Q4](time_period)?
+    - Revenue by category for [July](time_period)
+    - Show me sales split by category for [August 2025](time_period)
+    - Category performance for [September](time_period)
+    - How much did [electronics](product_category) sell in [October 2025](time_period)?
+    - Sales for [clothing](product_category) in [Q1](time_period)
+    - Show me revenue from [home appliances](product_category) for [November](time_period)
+    - [Smartphone](product_category) sales for [December 2025](time_period)
+    - How did [laptops](product_category) perform in [Q2](time_period)?
+    - Sales of [TVs](product_category) in [January](time_period)
+    - Show me [audio](product_category) revenue for [February 2025](time_period)
+    - [Gaming](product_category) sales for [March](time_period)
+    - How much did [kitchen appliances](product_category) sell in [Q3 2025](time_period)?
+    - Sales for [furniture](product_category) in [April](time_period)
+    - Show me revenue from [office supplies](product_category) for [May 2025](time_period)
+    - [Sports equipment](product_category) sales for [June](time_period)
+    - How did [beauty products](product_category) perform in [Q4 2025](time_period)?
+    - Sales of [toys](product_category) in [July](time_period)
+    - Show me [books](product_category) revenue for [August 2025](time_period)
+
+- intent: sales_trend
+  examples: |
+    - Monthly sales trend from [January](first_time_period) to [March](second_time_period)
+    - How have [electronics](product_category) sales changed from [Q1](first_time_period) to [Q2](second_time_period)
+    - Revenue growth pattern from [last year](first_time_period) to [this year](second_time_period)
+    - Show trend analysis for [Nikey shoes](product_name) between [Q1](first_time_period) and [Q2](second_time_period)
+    - Sales trend for [2025](time_period)
+    - How did sales evolve from [January](first_time_period) to [June](second_time_period) 2025?
+    - Revenue trend for [Q1 to Q4](time_period) 2025
+    - Show me sales patterns for [this year](time_period)
+    - [Smartphone](product_category) sales trend for [2025](time_period)
+    - How have [laptop](product_category) sales changed over [last quarter](time_period)?
+    - Revenue trend for [Samsung TVs](product_name) in [Q2](time_period)
+    - Show me sales movement for [iPhone](product_name) from [January](first_time_period) to [December](second_time_period)
+    - Sales trajectory for [all products](product_category) in [2025](time_period)
+    - How did [electronics](product_category) perform throughout [last year](time_period)?
+    - Revenue pattern for [clothing](product_category) from [Q1](first_time_period) to [Q4](second_time_period)
+    - Show me sales trend for [Nike shoes](product_name) in [2025](time_period)
+    - [Home appliance](product_category) sales evolution from [January](first_time_period) to [December](second_time_period)
+    - How have [TV](product_category) sales trended over [the past 6 months](time_period)?
+    - Revenue progression for [gaming](product_category) from [Q1](first_time_period) to [Q4](second_time_period)
+    - Show me sales movement for [audio products](product_category) in [2025](time_period)
+    - [Furniture](product_category) sales trend for [last year](time_period)
+    - How did [office supplies](product_category) sales change from [January](first_time_period) to [December](second_time_period)?
+    - Revenue pattern for [beauty products](product_category) across [2025](time_period)
+    - Show me sales trajectory for [sports equipment](product_category) from [Q1](first_time_period) to [Q4](second_time_period)
+    - [Toy](product_category) sales trend during [holiday season](time_period)
+    - How have [book](product_category) sales evolved over [the year](time_period)?
+    - Revenue trend for [kitchen appliances](product_category) from [January](first_time_period) to [December](second_time_period)
+    - Show me sales pattern for [PlayStation](product_name) in [2025](time_period)
+    - [Smartphone](product_category) sales trajectory across [quarters](time_period)
+    - How did [laptop](product_category) sales trend from [Q1](first_time_period) to [Q4](second_time_period)?
+
+- intent: customer_analytics
+  examples: |
+    - Show me customer analytics
+    - Customer data for [January](time_period)
+    - Customer metrics for [Q1 2025](time_period)
+    - How many customers did we have in [2025](time_period)?
+    - Customer acquisition rate for [February](time_period)
+    - Show me customer retention for [Q2](time_period)
+    - Customer demographics for [March 2025](time_period)
+    - How many new customers in [April](time_period)?
+    - Customer churn rate for [Q3](time_period)
+    - Show me customer lifetime value for [May 2025](time_period)
+    - Customer segmentation for [June](time_period)
+    - How many active customers in [Q4 2025](time_period)?
+    - Customer behavior analysis for [July](time_period)
+    - Show me customer purchase frequency for [August 2025](time_period)
+    - Customer satisfaction metrics for [September](time_period)
+    - How many repeat customers in [Q1](time_period)?
+    - Customer engagement data for [October 2025](time_period)
+    - Show me customer acquisition cost for [November](time_period)
+    - Customer retention metrics for [December 2025](time_period)
+    - How many customers by region for [2025](time_period)?
+    - Customer loyalty analysis for [Q2](time_period)
+    - Show me customer conversion rate for [January 2025](time_period)
+    - Customer feedback metrics for [February](time_period)
+    - How many customers by age group in [Q3 2025](time_period)?
+    - Customer journey analysis for [March](time_period)
+    - Show me customer purchasing patterns for [April 2025](time_period)
+    - Customer referral metrics for [May](time_period)
+    - How many customers by gender in [Q4 2025](time_period)?
+    - Customer profitability analysis for [June](time_period)
+    - Show me customer insights for [July 2025](time_period)
+
+- intent: sales_forecast
+  examples: |
+    - Predict sales for [Q2](time_period)
+    - What are the predicted sales for [Plasma](product_name) in [this year](time_period)
+    - Projected revenue for [next quarter](time_period)
+    - Sales prediction for [2025](time_period)
+    - Forecast [Nikey](product_name) sales for [next month](time_period)
+    - What is the expected revenue for [May](time_period)
+    - Projected performance for [this year](time_period)
+    - Sales forecast for [Q3 2025](time_period)
+    - What will be our revenue in [June](time_period)?
+    - Predict sales for [Samsung TVs](product_name) in [Q4](time_period)
+    - Sales projection for [July 2025](time_period)
+    - What are the forecasted sales for [electronics](product_category) in [August](time_period)?
+    - Revenue prediction for [September 2025](time_period)
+    - Forecast [iPhone](product_name) sales for [Q1 2026](time_period)
+    - What will be our expected revenue for [October](time_period)?
+    - Sales outlook for [November 2025](time_period)
+    - Projected sales for [laptops](product_category) in [December](time_period)
+    - What are the predicted sales for [Q2 2026](time_period)?
+    - Revenue forecast for [January 2026](time_period)
+    - Predict sales for [Nike shoes](product_name) in [February](time_period)
+    - Sales projection for [Q3 2026](time_period)
+    - What will be our revenue for [home appliances](product_category) in [March 2026](time_period)?
+    - Forecast performance for [April](time_period)
+    - Expected sales for [TVs](product_category) in [Q4 2026](time_period)
+    - What are the predicted sales for [May 2026](time_period)?
+
+- lookup: first_time_period
+  examples: |
+    - January
+    - February
+    - March
+    - Q1
+    - last year
+    - last quarter
+
+- lookup: second_time_period
+  examples: |
+    - April
+    - May
+    - June
+    - Q2
+    - this year
+    - current quarter
+
+entities:
+  - time_period
+  - first_time_period
+  - second_time_period
+  - product_name
+  - product_category
+  - comparison_operator
+  - metric

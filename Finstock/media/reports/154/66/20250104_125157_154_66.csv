@@ -1,0 +1,37 @@
+REPORT METADATA
+Report Name,Nov Report
+Description,No description
+Analysis Period,2024-10-01 to 2024-11-07
+Generated Date,2025-01-04 12:51:57
+Created By,kennyd
+Last Modified,2025-01-04 12:51:51
+
+FINANCIAL OVERVIEW
+Metric,Amount,Description
+Total Revenue,8900.00,Gross business income across all revenue streams
+Cost of Services,500.00,Direct costs associated with service delivery
+Gross Margin,8400.00,Revenue less cost of services
+Operating Expenses,1000.00,Operational and administrative costs
+Net Profit,7400.00,Final profit after all deductions
+
+REVENUE ANALYSIS
+Category,Amount,Transaction Count,Average Transaction Value,Revenue Share
+,8900.00,13,684.6153846153846153846153846,100.00%
+
+INVENTORY MANAGEMENT
+Metric,Current Value,Description
+Total Products,2,Current inventory item count
+Total Stock Value,9600.00,Current inventory value
+Low Stock Items,0,Items below threshold
+
+PERFORMANCE METRICS
+Indicator,Value,Analysis
+Customer Base,1,Total active customers
+Average Orders/Customer,17.0,Customer engagement level
+Average Order Value,712.500000,Transaction value analysis
+
+REPORT ENTRIES
+Title,Content,Order,Created By,Created At
+
+ASSOCIATED FILES
+Entry Title,File Name,File Type,Uploaded By,Uploaded At
