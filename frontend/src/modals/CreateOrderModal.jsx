@@ -1,15 +1,36 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Modal, Form, Input, Select, Button, message, InputNumber, Typography, Table } from 'antd';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { 
+  Modal, Form, Input, Select, Button, message, InputNumber, 
+  Typography, Table, Card, Space, Divider, Row, Col, Badge, Tag,
+  Layout, PageHeader
+} from 'antd';
+import { 
+  PlusOutlined, DeleteOutlined, QrcodeOutlined, 
+  ShoppingCartOutlined, UserOutlined, DollarOutlined,
+  InfoCircleOutlined, CheckCircleOutlined, CloseOutlined
+} from '@ant-design/icons';
 import { fetchProducts } from '../services/api';
 import { formatCurrency } from '../utils/dataTransformations';
-import { PlusOutlined, DeleteOutlined, QrcodeOutlined } from '@ant-design/icons';
 import QRScannerModal from './QRScannerModal';
 
 const { TextArea } = Input;
 const { Option } = Select;
-const { Text } = Typography;
+const { Title, Text } = Typography;
+const { Header, Content, Footer } = Layout;
 
-const STATUS_OPTIONS = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+const STATUS_OPTIONS = [
+  { value: 'pending', color: 'orange', label: 'Pending' },
+  { value: 'processing', color: 'blue', label: 'Processing' },
+  { value: 'shipped', color: 'cyan', label: 'Shipped' },
+  { value: 'delivered', color: 'green', label: 'Delivered' },
+  { value: 'cancelled', color: 'red', label: 'Cancelled' }
+];
+
+const TRANSACTION_CATEGORIES = [
+  { value: 'income', label: 'Income', icon: <DollarOutlined /> },
+  { value: 'expense', label: 'Expense', icon: <ShoppingCartOutlined /> },
+  { value: 'cost_of_services', label: 'Cost of Services', icon: <InfoCircleOutlined /> },
+];
 
 const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUser, scannedProduct }) => {
   const [form] = Form.useForm();
@@ -18,12 +39,6 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
   const [products, setProducts] = useState([]);
   const [fetchingProducts, setFetchingProducts] = useState(false);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
-
-  const TRANSACTION_CATEGORIES = [
-    { value: 'income', label: 'Income' },
-    { value: 'expense', label: 'Expense' },
-    { value: 'cost_of_services', label: 'Cost of Services' },
-  ];
 
   useEffect(() => {
     if (open && currentUser) {
@@ -34,9 +49,8 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
     }
   }, [open, currentUser, form]);
 
-
   const totalPrice = useMemo(() => {
-    return orderItems.reduce((total, item) => total + (parseFloat(item.unit_price) * item.quantity), 0);
+    return orderItems.reduce((total, item) => total + (parseFloat(item.unit_price || 0) * (item.quantity || 0)), 0);
   }, [orderItems]);
 
   useEffect(() => {
@@ -50,9 +64,8 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
   const fetchProductList = async () => {
     setFetchingProducts(true);
     try {
-      const fetchedProducts = await fetchProducts();       
-      // Ensure fetchedProducts is an array and has the expected structure
-      if (Array.isArray(fetchedProducts.results)) {        
+      const fetchedProducts = await fetchProducts();
+      if (Array.isArray(fetchedProducts.results)) {
         setProducts(fetchedProducts.results);
       } else if (Array.isArray(fetchedProducts)) {
         setProducts(fetchedProducts);
@@ -60,9 +73,8 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
         console.error('Unexpected product data structure:', fetchedProducts);
         setProducts([]);
       }
-      console.log('Fetched products:', fetchedProducts);   
     } catch (error) {
-      console.error('Error fetching products:', error);    
+      console.error('Error fetching products:', error);
       message.error('Failed to fetch products. Please try again.');
       setProducts([]);
     } finally {
@@ -73,9 +85,12 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
   const handleScannedProduct = (scannedItem) => {
     setOrderItems(prevItems => [...prevItems, {
       ...scannedItem,
-      tempId: `${scannedItem.product_id}-${Date.now()}` // Add unique identifier
+      tempId: `${scannedItem.product_id}-${Date.now()}`
     }]);
-    message.success('Product added successfully');
+    message.success({
+      content: 'Product added successfully',
+      icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />
+    });
   };
 
   useEffect(() => {
@@ -91,16 +106,65 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
           return newItems;
         });
       } else {
-        setOrderItems(prevItems => [...prevItems, scannedProduct]);
+        setOrderItems(prevItems => [...prevItems, {
+          ...scannedProduct,
+          tempId: `${scannedProduct.product_id}-${Date.now()}`
+        }]);
       }
     }
   }, [scannedProduct, open]);
+
+  const handleSubmit = useCallback(async () => {
+    try {
+      const values = await form.validateFields();
+      
+      if (orderItems.length === 0) {
+        message.error('Please add at least one product to the order.');
+        return;
+      }
+
+      setLoading(true);
+      
+      const orderData = {
+        sales_rep_id: currentUser.id,
+        sales_rep_name: `${currentUser.firstName} ${currentUser.lastName}`,
+        customer_id: values.customer_id || null,
+        transaction_category: values.transaction_category,
+        special_instructions: values.special_instructions,
+        items: orderItems.map(item => ({
+          product: item.product_id,
+          quantity: item.quantity,
+          unit_price: parseFloat(item.unit_price),
+        })),
+        status: values.status
+      };
+
+      await onOrderCreated(orderData);
+      message.success({
+        content: 'Order created successfully',
+        icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />
+      });
+      onClose();
+    } catch (err) {
+      console.error('Error creating order:', err);
+      if (err.errorFields) {
+        // Form validation error
+        return;
+      }
+      message.error(err.message || 'An error occurred while creating the order.');
+    } finally {
+      setLoading(false);
+    }
+  }, [form, orderItems, currentUser, onOrderCreated, onClose]);
 
   const handleKeyDown = useCallback((event) => {
     if (event.key === 'Enter' && event.ctrlKey) {
       handleSubmit();
     }
-  }, [handleSubmit]);
+    if (event.key === 'Escape') {
+      onClose();
+    }
+  }, [handleSubmit, onClose]);
 
   useEffect(() => {
     if (open) {
@@ -111,56 +175,22 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
     }
   }, [open, handleKeyDown]);
 
-  const handleSubmit = async (values) => {
-    console.log('Submitting order:', values);
-    if (orderItems.length === 0) {
-      message.error('Please add at least one product to the order.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const orderData = {
-        sales_rep_id: currentUser.id,
-        sales_rep_name: `${currentUser.firstName} ${currentUser.lastName}`,
-        customer_id: values.customer_id || null,
-        transaction_category: values.transaction_category, 
-        special_instructions: values.special_instructions, 
-        items: orderItems.map(item => ({
-          product: item.product_id,
-          quantity: item.quantity,
-          unit_price: parseFloat(item.unit_price),
-        })),
-        status: values.status
-      };
-
-      console.log('Processed order data:', orderData);     
-      await onOrderCreated(orderData);
-      message.success('Order created successfully');       
-      onClose();
-    } catch (err) {
-      console.error('Error creating order:', err);
-      message.error(err.message || 'An error occurred while creating the order.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAddProduct = () => {
-    setOrderItems([...orderItems, { product_id: null, quantity: 1, unit_price: '0', status: 'pending' }]);
+    setOrderItems([...orderItems, { 
+      product_id: null, 
+      quantity: 1, 
+      unit_price: '0', 
+      status: 'pending',
+      tempId: `new-item-${Date.now()}`
+    }]);
   };
 
   const handleProductChange = (value, index) => {
-    console.log('Selected product ID:', value);
-    console.log('Available products:', products);
     const selectedProduct = products.find(p => p.id === value);
     if (!selectedProduct) {
-      console.error(`Product with id ${value} not found`); 
       message.error(`Product with id ${value} not found. Please select a valid product.`);
       return;
     }
-
-    console.log('Selected product:', selectedProduct);     
 
     setOrderItems(prevItems => {
       const newItems = [...prevItems];
@@ -200,15 +230,17 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
       key: 'product_id',
       render: (value, _, index) => (
         <Select
-          style={{ width: 200 }}
+          style={{ width: '100%' }}
           value={value}
-          onChange={(v) => handleProductChange(v, index)}  
+          onChange={(v) => handleProductChange(v, index)}
           placeholder="Select product"
           loading={fetchingProducts}
           disabled={fetchingProducts}
+          showSearch
+          optionFilterProp="children"
         >
           {products.map(product => (
-            <Option key={product.id} value={product.id}>   
+            <Option key={product.id} value={product.id}>
               {product.name}
             </Option>
           ))}
@@ -219,11 +251,13 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
       title: 'Quantity',
       dataIndex: 'quantity',
       key: 'quantity',
+      width: 120,
       render: (value, _, index) => (
         <InputNumber
           min={1}
           value={value}
-          onChange={(v) => handleQuantityChange(v, index)} 
+          onChange={(v) => handleQuantityChange(v, index)}
+          style={{ width: '100%' }}
         />
       ),
     },
@@ -231,151 +265,289 @@ const CreateOrderModal = ({ open, onClose, onOrderCreated, customers, currentUse
       title: 'Unit Price',
       dataIndex: 'unit_price',
       key: 'unit_price',
+      width: 120,
       render: (value) => formatCurrency(value),
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      width: 150,
       render: (value, _, index) => (
         <Select
-          style={{ width: 120 }}
+          style={{ width: '100%' }}
           value={value}
-          onChange={(v) => handleStatusChange(v, index)}   
+          onChange={(v) => handleStatusChange(v, index)}
         >
           {STATUS_OPTIONS.map(status => (
-            <Option key={status} value={status}>
-              {status}
+            <Option key={status.value} value={status.value}>
+              <Tag color={status.color}>{status.label}</Tag>
             </Option>
           ))}
         </Select>
       ),
     },
     {
+      title: 'Subtotal',
+      key: 'subtotal',
+      width: 120,
+      render: (_, record) => {
+        const subtotal = (parseFloat(record.unit_price || 0) * (record.quantity || 0));
+        return formatCurrency(subtotal);
+      },
+    },
+    {
       title: 'Action',
       key: 'action',
+      width: 100,
       render: (_, __, index) => (
-        <Button type="link" onClick={() => handleRemoveProduct(index)} icon={<DeleteOutlined />}>
-          Remove
-        </Button>
+        <Button 
+          type="text" 
+          danger
+          onClick={() => handleRemoveProduct(index)} 
+          icon={<DeleteOutlined />}
+        />
       ),
     },
   ];
 
+  // Make columns responsive based on screen size
+  const getResponsiveColumns = () => {
+    // Get window width (with SSR check)
+    const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    
+    if (windowWidth < 768) {
+      // Mobile view: Hide some columns and adjust widths
+      return columns.filter(col => !['status'].includes(col.key));
+    }
+    
+    return columns;
+  };
+
+  // If modal is not open, don't render anything
+  if (!open) return null;
+
   return (
-  <>
     <Modal
-      title="Create New Order"
       open={open}
-      onCancel={() => {
-        form.resetFields();
-        setOrderItems([]);
-        onClose();
-      }}
+      onCancel={onClose}
       footer={null}
-      width={800}
+      width="100%"
+      style={{ top: 0, padding: 0, maxWidth: '100%' }}
+      bodyStyle={{ height: '100vh', padding: 0, overflow: 'auto' }}
+      closable={false}
+      maskClosable={false}
+      destroyOnClose
+      className="full-screen-modal"
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
-        <Form.Item name="sales_rep_name" label="Sales Representative">
-          <Input
-            disabled
-            value={currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'N/A'}
-          />
-        </Form.Item>
-
-        <Form.Item name="customer_id" label="Customer (Optional)">
-          <Select placeholder="Select customer">
-            {customers.map(customer => (
-              <Select.Option key={customer.id} value={customer.id}>
-                {`${customer.first_name} ${customer.last_name}`}
-              </Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
-
-        <Form.Item
-          name="transaction_category"
-          label="Transaction Category"
-          rules={[{ required: true, message: 'Please select a transaction category' }]}
+      <Layout style={{ minHeight: '100vh' }}>
+        <Header 
+          style={{ 
+            padding: '0 16px', 
+            backgroundColor: '#fff', 
+            boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+            position: 'sticky', 
+            top: 0, 
+            zIndex: 1000,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
         >
-          <Select placeholder="Select transaction category">
-            {TRANSACTION_CATEGORIES.map(category => (      
-              <Select.Option key={category.value} value={category.value}>
-                {category.label}
-              </Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
-
-        <Form.Item
-          name="status"
-          label="Order Status"
-          rules={[{ required: true, message: 'Please select an order status' }]}
-        >
-          <Select placeholder="Select order status">       
-            {STATUS_OPTIONS.map(status => (
-              <Select.Option key={status} value={status}>  
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
-
-        <Form.Item label="Order Items">
-          <Table
-            dataSource={orderItems}
-            columns={columns}
-            pagination={false}
-            rowKey={(record) => record.tempId}
-          />
-          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-            <Button
-              type="dashed"
-              onClick={handleAddProduct}
-              icon={<PlusOutlined />}
-              style={{ flex: 1 }}
-            >
-              Add Product
-            </Button>
-            <Button
-              type="dashed"
-              onClick={() => setIsQRScannerOpen(true)}     
-              icon={<QrcodeOutlined />}
-            >
-              Scan QR Code
-            </Button>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <ShoppingCartOutlined style={{ fontSize: '20px', marginRight: '12px' }} />
+            <Title level={4} style={{ margin: 0 }}>Create New Order</Title>
           </div>
-        </Form.Item>
+          <Space>
+            <Button
+              onClick={onClose}
+              icon={<CloseOutlined />}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="primary" 
+              onClick={handleSubmit} 
+              loading={loading}
+              disabled={orderItems.length === 0}
+            >
+              Create Order
+            </Button>
+          </Space>
+        </Header>
+        
+        <Content style={{ padding: '16px', backgroundColor: '#f0f2f5' }}>
+          <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginBottom: '60px' }}>
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={12}>
+                <Card 
+                  size="small" 
+                  title={<><UserOutlined /> Order Information</>}
+                >
+                  <Form.Item 
+                    name="sales_rep_name" 
+                    label="Sales Representative"
+                  >
+                    <Input
+                      disabled
+                      value={currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'N/A'}
+                      prefix={<UserOutlined />}
+                    />
+                  </Form.Item>
 
-        <Form.Item name="special_instructions" label="Special Instructions">
-          <TextArea rows={3} />
-        </Form.Item>
+                  <Form.Item name="customer_id" label="Customer">
+                    <Select 
+                      placeholder="Select customer (optional)"
+                      allowClear
+                      showSearch
+                      optionFilterProp="children"
+                    >
+                      {customers.map(customer => (
+                        <Select.Option key={customer.id} value={customer.id}>
+                          {`${customer.first_name} ${customer.last_name}`}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
 
-        <div style={{ marginBottom: 16 }}>
-          <Text type="secondary">
-            Sales Representative: {currentUser?.first_name} {currentUser?.last_name}
-          </Text>
-        </div>
+                  <Form.Item
+                    name="transaction_category"
+                    label="Transaction Category"
+                    rules={[{ required: true, message: 'Please select a transaction category' }]}
+                  >
+                    <Select placeholder="Select transaction category">
+                      {TRANSACTION_CATEGORIES.map(category => (
+                        <Select.Option key={category.value} value={category.value}>
+                          {category.icon} {category.label}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Card>
+              </Col>
+              
+              <Col xs={24} md={12}>
+                <Card 
+                  size="small" 
+                  title={<><InfoCircleOutlined /> Order Details</>}
+                >
+                  <Form.Item
+                    name="status"
+                    label="Order Status"
+                    rules={[{ required: true, message: 'Please select an order status' }]}
+                  >
+                    <Select placeholder="Select order status">
+                      {STATUS_OPTIONS.map(status => (
+                        <Select.Option key={status.value} value={status.value}>
+                          <Badge color={status.color} text={status.label} />
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
 
-        <Text strong>Total Price: {formatCurrency(totalPrice)}</Text>
+                  <Form.Item name="special_instructions" label="Special Instructions">
+                    <TextArea rows={3} placeholder="Enter any special instructions or notes" />
+                  </Form.Item>
+                </Card>
+              </Col>
+            </Row>
 
-        <Form.Item style={{ marginTop: 16 }}>
-          <Button type="primary" htmlType="submit" loading={loading}>
-            Create Order
-          </Button>
-        </Form.Item>
-      </Form>
+            <Card 
+              title={<Space><ShoppingCartOutlined /> Order Items</Space>}
+              style={{ marginTop: '16px' }}
+              extra={
+                <Space wrap>
+                  <Button
+                    type="primary"
+                    ghost
+                    onClick={handleAddProduct}
+                    icon={<PlusOutlined />}
+                  >
+                    Add Product
+                  </Button>
+                  <Button
+                    onClick={() => setIsQRScannerOpen(true)}
+                    icon={<QrcodeOutlined />}
+                  >
+                    Scan QR Code
+                  </Button>
+                </Space>
+              }
+            >
+              <div className="table-responsive" style={{ overflowX: 'auto' }}>
+                <Table
+                  dataSource={orderItems}
+                  columns={getResponsiveColumns()}
+                  pagination={false}
+                  rowKey={(record) => record.tempId || record.product_id}
+                  bordered
+                  size="small"
+                  locale={{ emptyText: 'No products added yet' }}
+                  scroll={{ x: 'max-content' }}
+                />
+              </div>
+            </Card>
+
+            <Card style={{ marginTop: '16px' }}>
+              <Row justify="space-between" align="middle">
+                <Col xs={24} sm={12}>
+                  <Space direction={window.innerWidth < 576 ? 'vertical' : 'horizontal'} size="small">
+                    <Text type="secondary">
+                      <UserOutlined /> Sales Rep: {currentUser?.first_name} {currentUser?.last_name}
+                    </Text>
+                    {orderItems.length > 0 && (
+                      <Text type="secondary">
+                        <ShoppingCartOutlined /> Items: {orderItems.length}
+                      </Text>
+                    )}
+                  </Space>
+                </Col>
+                <Col xs={24} sm={12} style={{ textAlign: 'right', marginTop: window.innerWidth < 576 ? '16px' : 0 }}>
+                  <Title level={4} style={{ margin: 0 }}>
+                    Total: {formatCurrency(totalPrice)}
+                  </Title>
+                </Col>
+              </Row>
+            </Card>
+          </Form>
+        </Content>
+        
+        <Footer 
+          style={{ 
+            padding: '10px 16px', 
+            textAlign: 'right', 
+            backgroundColor: '#fff',
+            position: 'fixed',
+            bottom: 0,
+            width: '100%',
+            boxShadow: '0 -1px 4px rgba(0,0,0,0.15)',
+            zIndex: 1000
+          }}
+        >
+          <Space>
+            <Button onClick={onClose}>
+              Cancel
+            </Button>
+            <Button 
+              type="primary" 
+              onClick={handleSubmit} 
+              loading={loading}
+              disabled={orderItems.length === 0}
+            >
+              Create Order
+            </Button>
+          </Space>
+        </Footer>
+      </Layout>
+
+      <QRScannerModal
+        open={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScan={handleScannedProduct}
+        products={products}
+      />
     </Modal>
-
-    <QRScannerModal
-      open={isQRScannerOpen}
-      onClose={() => setIsQRScannerOpen(false)}
-      onScan={handleScannedProduct}
-      products={products}
-    />
-  </>
-);
-
+  );
 };
 
 export default CreateOrderModal;
