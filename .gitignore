@@ -1,12 +1,12 @@
 # Ignore Python virtual environment
 venv/
+rasa_venv/
+
+# Ignore media files (optional, use Git LFS if needed)
+Finstock/test_media/invoice_qr_codes/*.png
 
 # Ignore trained Rasa models
 rasa_bot/models/
-
-# Ignore node_modules (large JavaScript dependencies)
-frontend/node_modules/
-rasa_bot/node_modules/
 
 # Ignore logs and cache
 *.log
@@ -15,3 +15,11 @@ __pycache__/
 *.pyc
 *.pyo
 *.cache
+
+# Ignore Node.js dependencies
+frontend/node_modules/
+rasa_bot/node_modules/
+
+# Ignore environment files (store only an example)
+.env
+.env.local
