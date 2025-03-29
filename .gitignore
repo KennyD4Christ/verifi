@@ -20,6 +20,12 @@ __pycache__/
 frontend/node_modules/
 rasa_bot/node_modules/
 
+# Ignore Rasa cache and logs
+rasa_bot/.rasa/
+rasa_bot/request_log.jsonl
+rasa_bot/installed_packages.txt
+rasa_bot/mistral_api.py
+
 # Ignore environment files (store only an example)
 .env
 .env.local
