@@ -196,6 +196,52 @@ nlu:
     - Financial overview for [year to date](time_period)
     - Financial performance for [first half of 2025](time_period)
     - Show me the financial health for [second half of 2025](time_period)
+    - Provide a financial overview for [this quarter](time_period)
+    - I need a revenue breakdown for [this month](time_period)
+    - Generate a profit and loss statement for [last year](time_period)
+    - Show our net income for [this fiscal year](time_period)
+    - Give me the revenue growth for [the past six months](time_period)
+    - How did our expenses compare in [Q3 2025](time_period)?
+    - I need a full financial audit for [2025](time_period)
+    - Provide an EBITDA report for [this quarter](time_period)
+    - Can I see our gross margin for [last quarter](time_period)?
+    - Show me our operating expenses for [last year](time_period)
+    - What is our profit margin for [this month](time_period)?
+    - Revenue forecast for [next quarter](time_period)
+    - Show projected earnings for [next year](time_period)
+    - How much did we spend on marketing in [Q1](time_period)?
+    - Display a cost analysis for [last year](time_period)
+    - Provide the balance sheet for [December 2025](time_period)
+    - Generate an income statement for [2024](time_period)
+    - Show me key financial ratios for [Q2](time_period)
+    - How has our net profit evolved since [January](time_period)?
+    - What was our operating cash flow in [Q4](time_period)?
+    - Display a breakdown of liabilities for [this quarter](time_period)
+    - Generate financial KPI trends for [last six months](time_period)
+    - What is the total debt for [this year](time_period)?
+    - How has our revenue changed in [the last 5 years](time_period)?
+    - Provide detailed revenue streams for [this month](time_period)
+    - Display financial projections for [next year](time_period)
+    - Summarize our financial position in [H1 2025](time_period)
+    - I need our cash flow analysis for [this quarter](time_period)
+    - What was the total expenditure in [March](time_period)?
+    - Generate financial trends for [this year](time_period)
+    - Show me an in-depth revenue analysis for [2025](time_period)
+    - Provide insights into our profit trends for [Q3](time_period)
+    - Revenue vs expense comparison for [this fiscal year](time_period)
+    - What is our total gross revenue for [last quarter](time_period)?
+    - Generate a breakdown of financial assets for [2025](time_period)
+    - Show me financial stability indicators for [this year](time_period)
+    - How have sales impacted net profit in [Q2](time_period)?
+    - Provide year-over-year revenue comparison for [this year](time_period)
+    - Generate a report detailing cost-cutting measures in [last quarter](time_period)
+    - What percentage of revenue was profit in [H2 2025](time_period)?
+    - Show me a full earnings statement for [this month](time_period)
+    - Provide tax and liabilities reports for [last year](time_period)
+    - Compare financials of [Q1](time_period) vs [Q2](time_period)
+    - Generate a financial sustainability report for [2025](time_period)
+    - Show key insights on cash reserves in [this year](time_period)
+    - Provide a high-level financial overview for [this fiscal year](time_period)
 
 - intent: sales_analytics
   examples: |
@@ -229,6 +275,24 @@ nlu:
     - I want to see our sales figures for [year to date](time_period)
     - Show me sales data for [first half of 2025](time_period)
     - Sales analysis for [second half of 2025](time_period)
+    - Show me an overview of sales revenue for [this month](time_period)
+    - Generate a comprehensive sales report for [Q3](time_period)
+    - How much revenue did we generate in [January](time_period)?
+    - Show detailed product-wise sales analytics for [last quarter](time_period)
+    - What are the top-performing products in [Q2 2025](time_period)?
+    - Show a heatmap of sales by region for [last month](time_period)
+    - Sales trends for [past three months](time_period)
+    - Provide seasonal sales insights for [this year](time_period)
+    - What are the slowest-moving products in [Q4](time_period)?
+    - Compare product sales trends for [this quarter](time_period)
+    - Show customer purchase behavior for [last month](time_period)
+    - Sales figures per branch for [this fiscal year](time_period)
+    - Display a summary of online vs in-store sales for [this quarter](time_period)
+    - Show me insights into sales conversions for [this month](time_period)
+    - What was our revenue per customer in [2025](time_period)?
+    - Show me repeat customer purchase trends for [this year](time_period)
+    - What was the average order value in [Q4](time_period)?
+    - Provide a demographic-based sales analysis for [this month](time_period)
 
 - intent: sales_comparison
   examples: |
@@ -268,6 +332,15 @@ nlu:
     - Compare sales numbers between [morning](first_time_period) and [evening](second_time_period)
     - Sales performance between [weekend](first_time_period) and [weekday](second_time_period)
     - How did revenue [change](comparison_operator) from [holiday](first_time_period) to [non-holiday](second_time_period)?
+    - Show me month-over-month revenue growth for [this year](first_time_period)
+    - How did in-store vs online sales compare in [Q2](first_time_period) vs [Q3](second_time_period)?
+    - Revenue contrast between [holiday season](first_time_period) and [off-season](second_time_period)
+    - Compare revenue by region for [H1](first_time_period) vs [H2](second_time_period)
+    - How much did revenue increase between [April](first_time_period) and [May](second_time_period)?
+    - Sales performance difference between [weekdays](first_time_period) and [weekends](second_time_period)
+    - Compare product revenue in [March 2024](first_time_period) vs [March 2025](second_time_period)
+    - How do repeat customer sales compare between [last quarter](first_time_period) and [this quarter](second_time_period)?
+    - Sales difference between [high season](first_time_period) and [low season](second_time_period)
 
 - intent: inventory_analysis
   examples: |
@@ -534,6 +607,78 @@ nlu:
     - Expected sales for [TVs](product_category) in [Q4 2026](time_period)
     - What are the predicted sales for [May 2026](time_period)?
 
+- intent: ask_ai_insight
+  examples: |
+    - Based on my sales metrics for this year, what do you recommend I do?
+    - What insights can you draw from my revenue trends?
+    - Summarize my financial performance for the last three months.
+    - How does my revenue compare to last year?
+    - Can you analyze my financial statement and give recommendations?
+    - Based on my Q1 performance, what should I improve?
+    - What's causing the fluctuation in my inventory levels?
+    - Identify the top performing product categories this quarter
+    - Which products have the highest profit margins?
+    - Where are my biggest cost centers based on this data?
+    - What inventory items should I restock soon?
+    - Analyze my cash flow situation and suggest improvements
+    - What areas of my business are underperforming?
+    - Which customers contribute most to my revenue?
+    - Do you see any concerning trends in my expenses?
+    - What's the ROI on my marketing spend this quarter?
+    - How can I optimize my inventory turnover rate?
+    - What products are at risk of becoming dead stock?
+    - Predict my sales trajectory for next quarter
+    - What's my current debt-to-asset ratio and is it healthy?
+    - How does my gross margin compare to industry standards?
+    - What's my current working capital situation?
+    - Identify opportunities to reduce operating expenses
+    - Which vendors offer the best terms based on my purchase history?
+    - What's my current Days Sales Outstanding and how can I improve it?
+    - Analyze my accounting ratios and highlight areas of concern
+    - What product mix would maximize my profitability?
+    - How efficient is my current inventory management?
+    - What's my break-even point based on current financials?
+    - How sustainable is my current growth rate?
+    - What's my customer acquisition cost by channel?
+    - Analyze my accounts receivable aging and suggest actions
+    - What would happen to my profits if I increased prices by 5%?
+    - Which slow-moving inventory items should I consider discounting?
+    - What's driving the changes in my operating expenses?
+    - How balanced is my product portfolio in terms of risk?
+    - What seasonal patterns do you see in my inventory demand?
+    - How healthy is my current liquidity position?
+    - What factors are impacting my profit margins the most?
+    - Suggest ways to improve my inventory forecasting accuracy
+    - How can I better manage my accounts payable?
+    - What's the optimal reorder quantity for my top products?
+    - Analyze my pricing strategy effectiveness
+    - How well am I managing my overhead costs?
+    - What's my customer retention rate costing me?
+    - Is my current financial leverage appropriate?
+    - What's my projected cash position in 3 months?
+    - How do my sales channels compare in terms of profitability?
+    - What’s the impact of inflation on my operational costs?
+    - Which customer segments are the most profitable?
+    - How does my product return rate affect profitability?
+    - What’s my sales growth rate over the past six months?
+    - What percentage of my revenue comes from repeat customers?
+    - How well am I utilizing my assets to generate revenue?
+    - What’s my current burn rate, and is it sustainable?
+    - Can you forecast my cash flow for the next quarter?
+    - What financial risks should I be aware of based on my current data?
+    - How does my net profit margin compare to industry benchmarks?
+    - What’s the correlation between my marketing spend and sales growth?
+    - Are there any inefficiencies in my supply chain affecting profitability?
+    - How does employee productivity impact my financial performance?
+    - Can you detect any anomalies in my financial transactions?
+    - What cost-cutting strategies would have the least impact on revenue?
+    - Which payment methods are most preferred by my customers?
+    - What’s my inventory holding cost as a percentage of total revenue?
+    - How does my order fulfillment speed impact customer satisfaction?
+    - What’s the trend in my discounting strategy’s impact on margins?
+    - How does my business’s financial health compare to last quarter?
+    - Are my operating expenses growing at a sustainable rate?
+
 - lookup: first_time_period
   examples: |
     - January
@@ -557,6 +702,7 @@ entities:
   - first_time_period
   - second_time_period
   - product_name
+  - customer_name
   - product_category
   - comparison_operator
   - metric

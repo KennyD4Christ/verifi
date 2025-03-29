@@ -18,6 +18,7 @@ intents:
   - sales_trend
   - customer_analytics
   - sales_forecast
+  - ask_ai_insight
   - nlu_fallback
 
 entities:
@@ -30,6 +31,12 @@ entities:
   - metric
 
 slots:
+  conversation_id:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: custom
+
   requested_slot:
     type: text
     influence_conversation: false
@@ -154,11 +161,12 @@ actions:
   - action_get_personalized_data
   - action_reset_form
   - validate_financial_report_form
+  - action_ai_insight
 
 forms:
   financial_report_form:
     required_slots:
       - time_period
+      - report_detail_level
       - first_time_period
       - second_time_period
-      - report_detail_level

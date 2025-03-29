@@ -1,7 +1,5 @@
 version: "3.1"
-
 rules:
-
 - rule: Say goodbye anytime the user says goodbye
   steps:
   - intent: goodbye
@@ -19,92 +17,97 @@ rules:
 
 - rule: Activate financial report form
   steps:
-    - intent: financial_report
-    - action: financial_report_form
-    - active_loop: financial_report_form
+  - intent: financial_report
+  - action: financial_report_form
+  - active_loop: financial_report_form
 
 - rule: Submit financial report form
   condition:
-    - active_loop: financial_report_form
+  - active_loop: financial_report_form
   steps:
-    - action: financial_report_form
-    - active_loop: null
-    - slot_was_set:
-        - requested_slot: null
-    - action: action_parse_time_period
-    - action: action_generate_financial_report
+  - action: financial_report_form
+  - active_loop: null
+  - slot_was_set:
+      - requested_slot: null
+  - action: action_parse_time_period
+  - action: action_generate_financial_report
 
 - rule: Handle sales analytics request
   steps:
-    - intent: sales_analytics
-    - action: action_sales_analytics
+  - intent: sales_analytics
+  - action: action_sales_analytics
 
 - rule: Handle inventory analysis request
   steps:
-    - intent: inventory_analysis
-    - action: action_inventory_analysis
+  - intent: inventory_analysis
+  - action: action_inventory_analysis
 
 - rule: Handle product inventory check
   steps:
-    - intent: product_inventory_check
-    - action: action_product_inventory_check
+  - intent: product_inventory_check
+  - action: action_product_inventory_check
 
 - rule: Handle sales comparison
   steps:
-    - intent: sales_comparison
-    - action: action_sales_comparison
+  - intent: sales_comparison
+  - action: action_sales_comparison
 
 - rule: Handle product sales query
   steps:
-    - intent: product_sales_query
-    - action: action_product_sales_query
+  - intent: product_sales_query
+  - action: action_product_sales_query
 
 - rule: Handle top performing products
   steps:
-    - intent: top_performing_products
-    - action: action_top_performing_products
+  - intent: top_performing_products
+  - action: action_top_performing_products
 
 - rule: Handle sales by category
   steps:
-    - intent: sales_by_category
-    - action: action_sales_by_category
+  - intent: sales_by_category
+  - action: action_sales_by_category
 
 - rule: Handle sales trend
   steps:
-    - intent: sales_trend
-    - action: action_sales_trend
+  - intent: sales_trend
+  - action: action_sales_trend
 
 - rule: Handle customer analytics
   steps:
-    - intent: customer_analytics
-    - action: action_customer_analytics
+  - intent: customer_analytics
+  - action: action_customer_analytics
 
 - rule: Handle sales forecast
   steps:
-    - intent: sales_forecast
-    - action: action_sales_forecast
+  - intent: sales_forecast
+  - action: action_sales_forecast
 
 - rule: Check product inventory
   steps:
-    - intent: product_inventory_check
-    - action: action_product_inventory_check
+  - intent: product_inventory_check
+  - action: action_product_inventory_check
+
+- rule: Respond to AI insight requests
+  steps:
+  - intent: ask_ai_insight
+  - action: action_ai_insight
 
 - rule: Handle interruption with greeting
   condition:
-    - active_loop: financial_report_form
+  - active_loop: financial_report_form
   steps:
-    - intent: greet
-    - action: utter_greet
-    - action: financial_report_form
-    - active_loop: financial_report_form
+  - intent: greet
+  - action: utter_greet
+  - action: financial_report_form
+  - active_loop: financial_report_form
 
 # Combined and fixed rule for handling fallbacks during form
 - rule: Handle fallback during form
   condition:
-    - active_loop: financial_report_form
+  - active_loop: financial_report_form
   steps:
-    - intent: nlu_fallback
-    - action: action_reset_form
-    - action: utter_default
-    - action: financial_report_form
-    - active_loop: financial_report_form
+  - intent: nlu_fallback
+  - action: action_reset_form
+  - action: utter_default
+  - action: financial_report_form
+  - active_loop: financial_report_form

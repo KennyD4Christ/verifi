@@ -1,32 +1,47 @@
 import sys
 import os
+import json
+import uuid
 
 sys.path.insert(0, os.path.abspath('/home/kennyd/verifi/Finstock'))
 
 # Set the Django settings module.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-
 import django
 django.setup()
-
+from math import sqrt
+import statistics
 import logging
-from typing import Any, Dict, List, Text, Optional
+from typing import Any, Dict, List, Text, Optional, Tuple
 import re
 import traceback
 import calendar
+import requests
 from datetime import datetime, timedelta
+from django.utils import timezone
+from decimal import Decimal
 from dateutil.relativedelta import relativedelta
-
+from pathlib import Path
+import torch
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from sentence_transformers import SentenceTransformer
+import numpy as np
+import threading
+import queue
+import pickle
+from functools import lru_cache
+from dotenv import load_dotenv, find_dotenv
+from asgiref.sync import sync_to_async, async_to_sync
 from rasa_sdk import Action, FormValidationAction, Tracker
-from asgiref.sync import sync_to_async
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.types import DomainDict
 from rasa_sdk.events import SlotSet, ActiveLoop
-from django.db.models import Sum, Avg, Count, F, Q, ExpressionWrapper, DecimalField
-from django.db.models.functions import TruncMonth, TruncDay, ExtractMonth
+from rasa.shared.utils.io import json_to_string
+from django.db.models import Sum, Avg, Count, F, Q, ExpressionWrapper, DecimalField, Value, FloatField, Case, When, IntegerField, CharField, Min, Max, DurationField
+from django.db.models.functions import TruncMonth, TruncDay, ExtractMonth, TruncMonth, TruncQuarter, Coalesce, Cast
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
-
+from tenacity import retry, stop_after_attempt, wait_exponential
 # Import Django models
 from inspection.models import (
     AuthGroup,
@@ -35,10 +50,339 @@ from inspection.models import (
     CoreOrderitem,
     CoreCustomer,
     InvoicesInvoice, 
-    TransactionsTransaction, 
+    TransactionsTransaction,
     ProductsCategory,
     StockAdjustmentsStockadjustment
 )
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class BiChatbot:                                                                                                                            
+    def __init__(self):                                                                                                                     
+                                                                                                                                            
+        load_dotenv("../Finstock/.env", override=True)                                                                                      
+                                                                                                                                            
+        # Initialize local models                                                                                                           
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"                                                                        
+        logger.info(f"Using device: {self.device}")                                                                                         
+                                                                                                                                            
+        # Cache directory                                                                                                                   
+        self.cache_dir = Path("./cache")                                                                                                    
+        self.cache_dir.mkdir(exist_ok=True)                                                                                                 
+        self.cache_file = self.cache_dir / "summaries_cache.pkl"                                                                            
+        self.load_cache()                                                                                                                   
+                                                                                                                                            
+        # Load local summarization model (lightweight T5)                                                                                   
+        try:                                                                                                                                
+            logger.info("Loading local summarization model...")                                                                             
+            self.tokenizer = AutoTokenizer.from_pretrained("t5-small")                                                                      
+            self.model = AutoModelForSeq2SeqLM.from_pretrained("t5-small").to(self.device)                                                  
+            logger.info("Local summarization model loaded successfully")                                                                    
+            self.local_model_available = True
+        except Exception as e:                                                                                                              
+            logger.error(f"Failed to load local summarization model: {e}")                                                                  
+            self.local_model_available = False                                                                                              
+                                                                                                                                            
+        # Load sentence embedding model for semantic caching                                                                                
+        try:                                                                                                                                
+            logger.info("Loading sentence embedding model...")                                                                              
+            self.embed_model = SentenceTransformer('paraphrase-MiniLM-L6-v2').to(self.device)                                               
+            logger.info("Sentence embedding model loaded successfully")                                                                     
+            self.embedding_model_available = True                                                                                           
+        except Exception as e:                                                                                                              
+            logger.error(f"Failed to load sentence embedding model: {e}")                                                                   
+            self.embedding_model_available = False                                                                                          
+                                                                                                                                            
+        # Together AI API setup                                                                                                             
+        self.together_api_key = os.getenv("TOGETHER_API_KEY")                                                                               
+        self.together_api_url = "https://api.together.xyz/v1/completions"                                                                   
+        self.together_headers = {                                                                                                           
+            "Authorization": f"Bearer {self.together_api_key}",                                                                             
+            "Content-Type": "application/json"                                                                                              
+        }                                                                                                                                   
+                                                                                                                                            
+        # Check if Together AI API key is available                                                                                         
+        if not self.together_api_key:                                                                                                       
+            logger.warning("Together API key not found. Fallback to Together AI will not be available.")                                    
+                                                                                                                                            
+    def load_cache(self):                                                                                                                   
+        """Load cached summaries if available"""                                                                                            
+        try:                                                                                                                                
+            if self.cache_file.exists():                                                                                                    
+                with open(self.cache_file, 'rb') as f:                                                                                      
+                    self.cache = pickle.load(f)                                                                                             
+                    logger.info(f"Loaded {len(self.cache['queries'])} cached queries")                                                      
+            else:                                                                                                                           
+                self.cache = {"queries": [], "embeddings": [], "summaries": []}                                                             
+                logger.info("Created new cache")                                                                                            
+        except Exception as e:
+            logger.error(f"Error loading cache: {e}")                                                                                       
+            self.cache = {"queries": [], "embeddings": [], "summaries": []}                                                                 
+                                                                                                                                            
+    def save_cache(self):                                                                                                                   
+        """Save cache to disk"""                                                                                                            
+        try:                                                                                                                                
+            with open(self.cache_file, 'wb') as f:                                                                                          
+                pickle.dump(self.cache, f)                                                                                                  
+            logger.info(f"Saved {len(self.cache['queries'])} queries to cache")                                                             
+        except Exception as e:                                                                                                              
+            logger.error(f"Error saving cache: {e}")                                                                                        
+                                                                                                                                            
+    def find_in_cache(self, query, similarity_threshold=0.85):                                                                              
+        """Find similar query in cache using semantic similarity"""                                                                         
+        if not self.embedding_model_available or len(self.cache["queries"]) == 0:                                                           
+            return None                                                                                                                     
+                                                                                                                                            
+        # Embed the query                                                                                                                   
+        query_embedding = self.embed_model.encode(query, convert_to_tensor=True).cpu().numpy()                                              
+                                                                                                                                            
+        # Compare with cached embeddings                                                                                                    
+        similarities = np.array([                                                                                                           
+            np.dot(query_embedding, cached_emb) / (np.linalg.norm(query_embedding) * np.linalg.norm(cached_emb))                            
+            for cached_emb in self.cache["embeddings"]                                                                                      
+        ])                                                                                                                                  
+                                                                                                                                            
+        # Find the most similar                                                                                                             
+        max_idx = np.argmax(similarities)                                                                                                   
+        if similarities[max_idx] >= similarity_threshold:                                                                                   
+            logger.info(f"Cache hit with similarity {similarities[max_idx]:.4f} for query: {query}")                                        
+            return self.cache["summaries"][max_idx]                                                                                         
+                                                                                                                                            
+        return None                                                                                                                         
+                                                                                                                                            
+    # Add this method to the BiChatbot class or modify the existing one                                                                     
+    def add_to_cache(self, query, summary):                                                                                                 
+        """Add a query and its summary to cache with validation"""
+        # Validate the summary before caching                                                                                               
+        if not summary:                                                                                                                     
+            logger.warning("Not caching empty response")                                                                                    
+            return                                                                                                                          
+                                                                                                                                            
+        if len(summary) < 30:                                                                                                               
+            logger.warning(f"Not caching too short response: '{summary}'")                                                                  
+            return                                                                                                                          
+                                                                                                                                            
+        if summary in query:                                                                                                                
+            logger.warning(f"Not caching response that is substring of query: '{summary}'")                                                 
+            return                                                                                                                          
+                                                                                                                                            
+        # Check for low information content                                                                                                 
+        summary_words = set(summary.lower().split())                                                                                        
+        query_words = set(query.lower().split())                                                                                            
+        if len(summary_words) < 5 or len(summary_words.difference(query_words)) < 3:                                                        
+            logger.warning(f"Not caching response with low information content: '{summary}'")                                               
+            return                                                                                                                          
+                                                                                                                                            
+        if not self.embedding_model_available:                                                                                              
+            return                                                                                                                          
+                                                                                                                                            
+        # Embed the query                                                                                                                   
+        query_embedding = self.embed_model.encode(query, convert_to_tensor=True).cpu().numpy()                                              
+                                                                                                                                            
+        # Add to cache                                                                                                                      
+        self.cache["queries"].append(query)                                                                                                 
+        self.cache["embeddings"].append(query_embedding)                                                                                    
+        self.cache["summaries"].append(summary)                                                                                             
+                                                                                                                                            
+        # Save cache periodically (every 10 new entries)                                                                                    
+        if len(self.cache["queries"]) % 10 == 0:                                                                                            
+            self.save_cache()                                                                                                               
+                                                                                                                                            
+    def local_summarize(self, query, max_length=150):
+        """Generate summary using local model"""                                                                                            
+        if not self.local_model_available:                                                                                                  
+            return None                                                                                                                     
+                                                                                                                                            
+        try:                                                                                                                                
+            # T5 models require a specific prefix for summarization tasks                                                                   
+            # The "summarize: " prefix is critical for T5 models                                                                            
+            input_text = f"summarize: {query}"                                                                                              
+                                                                                                                                            
+            # Log the exact input being sent to the model                                                                                   
+            logger.info(f"Sending to T5 model: '{input_text}'")                                                                             
+                                                                                                                                            
+            inputs = self.tokenizer(input_text, return_tensors="pt", max_length=512, truncation=True).to(self.device)                       
+                                                                                                                                            
+            # Generate summary with more diverse parameters                                                                                 
+            with torch.no_grad():                                                                                                           
+                output = self.model.generate(                                                                                               
+                    inputs.input_ids,                                                                                                       
+                    max_length=max_length,                                                                                                  
+                    num_beams=4,        # Increased from 2                                                                                  
+                    temperature=0.7,    # Added temperature for diversity                                                                   
+                    no_repeat_ngram_size=2,  # Prevent repetition                                                                           
+                    early_stopping=True                                                                                                     
+                )                                                                                                                           
+                                                                                                                                            
+            summary = self.tokenizer.decode(output[0], skip_special_tokens=True)                                                            
+                                                                                                                                            
+            # Validate the summary                                                                                                          
+            if summary in query or len(summary) < 30:                                                                                       
+                logger.warning(f"T5 model returned invalid summary: '{summary}'")                                                           
+                return None                                                                                                                 
+                                                                                                                                            
+            return summary                                                                                                                  
+        except Exception as e:                                                                                                              
+            logger.error(f"Error in local summarization: {e}")                                                                              
+            return None
+
+    def together_ai_fallback(self, query):                                                                                                  
+        """Use Together AI as fallback with a more tailored prompt"""                                                                       
+        if not self.together_api_key:                                                                                                       
+            return "Together AI API key not configured."                                                                                    
+                                                                                                                                            
+        try:                                                                                                                                
+            # Extract key terms from the query to make response more specific                                                               
+            query_terms = []                                                                                                                
+            sales_terms = ["revenue", "profit", "margin", "growth", "conversion", "leads", "pipeline",                                      
+                          "churn", "retention", "customer", "product", "pricing", "discount", "promotion"]                                  
+                                                                                                                                            
+            for term in sales_terms:                                                                                                        
+                if term in query.lower():                                                                                                   
+                    query_terms.append(term)                                                                                                
+                                                                                                                                            
+            # Add specificity to the prompt                                                                                                 
+            focus_areas = ", ".join(query_terms) if query_terms else "general sales performance"                                            
+                                                                                                                                            
+            # More personalized and direct prompt                                                                                           
+            tailored_prompt = f"""<s>[INST]                                                                                                 
+    You are an expert sales advisor responding to: "{query}"                                                                                
+                                                                                                                                            
+    The user wants specific, actionable recommendations about their {focus_areas}.                                                          
+    Your task is to provide a concise, direct response that:                                                                                
+                                                                                                                                            
+    1. Briefly acknowledges their situation                                                                                                 
+    2. Gives 2-3 concrete, actionable recommendations they can implement now                                                                
+    3. Suggests how to measure success                                                                                                      
+                                                                                                                                            
+    Respond in a confident, direct tone. Skip unnecessary phrases like "Based on your inquiry..." or "I'll assume that...".                 
+    Get straight to the point with practical advice.                                                                                        
+    [/INST]</s>"""                                                                                                                          
+                                                                                                                                            
+            payload = {                                                                                                                     
+                "model": "mistralai/Mistral-7B-Instruct-v0.2",                                                                              
+                "prompt": tailored_prompt,                                                                                                  
+                "max_tokens": 500,
+                "temperature": 0.6,  # Reduced for more focused responses                                                                   
+                "top_p": 0.9                                                                                                                
+            }                                                                                                                               
+                                                                                                                                            
+            logger.info(f"Sending tailored request to Together AI focusing on: {focus_areas}")                                              
+            response = requests.post(                                                                                                       
+                self.together_api_url,                                                                                                      
+                headers=self.together_headers,                                                                                              
+                json=payload,                                                                                                               
+                timeout=30                                                                                                                  
+            )                                                                                                                               
+                                                                                                                                            
+            if response.status_code == 200:                                                                                                 
+                result = response.json()                                                                                                    
+                ai_response = result.get("choices", [{}])[0].get("text", "No response from API")                                            
+                                                                                                                                            
+                # Format the response for better readability                                                                                
+                ai_response = ai_response.strip()                                                                                           
+                                                                                                                                            
+                # Log the response for debugging                                                                                            
+                logger.info(f"Together AI response received (length: {len(ai_response)})")                                                  
+                                                                                                                                            
+                return ai_response                                                                                                          
+            else:                                                                                                                           
+                logger.error(f"Together AI API error: {response.status_code}, {response.text}")                                             
+                return f"Error from Together AI API: {response.status_code}"                                                                
+        except Exception as e:                                                                                                              
+            logger.error(f"Error in Together AI fallback: {e}")                                                                             
+            return f"Error connecting to Together AI: {str(e)}"                                                                             
+                                                                                                                                            
+    def process_query(self, query):                                                                                                         
+        """Process a business intelligence query using the optimal approach"""                                                              
+        # FOR NOW: Skip local model and cache due to quality issues                                                                         
+        logger.info("Temporarily bypassing local model and cache due to quality issues")                                                    
+                                                                                                                                            
+        # Directly use Together AI                                                                                                          
+        logger.info("Using Together AI for response")
+        together_response = self.together_ai_fallback(query)                                                                                
+                                                                                                                                            
+        # Only cache if the response passes quality checks                                                                                  
+        if together_response and len(together_response) > 30 and together_response not in query:                                            
+            self.add_to_cache(query, together_response)                                                                                     
+                                                                                                                                            
+        return together_response                                                                                                            
+                                                                                                                                            
+# Create a singleton instance                                                                                                               
+bi_chatbot = BiChatbot()                                                                                                                    
+                                                                                                                                            
+class ActionAIInsight(Action):                                                                                                              
+    def name(self) -> Text:                                                                                                                 
+        return "action_ai_insight"                                                                                                          
+                                                                                                                                            
+    async def run(self, dispatcher: CollectingDispatcher,                                                                                   
+                  tracker: Tracker,                                                                                                         
+                  domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:                                                                        
+
+        # Get the latest user message
+        user_query = tracker.latest_message.get("text")
+        logger.info(f"Processing AI insight query: {user_query}")
+
+        # Get time_period entities if available
+        time_period = next(tracker.get_latest_entity_values("time_period"), None)
+        first_time_period = next(tracker.get_latest_entity_values("first_time_period"), None)
+        second_time_period = next(tracker.get_latest_entity_values("second_time_period"), None)
+
+        # Extract products, regions, or other entities if you have them
+        product = next(tracker.get_latest_entity_values("product"), None)
+        region = next(tracker.get_latest_entity_values("region"), None)
+
+        # Get conversation context (last 3 messages for context)
+        conversation_context = []
+        for event in list(tracker.events)[-10:]:
+            if event.get("event") == "user" and event.get("text"):
+                conversation_context.append(event.get("text"))
+        enriched_query = user_query
+
+        # Add time context
+        if time_period:
+            enriched_query += f" for time period: {time_period}"
+        elif first_time_period and second_time_period:
+            enriched_query += f" comparing {first_time_period} to {second_time_period}"
+
+        # Add product/region context if available
+        if product:
+            enriched_query += f" focusing on product: {product}"
+        if region:
+            enriched_query += f" for region: {region}"
+
+        # Add conversation context if relevant
+        if len(conversation_context) > 1:
+            context_str = " | ".join(conversation_context[-3:])
+            enriched_query += f" (Context from conversation: {context_str})"
+
+        try:
+            # Process the enriched query
+            logger.info(f"Sending enriched query to AI: {enriched_query}")
+            response = bi_chatbot.process_query(enriched_query)
+
+            # Final formatting of response for better presentation
+            if response:
+                # Remove any unnecessary leading/trailing whitespace
+                response = response.strip()
+                # Ensure proper formatting of lists if present
+                response = response.replace('\n\n', '\n')
+
+                logger.info(f"Formatted AI response ready (length: {len(response)})")
+                dispatcher.utter_message(text=response)
+            else:
+                logger.warning("Empty response received from AI")
+                fallback_msg = "Based on your sales metrics, I recommend focusing on your top-performing products and identifying growth opportunities. You may want to review your customer acquisition costs and lifetime value metrics to optimize your marketing spend."
+                dispatcher.utter_message(text=fallback_msg)
+
+        except Exception as e:
+            logger.error(f"Error processing query: {e}")
+            dispatcher.utter_message(
+                text="I'm sorry, I couldn't generate insights at the moment. Please try again later."
+            )
+
+        return []
 
 class ActionCheckAuthorization(Action):
     """Action to check if the user is authorized to access certain data."""
@@ -234,7 +578,62 @@ class ActionParsePeriod(Action):
         raise ValueError(f"Unable to parse date: '{date_str}'")
 
     def _parse_time_period(self, period: str) -> tuple:
+        logging.info(f"Attempting to parse time period: '{period}'")
         now = datetime.now()
+
+        period = period.lower().strip()
+
+        # Comprehensive cross-period parsing patterns
+        cross_period_patterns = [
+            # Flexible month-to-month range parsing (handles incomplete inputs)
+            r'^([a-z]+)\s*(\d{4})\s*(?:to|and)?\s*([a-z]+)?\s*(\d{4})?$',
+        
+            # Quarter to Quarter variations
+            r'^(q[1-4])\s*(\d{4})\s*(?:to|and)?\s*(q[1-4])?\s*(\d{4})?$'
+        ]
+
+        # Month and quarter name to number mapping
+        month_names = {
+            'jan': 1, 'january': 1, 'feb': 2, 'february': 2,
+            'mar': 3, 'march': 3, 'apr': 4, 'april': 4, 
+            'may': 5, 'jun': 6, 'june': 6, 'jul': 7, 'july': 7,
+            'aug': 8, 'august': 8, 'sep': 9, 'september': 9,
+            'oct': 10, 'october': 10, 'nov': 11, 'november': 11,
+            'dec': 12, 'december': 12
+        }
+    
+        quarter_start_months = {'q1': 1, 'q2': 4, 'q3': 7, 'q4': 10}
+
+        # First, try cross-period parsing
+        for pattern in cross_period_patterns:
+            match = re.match(pattern, period)
+            if match:
+                groups = list(match.groups())
+            
+                # Handle partial inputs by filling in missing information
+                if groups[2] is None:
+                    groups[2] = groups[0]  # Use first month if second is missing
+                if groups[3] is None:
+                    groups[3] = groups[1]  # Use first year if second is missing
+
+                start_month = month_names.get(groups[0]) if not groups[0].startswith('q') else quarter_start_months[groups[0]]
+                end_month = month_names.get(groups[2]) if not groups[2].startswith('q') else quarter_start_months[groups[2]] + 2
+                start_year = int(groups[1])
+                end_year = int(groups[3])
+
+                # Validate and process month/quarter ranges
+                if not start_month or not end_month:
+                    continue
+
+                # Adjust end month if it exceeds 12
+                end_month = min(end_month, 12)
+
+                # Create dates
+                start_date = datetime(start_year, start_month, 1)
+                end_date = datetime(end_year, end_month, 1) + relativedelta(months=1) - timedelta(days=1)
+                end_date = end_date.replace(hour=23, minute=59, second=59)
+
+                return start_date, end_date
 
         # Handle the case where period might already be in "start|end" format
         if '|' in period:
@@ -247,9 +646,7 @@ class ActionParsePeriod(Action):
                     end_date = end_date.replace(hour=23, minute=59, second=59)
                     return start_date, end_date
                 except ValueError:
-                    pass  # Continue with other parsing methods if this fails
-
-        period = period.lower().strip()
+                    pass
 
         # Check for date range pattern first (e.g., "2025-01-01 to 2025-02-28")
         date_range_patterns = [
@@ -339,6 +736,98 @@ class ActionParsePeriod(Action):
 
             return start_date, end_date
 
+        # Multi-quarter and multi-year range handling
+        multi_quarter_pattern = r'^(q[1-4])\s*(\d{4})\s*(?:to|and)\s*(q[1-4])\s*(\d{4})$'
+        match = re.match(multi_quarter_pattern, period)
+        if match:
+            start_quarter, start_year, end_quarter, end_year = match.groups()
+    
+            # Convert to lowercase for consistent processing
+            start_quarter = start_quarter.lower()
+            end_quarter = end_quarter.lower()
+    
+            quarter_start_months = {'q1': 1, 'q2': 4, 'q3': 7, 'q4': 10}
+            quarter_end_months = {'q1': 3, 'q2': 6, 'q3': 9, 'q4': 12}
+    
+            start_year = int(start_year)
+            end_year = int(end_year)
+    
+            # Calculate start date (first day of the first month of the start quarter)
+            start_date = datetime(start_year, quarter_start_months[start_quarter], 1)
+    
+            # Calculate end date (last day of the last month of the end quarter)
+            end_month = quarter_end_months[end_quarter]
+    
+            # Ensure the end date is the last day of the last month of the quarter
+            end_date = datetime(end_year, end_month, 1) + relativedelta(months=1) - timedelta(days=1)
+            end_date = end_date.replace(hour=23, minute=59, second=59)
+    
+            return start_date, end_date
+
+        flexible_quarter_pattern = r'^(?:from\s+)?(q[1-4])[\s-]*(\d{4})[\s-]*(?:to|through|till|until|and)[\s-]*(q[1-4])[\s-]*(\d{4})$'
+        match = re.match(flexible_quarter_pattern, period, re.IGNORECASE)
+        if match:
+            start_quarter, start_year, end_quarter, end_year = match.groups()
+    
+            # Convert to lowercase for consistent processing
+            start_quarter = start_quarter.lower()
+            end_quarter = end_quarter.lower()
+    
+            quarter_start_months = {'q1': 1, 'q2': 4, 'q3': 7, 'q4': 10}
+            quarter_end_months = {'q1': 3, 'q2': 6, 'q3': 9, 'q4': 12}
+    
+            start_year = int(start_year)
+            end_year = int(end_year)
+    
+            # Calculate start date (first day of the first month of the start quarter)
+            start_date = datetime(start_year, quarter_start_months[start_quarter], 1)
+    
+            # Calculate end date (last day of the last month of the end quarter)
+            end_month = quarter_end_months[end_quarter]
+    
+            # Ensure the end date is the last day of the last month of the quarter
+            end_date = datetime(end_year, end_month, 1) + relativedelta(months=1) - timedelta(days=1)
+            end_date = end_date.replace(hour=23, minute=59, second=59)
+    
+            logging.info(f"Parsed quarter range: {start_quarter} {start_year} to {end_quarter} {end_year}")
+            logging.info(f"Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+    
+            return start_date, end_date
+
+        # Enhanced month name range parsing
+        month_range_pattern = r'^([a-z]+)\s+(\d{4})\s*(?:to|and)\s*([a-z]+)\s+(\d{4})$'
+        match = re.match(month_range_pattern, period)
+        if match:
+            start_month_name, start_year, end_month_name, end_year = match.groups()
+        
+            month_names = {
+                'jan': 1, 'january': 1,
+                'feb': 2, 'february': 2,
+                'mar': 3, 'march': 3,
+                'apr': 4, 'april': 4,
+                'may': 5,
+                'jun': 6, 'june': 6,
+                'jul': 7, 'july': 7,
+                'aug': 8, 'august': 8,
+                'sep': 9, 'september': 9,
+                'oct': 10, 'october': 10,
+                'nov': 11, 'november': 11,
+                'dec': 12, 'december': 12
+            }
+        
+            start_month = month_names.get(start_month_name)
+            end_month = month_names.get(end_month_name)
+        
+            if not start_month or not end_month:
+                logging.error(f"Invalid month name in period: {period}")
+                # Fall through to existing parsing methods
+            else:
+                start_date = datetime(int(start_year), start_month, 1)
+                end_date = datetime(int(end_year), end_month, 1) + relativedelta(months=1) - timedelta(days=1)
+                end_date = end_date.replace(hour=23, minute=59, second=59)
+            
+                return start_date, end_date
+
         # Handle quarters with regex pattern matching (e.g., "Q1 2024", "q3 2024", "Q4-2023")
         quarter_pattern = r'^q([1-4])[\s-]*(\d{4})$'
         match = re.match(quarter_pattern, period)
@@ -354,6 +843,46 @@ class ActionParsePeriod(Action):
             end_date = start_date + relativedelta(months=3) - timedelta(days=1)
             # Ensure end_date is end of day
             end_date = end_date.replace(hour=23, minute=59, second=59)
+            return start_date, end_date
+
+        # Add month name and year range parsing
+        month_range_pattern = r'^([a-zA-Z]+)\s+(\d{4})\s*(?:to|and)\s*([a-zA-Z]+)\s+(\d{4})$'
+        match = re.match(month_range_pattern, period, re.IGNORECASE)
+        if match:
+            start_month_name, start_year, end_month_name, end_year = match.groups()
+
+            # Dictionary of month names to numbers
+            month_names = {
+                'jan': 1, 'january': 1,
+                'feb': 2, 'february': 2,
+                'mar': 3, 'march': 3,
+                'apr': 4, 'april': 4,
+                'may': 5,
+                'jun': 6, 'june': 6,
+                'jul': 7, 'july': 7,
+                'aug': 8, 'august': 8,
+                'sep': 9, 'september': 9,
+                'oct': 10, 'october': 10,
+                'nov': 11, 'november': 11,
+                'dec': 12, 'december': 12
+            }
+
+            # Convert month names to numbers
+            start_month = month_names.get(start_month_name.lower())
+            end_month = month_names.get(end_month_name.lower())
+
+            if not start_month or not end_month:
+                raise ValueError(f"Invalid month name in period: {period}")
+
+            # Create start and end dates
+            start_date = datetime(int(start_year), start_month, 1)
+
+            # For the end date, use the last day of the end month
+            end_date = datetime(int(end_year), end_month, 1) + relativedelta(months=1) - timedelta(days=1)
+
+            # Set time to end of day
+            end_date = end_date.replace(hour=23, minute=59, second=59)
+
             return start_date, end_date
 
         # Handle specific years (e.g., "2023")
@@ -456,7 +985,7 @@ class ActionResetForm(Action):
 class ActionGenerateFinancialReport(Action):
     def name(self) -> Text:
         return "action_generate_financial_report"
-
+    
     def _determine_report_type(self, user_message: str, detail_level: str) -> str:
         """
         Determine the type of report to generate based on user message and detail level.
@@ -490,7 +1019,6 @@ class ActionGenerateFinancialReport(Action):
             logging.info("[DEBUG] Report type determined: summary")
             return "summary"
         
-        # If detail level is set and detailed, provide comprehensive report
         if detail_level and detail_level.lower() in ["yes", "detailed", "comprehensive"]:
             logging.info("[DEBUG] Report type determined: detailed")
             return "detailed"
@@ -551,15 +1079,6 @@ class ActionGenerateFinancialReport(Action):
             
             # Define synchronous functions for database operations
             logging.info("[DEBUG] Setting up database query functions")
-            
-            # Inspect the database connection to make sure it's available
-            try:
-                from django.db import connection
-                logging.info(f"[DEBUG] Database connection info - name: {connection.settings_dict['NAME']}")
-                logging.info(f"[DEBUG] Database vendor: {connection.vendor}")
-                logging.info(f"[DEBUG] Database is connected: {connection.is_usable()}")
-            except Exception as e:
-                logging.error(f"[DEBUG] Failed to inspect database connection: {str(e)}", exc_info=True)
             
             @sync_to_async
             def get_total_revenue():
@@ -656,7 +1175,7 @@ class ActionGenerateFinancialReport(Action):
                 except Exception as e:
                     logging.error(f"[DEBUG] Error in get_monthly_expense_trend: {str(e)}", exc_info=True)
                     raise
-
+            
             @sync_to_async
             def get_previous_period_data():
                 logging.info("[DEBUG] Executing get_previous_period_data")
@@ -1359,6 +1878,577 @@ Based on the sales performance analysis, the following recommendations are made:
             dispatcher.utter_message(text="Unable to generate sales analytics. Please try again.")
 
         return []
+
+def normalize_category(category: str) -> str:
+    """
+    Normalize category names for consistent reporting.
+    
+    Args:
+        category (str): Original category name
+    
+    Returns:
+        str: Normalized and standardized category name
+    """
+    category_mapping = {
+        'income': 'Sales',
+        'other': 'Miscellaneous',
+        '': 'Uncategorized'
+    }
+    
+    # Handle None or empty string
+    if not category:
+        return 'Uncategorized'
+    
+    # Apply mapping or capitalize
+    return category_mapping.get(category.lower(), category.capitalize())
+
+class ActionSalesByCategory(Action):
+    def name(self) -> Text:
+        return "action_sales_by_category"
+
+    async def run(self, 
+                  dispatcher: CollectingDispatcher, 
+                  tracker: Tracker, 
+                  domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        """
+        Analyze and report sales performance by category.
+        
+        Args:
+            dispatcher (CollectingDispatcher): Rasa dispatcher for sending messages
+            tracker (Tracker): Conversation state tracker
+            domain (Dict): Current domain configuration
+        
+        Returns:
+            List of follow-up actions
+        """
+        try:
+            # Extract time period and specific category from slots
+            time_period = tracker.get_slot("time_period")
+            specific_category = tracker.get_slot("product_category")
+
+            # Validate time period
+            if not time_period:
+                dispatcher.utter_message(text="Please specify a time period for category sales analysis.")
+                return []
+
+            # Parse time period using existing method
+            from actions.actions import ActionParsePeriod
+            action_parser = ActionParsePeriod()
+            start_date, end_date = action_parser._parse_time_period(time_period)
+
+            # Define synchronous database query
+            @sync_to_async
+            def get_sales_by_category():
+                """
+                Retrieve and aggregate sales data by category.
+                
+                Returns:
+                    List of category sales data
+                """
+                # Base query for transactions in the specified date range
+                queryset = TransactionsTransaction.objects.filter(
+                    date__range=[start_date, end_date]
+                )
+                
+                # Apply category filtering if specified
+                if specific_category:
+                    queryset = queryset.filter(
+                        Q(category__icontains=specific_category)
+                    )
+                
+                # Aggregate sales data with robust handling
+                category_sales = list(
+                    queryset.values('category')
+                    .annotate(
+                        total=Coalesce(Sum('amount'), Decimal('0.00'), output_field=DecimalField()),
+                        count=Count('id'),
+                        avg_transaction=Coalesce(Avg('amount'), Decimal('0.00'), output_field=DecimalField())
+                    )
+                    .order_by('-total')
+                )
+                
+                return category_sales
+
+            # Execute the query
+            category_sales = await get_sales_by_category()
+
+            # Prepare comprehensive report
+            report = f"""# Sales by Category Analysis
+**Period: {start_date.date()} to {end_date.date()}"""
+
+            # Add specific category filter information
+            if specific_category:
+                report += f"\n**Focused Category: {specific_category}**"
+
+            report += "\n\n## Category Sales Breakdown:\n"
+
+            # Handle no sales data scenario
+            if not category_sales:
+                report += "No sales data found for the specified period."
+                dispatcher.utter_message(text=report)
+                return []
+
+            # Calculate total sales for percentage calculations
+            total_sales = sum(Decimal(cat['total']) for cat in category_sales)
+
+            # Detailed category breakdown
+            for category in category_sales:
+                normalized_name = normalize_category(category['category'])
+                cat_total = Decimal(category['total'])
+                cat_count = category['count']
+                cat_avg = Decimal(category['avg_transaction'])
+                cat_percentage = (cat_total / total_sales * 100) if total_sales > 0 else Decimal('0')
+
+                report += (
+                    f"- **{normalized_name}**:\n"
+                    f"  - Total Sales: N{cat_total:,.2f}\n"
+                    f"  - Percentage of Total: {cat_percentage:.1f}%\n"
+                    f"  - Number of Transactions: {cat_count}\n"
+                    f"  - Average Transaction: N{cat_avg:,.2f}\n"
+                )
+
+            # Add key insights
+            top_category = category_sales[0]
+            report += f"\n## Key Insights:\n"
+            report += f"- Top Performing Category: **{normalize_category(top_category['category'])}**\n"
+            report += f"- Total Categories Analyzed: {len(category_sales)}\n"
+            report += f"- Total Sales: N{total_sales:,.2f}"
+
+            # Send the comprehensive report
+            dispatcher.utter_message(text=report)
+
+        except Exception as e:
+            # Comprehensive error handling
+            logging.error(f"Sales by category analysis error: {str(e)}", exc_info=True)
+            dispatcher.utter_message(text="Unable to generate category sales analysis. Please try again.")
+
+        return []
+
+class ActionSalesTrend(Action):                                                                                                             
+    def name(self) -> Text:                                                                                                                 
+        return "action_sales_trend"                                                                                                         
+                                                                                                                                            
+    async def run(self, dispatcher: CollectingDispatcher,                                                                                   
+            tracker: Tracker,                                                                                                               
+            domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:                                                                              
+        # Extract time period and product category                                                                                       
+        time_period = tracker.get_slot("time_period")                                                                                       
+        product_category = tracker.get_slot("product_category")
+                                                                                                                                            
+        if not time_period:                                                                                                                 
+            dispatcher.utter_message(text="Please specify a time period for the sales trend analysis.")                                     
+            return []                                                                                                                       
+                                                                                                                                            
+        try:                                                                                                                                
+            # Parse the time period - reuse the same logic from financial report                                                            
+            if '|' in time_period:                                                                                                          
+                # Already parsed format                                                                                                     
+                start_date_str, end_date_str = time_period.split('|')                                                                       
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d")                                                                  
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d")                                                                      
+                logging.info(f"Using parsed time period: {start_date.date()} to {end_date.date()}")                                         
+            else:                                                                                                                           
+                # Need to parse the time period string directly                                                                             
+                from actions.actions import ActionParsePeriod                                                                               
+                                                                                                                                            
+                logging.info(f"Parsing raw time period: {time_period}")                                                                     
+                action_parser = ActionParsePeriod()                                                                                         
+                start_date, end_date = action_parser._parse_time_period(time_period)                                                        
+                logging.info(f"Successfully parsed time period: {start_date.date()} to {end_date.date()}")                                  
+                                                                                                                                            
+            # Define synchronous function for database operations                                                                           
+            @sync_to_async                                                                                                                  
+            def get_sales_trend():                                                                                                          
+                # Base query for sales trend using TransactionsTransaction                                                                                       
+                queryset = TransactionsTransaction.objects.filter(
+                    date__range=[start_date, end_date],
+                    transaction_type='income'
+                )
+                                                                                                                                            
+                # Apply category filter if provided                                                                                        
+                if product_category:                                                                                                        
+                    # Filter by product category using the related models
+                    queryset = queryset.filter(
+                        order__coreorderitem__product__category__name__icontains=product_category
+                    ).distinct()
+                                                                                                                                            
+                # Aggregate sales data by month with product details                                                                                             
+                monthly_trend = list(queryset.annotate(                                                                                     
+                    month=TruncMonth('date')
+                ).values('month').annotate(                                                                                                 
+                    total_sales=Sum('amount'),
+                    transaction_count=Count('id'),
+                    avg_transaction=Avg('amount')
+                ).order_by('month'))                                                                                                        
+                                                                                                                                            
+                # Detailed product-level insights
+                product_insights = queryset.values(
+                    'order__coreorderitem__product__name',
+                    'order__coreorderitem__product__category__name'
+                ).annotate(
+                    product_total_sales=Sum('amount'),
+                    product_transaction_count=Count('id', distinct=True)
+                ).order_by('-product_total_sales')
+                                                                                                                                            
+                # Calculate overall trend metrics                                                                                           
+                total_sales = sum(month['total_sales'] or 0 for month in monthly_trend)                                                                
+                total_transactions = sum(month['transaction_count'] for month in monthly_trend)                                                         
+                                                                                                                                            
+                # Calculate growth rates                                                                                                    
+                growth_rates = []                                                                                                           
+                for i in range(1, len(monthly_trend)):                                                                                      
+                    prev_month_sales = float(monthly_trend[i-1]['total_sales'] or 0)
+                    curr_month_sales = float(monthly_trend[i]['total_sales'] or 0)
+                    growth_rate = ((curr_month_sales - prev_month_sales) / prev_month_sales * 100) if prev_month_sales > 0 else 0                                   
+                    growth_rates.append(growth_rate)                                                                                        
+                                                                                                                                            
+                return {                                                                                                                    
+                    'monthly_trend': monthly_trend,                                                                                         
+                    'total_sales': total_sales,                                                                                             
+                    'total_transactions': total_transactions,                                                                               
+                    'growth_rates': growth_rates,
+                    'product_insights': list(product_insights)                                                                                            
+                }                                                                                                                           
+                                                                                                                                            
+            # Execute the query
+            trend_data = await get_sales_trend()
+
+            # Prepare the report
+            report = f"""
+# Sales Trend Analysis
+**Period: {start_date.date()} to {end_date.date()}"""
+
+            # Add specific filters information
+            if product_category:
+                report += f"\n**Product Category: {product_category}**"
+
+            report += f"\n\n## Overall Performance:\n"
+            report += f"- Total Sales: N{trend_data['total_sales']:,.2f}\n"
+            report += f"- Total Transactions: {trend_data['total_transactions']}\n"
+
+            # Monthly Trend Section
+            report += "\n## Monthly Sales Trend:\n"
+            if not trend_data['monthly_trend']:
+                report += "No sales data found for the specified period."
+            else:
+                # Detailed monthly breakdown
+                for i, month_data in enumerate(trend_data['monthly_trend']):
+                    month_name = month_data['month'].strftime('%B %Y')
+                    month_total = float(month_data['total_sales'] or 0)
+                    month_count = month_data['transaction_count']
+                    month_avg = float(month_data['avg_transaction'] or 0)
+
+                    report += f"- **{month_name}**:\n"
+                    report += f"  - Total Sales: N{month_total:,.2f}\n"
+                    report += f"  - Number of Transactions: {month_count}\n"
+                    report += f"  - Average Transaction: N{month_avg:,.2f}\n"
+
+                    # Add growth rate if applicable
+                    if i > 0 and trend_data['growth_rates']:
+                        growth_rate = trend_data['growth_rates'][i-1]
+                        growth_symbol = "▲" if growth_rate >= 0 else "▼"
+                        report += f"  - Month-over-Month Growth: {growth_symbol}{abs(growth_rate):.1f}%\n"                                  
+                                                                                                                                            
+            # Product Insights Section
+            report += "\n## Product Performance Insights:\n"
+            if trend_data['product_insights']:
+                for insight in trend_data['product_insights'][:5]:  # Top 5 products
+                    product_name = insight['order__coreorderitem__product__name'] or 'Unnamed Product'
+                    product_category = insight['order__coreorderitem__product__category__name'] or 'Uncategorized'
+                    product_total = insight['product_total_sales']
+                    product_transactions = insight['product_transaction_count']
+                    
+                    report += f"- **{product_name}** (Category: {product_category}):\n"
+                    report += f"  - Total Sales: N{product_total:,.2f}\n"
+                    report += f"  - Number of Transactions: {product_transactions}\n"
+            else:
+                report += "No product-specific insights available.\n"
+                                                                                                                                            
+            # Trend Analysis Insights                                                                                                       
+            report += "\n## Trend Analysis Insights:\n"                                                                                     
+                                                                                                                                            
+            # Calculate overall trend                                                                                                       
+            if trend_data['monthly_trend']:                                                                                                 
+                first_month = float(trend_data['monthly_trend'][0]['total_sales'] or 0)
+                last_month = float(trend_data['monthly_trend'][-1]['total_sales'] or 0)
+                overall_growth = ((last_month - first_month) / first_month * 100) if first_month > 0 else 0                                 
+                                                                                                                                            
+                trend_description = (                                                                                                       
+                    "Consistent Growth" if overall_growth > 5 else                                                                          
+                    "Moderate Growth" if overall_growth > 0 else                                                                            
+                    "Stable" if overall_growth == 0 else                                                                                    
+                    "Declining"                                                                                                             
+                )                                                                                                                           
+                                                                                                                                            
+                report += f"- Overall Trend: **{trend_description}**\n"                                                                     
+                report += f"- Total Period Growth: {overall_growth:+.1f}%\n"                                                                
+                                                                                                                                            
+                # Volatility analysis                                                                                                       
+                if trend_data['growth_rates']:                                                                                              
+                    volatility = statistics.stdev(trend_data['growth_rates']) if len(trend_data['growth_rates']) > 1 else 0                 
+                    volatility_description = (                                                                                              
+                        "High Volatility" if volatility > 15 else                                                                           
+                        "Moderate Volatility" if volatility > 5 else                                                                        
+                        "Low Volatility"                                                                                                    
+                    )                                                                                                                       
+                    report += f"- Sales Volatility: {volatility_description} (Variation: {volatility:.1f}%)\n"                              
+                                                                                                                                            
+            dispatcher.utter_message(text=report)                                                                                           
+                                                                                                                                            
+        except Exception as e:                                                                                                              
+            logging.error(f"Sales trend analysis error: {str(e)}", exc_info=True)                                                           
+            dispatcher.utter_message(text="Unable to generate sales trend analysis. Please try again.")
+
+        return []
+
+class ActionCustomerAnalytics(Action):
+    def name(self) -> Text:
+        return "action_customer_analytics"
+
+    async def run(self,
+                  dispatcher: CollectingDispatcher,
+                  tracker: Tracker,
+                  domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        
+        @sync_to_async
+        def perform_advanced_customer_analysis():
+            try:
+                # Configurable analysis parameters
+                current_year = datetime.now().year
+                start_date = datetime(current_year, 1, 1)
+                end_date = datetime.now()
+
+                # Base transaction query
+                transaction_query = TransactionsTransaction.objects.filter(
+                    date__range=[start_date, end_date],
+                    transaction_type='income'
+                )
+
+                def calculate_engagement_score(customer):
+                    """
+                    Advanced engagement scoring mechanism
+    
+                    Scoring Dimensions:
+                    1. Transaction Frequency (30%)
+                    2. Total Spend (40%)
+                    3. Recency of Transactions (30%)
+                    """
+                    # Normalization factors
+                    max_transactions = customer.get('max_transactions', 1)
+                    max_spend = customer.get('max_spend', Decimal('1'))
+    
+                    # Convert to Decimal for consistent calculations
+                    max_transactions = Decimal(str(max_transactions))
+                    max_spend = Decimal(str(max_spend))
+    
+                    # Individual score components
+                    frequency_score = Decimal(str((customer['transaction_count'] / max_transactions) * 100))
+                    spend_score = Decimal(str((customer['total_customer_spent'] / max_spend) * 100))
+    
+                    # Recency calculation (lower days since last transaction is better)
+                    recency_days = Decimal(str(customer.get('days_since_last_transaction', 365)))
+                    recency_score = max(Decimal('0'), Decimal('100') - (recency_days / Decimal('365') * Decimal('100')))
+
+                    # Weighted engagement score
+                    engagement_score = (
+                        (frequency_score * Decimal('0.3')) +
+                        (spend_score * Decimal('0.4')) +
+                        (recency_score * Decimal('0.3'))
+                    )
+
+                    return round(engagement_score, 2)
+
+                def advanced_customer_segmentation(customer_analytics):
+                    """
+                    Multi-dimensional customer segmentation strategy
+                    """
+                    # Calculate global normalization factors
+                    max_transactions = max(
+                        customer['transaction_count'] for customer in customer_analytics
+                    ) or 1
+                    max_spend = max(
+                        customer['total_customer_spent'] for customer in customer_analytics
+                    ) or Decimal('1')
+
+                    # Enrich customers with normalization and engagement scoring
+                    for customer in customer_analytics:
+                        customer['max_transactions'] = max_transactions
+                        customer['max_spend'] = max_spend
+                        customer['engagement_score'] = calculate_engagement_score(customer)
+
+                    # Sort customers by engagement score
+                    sorted_customers = sorted(
+                        customer_analytics, 
+                        key=lambda x: x['engagement_score'], 
+                        reverse=True
+                    )
+
+                    # Advanced segmentation definitions
+                    segment_definitions = [
+                        {
+                            'name': 'Strategic Customers',
+                            'description': 'High-value, frequent, and recent transactions',
+                            'criteria': lambda c: c['engagement_score'] > 75
+                        },
+                        {
+                            'name': 'Growth Potential',
+                            'description': 'Moderate engagement, opportunity for development',
+                            'criteria': lambda c: 50 <= c['engagement_score'] <= 75
+                        },
+                        {
+                            'name': 'Emerging Customers',
+                            'description': 'New or low-engagement customers',
+                            'criteria': lambda c: c['engagement_score'] < 50
+                        }
+                    ]
+
+                    # Segment customers based on engagement criteria
+                    segmented_results = []
+                    for segment in segment_definitions:
+                        segment_customers = [
+                            customer for customer in sorted_customers
+                            if segment['criteria'](customer)
+                        ]
+
+                        segment_total_sales = sum(
+                            customer['total_customer_spent'] for customer in segment_customers
+                        )
+
+                        segmented_results.append({
+                            'segment': segment['name'],
+                            'description': segment['description'],
+                            'customer_count': len(segment_customers),
+                            'total_segment_sales': segment_total_sales,
+                            'avg_customer_value': (
+                                segment_total_sales / len(segment_customers) 
+                                if segment_customers else Decimal('0')
+                            ),
+                            'avg_engagement_score': (
+                                sum(customer['engagement_score'] for customer in segment_customers) / len(segment_customers)
+                                if segment_customers else 0
+                            )
+                        })
+
+                    return segmented_results
+
+                def identify_new_customers(customer_analytics):
+                    """
+                    Comprehensive new customer identification
+                    """
+                    start_of_year = datetime(current_year, 1, 1).date()
+                    new_customers = [
+                        customer for customer in customer_analytics
+                        if customer['first_transaction_date'] >= start_of_year
+                    ]
+
+                    return {
+                        'total_new_customers': len(new_customers),
+                        'new_customer_details': new_customers,
+                        'new_customer_revenue': sum(
+                            customer['total_customer_spent'] for customer in new_customers
+                        )
+                    }
+
+                # Comprehensive customer analytics query
+                customer_analytics = list(transaction_query.values(
+                    'customer_id',
+                    'customer__first_name',
+                    'customer__last_name'
+                ).annotate(
+                    total_customer_spent=Coalesce(
+                        Sum('amount', output_field=DecimalField()),
+                        Value(Decimal('0')),
+                        output_field=DecimalField()
+                    ),
+                    transaction_count=Count('id'),
+                    avg_transaction=Avg('amount', output_field=DecimalField()),
+                    first_transaction_date=Min('date'),
+                    last_transaction_date=Max('date'),
+                    days_since_last_transaction=ExpressionWrapper(
+                        Cast(datetime.now().date() - F('last_transaction_date'), output_field=DurationField()) / 
+                        timedelta(days=1),
+                        output_field=FloatField()
+                    )
+                ).order_by('-total_customer_spent'))
+
+                # Comprehensive analytics compilation
+                return {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'total_customers': len(customer_analytics),
+                    'total_sales': sum(customer['total_customer_spent'] for customer in customer_analytics),
+                    'total_transactions': transaction_query.count(),
+                    'customer_segments': advanced_customer_segmentation(customer_analytics),
+                    'new_customers': identify_new_customers(customer_analytics),
+                    'top_customers': customer_analytics[:5]
+                }
+
+            except Exception as e:
+                logging.error(f"Comprehensive analytics error: {str(e)}", exc_info=True)
+                return None
+
+        # Execute the comprehensive analytics
+        customer_data = await perform_advanced_customer_analysis()
+
+        if customer_data is None:
+            dispatcher.utter_message(text="Unable to generate comprehensive customer analytics.")
+            return []
+
+        # Generate detailed report
+        report = f"""
+# Comprehensive Customer Analytics Report
+**Period: {customer_data['start_date'].date()} to {customer_data['end_date'].date()}**
+
+## Overall Customer Performance
+- Total Active Customers: {customer_data['total_customers']}
+- Total Sales: N{customer_data['total_sales']:,.2f}
+- Total Transactions: {customer_data['total_transactions']}
+
+## New Customer Insights
+- New Customers This Year: {customer_data['new_customers']['total_new_customers']}
+- New Customer Revenue: N{customer_data['new_customers']['new_customer_revenue']:,.2f}
+
+## Customer Segmentation Analysis
+{self._format_customer_segments(customer_data['customer_segments'])}
+
+## Top Performing Customers
+{self._format_top_customers(customer_data['top_customers'])}
+
+## Strategic Recommendations
+1. Develop targeted engagement strategies for each customer segment
+2. Implement personalized retention programs
+3. Focus on converting Emerging Customers to Growth Potential segment
+4. Analyze and replicate success factors of Strategic Customers
+
+        """
+
+        dispatcher.utter_message(text=report)
+        return []
+
+    def _format_customer_segments(self, segments):
+        """Format customer segments for reporting"""
+        formatted_segments = ""
+        for segment in segments:
+            formatted_segments += (
+                f"### {segment['segment']} ({segment['description']})\n"
+                f"- Number of Customers: {segment['customer_count']}\n"
+                f"- Total Segment Sales: N{segment['total_segment_sales']:,.2f}\n"
+                f"- Average Customer Value: N{segment['avg_customer_value']:,.2f}\n"
+                f"- Average Engagement Score: {segment['avg_engagement_score']:.2f}\n\n"
+            )
+        return formatted_segments
+
+    def _format_top_customers(self, top_customers):
+        """Format top customers for reporting"""
+        formatted_customers = ""
+        for i, customer in enumerate(top_customers, 1):
+            formatted_customers += (
+                f"{i}. **{customer['customer__first_name']} {customer['customer__last_name']}**\n"
+                f"   - Total Spent: N{customer['total_customer_spent']:,.2f}\n"
+                f"   - Transactions: {customer['transaction_count']}\n"
+                f"   - Average Transaction: N{customer['avg_transaction']:,.2f}\n"
+            )
+        return formatted_customers
 
 class ActionSalesForecasting(Action):
     def name(self) -> Text:
@@ -3030,8 +4120,10 @@ class ActionProductInventoryCheck(Action):
         
         return []
 
-
 class ValidateFinancialReportForm(FormValidationAction):
+    def __init__(self):
+        self.parser = ActionParsePeriod()
+
     def name(self) -> Text:
         return "validate_financial_report_form"
 
@@ -3045,9 +4137,9 @@ class ValidateFinancialReportForm(FormValidationAction):
         if not slot_value:
             dispatcher.utter_message(text="Please specify a time period for the report.")
             return {"time_period": None}
-
-        try:                                                                                                                                
-            start_date, end_date = self._parse_time_period(slot_value)  # Use the same parsing function
+        try:
+            # Use methods from ActionParsePeriod
+            start_date, end_date = self.parser.parse_time_period(slot_value)
             formatted_time_period = f"{start_date}|{end_date}"
             return {"time_period": formatted_time_period}  # Store parsed date range
         except ValueError as e:
@@ -3062,8 +4154,9 @@ class ValidateFinancialReportForm(FormValidationAction):
         domain: DomainDict,
     ) -> Dict[Text, Any]:
         if slot_value in ["summary", "detailed"]:
-            return {"report_detail_level": slot_value}
+            return {"report_detail_level": slot_value}                                                                                      
         return {"report_detail_level": "summary"}
+
 
 class ActionDefaultFallback(Action):
     def name(self) -> Text:
