@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 
 const SIDEBAR_WIDTHS = {
   expanded: '270px',
-  collapsed: '72px',
+  collapsed: '60px',
   mobile: '280px',
 };
 

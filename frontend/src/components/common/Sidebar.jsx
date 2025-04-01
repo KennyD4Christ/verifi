@@ -9,7 +9,7 @@ import { rgba, darken, lighten } from 'polished';
 import {
   FaHome, FaExchangeAlt, FaFileInvoiceDollar, FaBox,
   FaLayerGroup, FaShoppingCart, FaUsers, FaUserShield,
-  FaChartBar, FaChevronLeft, FaChevronRight, FaTimes, FaReceipt
+  FaChartBar, FaChevronLeft, FaChevronRight, FaTimes, FaReceipt, FaCog
 } from 'react-icons/fa';
 
 const defaultTheme = {
@@ -45,7 +45,7 @@ const defaultTheme = {
 
 const SIDEBAR_WIDTHS = {
   expanded: '270px',
-  collapsed: '60px',
+  collapsed: '75px',
   mobile: '280px',
 };
 
@@ -266,6 +266,7 @@ const Sidebar = ({
     { id: '9', label: 'User Roles', path: '/user-roles', icon: FaUserShield, visible: true },
     { id: '10', label: 'User Management', path: '/user-management', icon: FaUsers, visible: true },
     { id: '11', label: 'Reports', path: '/reports', icon: FaChartBar, visible: true },
+    { id: '12', label: 'Account Settings', path: '/account', icon: FaCog, visible: true },
   ]);
 
   const handleWindowResize = useCallback(() => {

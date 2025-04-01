@@ -31,6 +31,8 @@ import { ThemeProvider } from 'styled-components';
 import { theme } from './theme';
 import { ReceiptProvider } from './context/ReceiptContext';
 import EnhancedChatWidget from './components/EnhancedChatWidget';
+import TwoFactorSettings from './components/TwoFactorSettings';
+import AccountSettings from './pages/AccountSettings';
 
 const App = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -54,6 +56,8 @@ const App = () => {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route element={<ProtectedRoute />}>
+	          <Route path="/account" element={<AccountSettings />} />
+	          <Route path="/security/two-factor" element={<TwoFactorSettings />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/products" element={<Products />} />
                   <Route path="/customers" element={<Customers />} />

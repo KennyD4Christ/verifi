@@ -4,12 +4,12 @@ import styled from 'styled-components';
 import { useAuth } from '../../context/AuthContext';
 import VerifiLogo from './VerifiLogo';
 import { FaBars, FaTimes, FaHome, FaReceipt, FaExchangeAlt, FaFileInvoiceDollar, FaBox, 
-         FaLayerGroup, FaShoppingCart, FaUsers, FaUserShield, FaChartBar } from 'react-icons/fa';
+         FaLayerGroup, FaShoppingCart, FaUsers, FaUserShield, FaCog, FaChartBar } from 'react-icons/fa';
 
 
 const SIDEBAR_WIDTHS = {
   expanded: '270px',
-  collapsed: '60px',
+  collapsed: '75px',
   mobile: '280px',
 };
 
@@ -158,6 +158,7 @@ const navigationItems = [
   { path: '/products', label: 'Products', icon: FaBox },
   { path: '/customers', label: 'Customers', icon: FaUsers },
   { path: '/orders', label: 'Orders', icon: FaShoppingCart },
+  { path: '/account', label: 'Account Settings', icon: FaCog },
 ];
 
 const Navbar = forwardRef(({ onMenuClick, isMobile, collapsed, setHeaderHeight, setIsSidebarOpen }, ref) => {

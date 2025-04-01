@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { createTransaction } from '../services/api';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';

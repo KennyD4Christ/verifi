@@ -13,6 +13,8 @@ import Login from './components/Login';
 import Register from './components/Register';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
+import TwoFactorSettings from './components/TwoFactorSettings';
+import AccountSettings from './pages/AccountSettings';
 
 const routes = [
   {
@@ -79,6 +81,14 @@ const routes = [
   {
     path: '/products/:id',
     component: ProductDetails,
+  },
+  {
+    path: '/security/two-factor',
+    component: TwoFactorSettings,
+  },
+  {
+    path: '/account',
+    component: AccountSettings,
   },
   {
     path: '/reset-password/:uidb64/:token',

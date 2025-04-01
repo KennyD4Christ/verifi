@@ -4,19 +4,50 @@ const USERS_URL = '/users/';
 
 const authService = {
   // Login user
-  login: async (username, password) => {
+  login: async (username, password, code = null, backupCode = null) => {
     try {
-      const response = await axiosInstance.post('/users/auth/login/', { username, password });
+      const payload = { 
+        username, 
+        password,
+        ...(code && { code }),
+        ...(backupCode && { backup_code: backupCode })
+      };
+
+      const response = await axiosInstance.post('/users/auth/login/', payload);
+
       if (response.data.token) {
-	localStorage.setItem('token', response.data.token);
-	// Fetch user data after successful login
-	const userResponse = await axiosInstance.get('/users/me/');
-	return { token: response.data.token, user: userResponse.data };
+        localStorage.setItem('token', response.data.token);
+
+        // Fetch user data after successful login
+        const userResponse = await axiosInstance.get('/users/me/');
+        return { token: response.data.token, user: userResponse.data };
       }
+
       throw new Error('Login failed: No token received');
     } catch (error) {
       throw new Error(error.response?.data?.detail || 'Login failed');
     }
+  },
+
+  // Add 2FA specific methods
+  setup2FA: async (password) => {
+    const response = await axiosInstance.post('/users/users/enable_2fa/', { password });
+    return response.data;
+  },
+  
+  verify2FA: async (code) => {
+    const response = await axiosInstance.post('/users/users/verify_2fa/', { code });
+    return response.data;
+  },
+  
+  disable2FA: async (password) => {
+    const response = await axiosInstance.post('/users/users/disable_2fa/', { password });
+    return response.data;
+  },
+  
+  regenerateBackupCodes: async (password) => {
+    const response = await axiosInstance.post('/users/users/regenerate_backup_codes/', { password });
+    return response.data;
   },
 
   // Logout user

@@ -16,7 +16,7 @@ const breakpoints = {
 
 const SIDEBAR_WIDTHS = {
   expanded: '270px',
-  collapsed: '65px',
+  collapsed: '75px',
   mobile: '280px',
 };
 
