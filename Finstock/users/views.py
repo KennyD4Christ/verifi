@@ -5,12 +5,11 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from django.contrib.auth.tokens import default_token_generator
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
@@ -22,10 +21,16 @@ from products.models import Product
 from invoices.models import Invoice
 from transactions.models import Transaction
 from stock_adjustments.models import StockAdjustment
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from reports.models import Report
 from core.models import Order
 from .permissions import AdminUserRolePermission, RoleBasedPermission
 from .constants import PermissionConstants
+import pyotp
+import qrcode
+import io
+import base64
+import random
 from .serializers import (
     UserSerializer,
     UserRegistrationSerializer,
@@ -40,13 +45,21 @@ from .serializers import (
     TransactionSerializer,
     StockAdjustmentSerializer,
     ReportSerializer,
-    OrderSerializer
+    OrderSerializer,
+    TwoFactorLoginSerializer,
+    TwoFactorSetupSerializer,
+    TwoFactorVerifySerializer
 )
 from rest_framework.pagination import PageNumberPagination
 import logging
 
 logger = logging.getLogger(__name__)
 
+class TwoFactorRateThrottle(UserRateThrottle):
+    scope = 'two_factor'
+
+class LoginRateThrottle(AnonRateThrottle):
+    scope = 'login'
 
 class UserPagination(PageNumberPagination):
     page_size = 10
@@ -485,6 +498,104 @@ class UserViewSet(BaseAccessControlViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=False, methods=['POST'], permission_classes=[IsAuthenticated])
+    def enable_2fa(self, request):
+        """Initiate 2FA setup"""
+        serializer = TwoFactorSetupSerializer(data=request.data, context={'request': request})
+
+        if serializer.is_valid():
+            user = request.user
+            secret = user.enable_2fa()
+
+            # Generate QR code
+            totp = pyotp.TOTP(secret)
+            uri = totp.provisioning_uri(name=user.username, issuer_name="YourApp")
+
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(uri)
+            qr.make(fit=True)
+
+            img = qr.make_image(fill_color="black", back_color="white")
+            buffer = io.BytesIO()
+            img.save(buffer, format="PNG")
+            qr_code_image = base64.b64encode(buffer.getvalue()).decode()
+
+            return Response({
+                'secret': secret,
+                'qr_code': qr_code_image,
+                'message': 'Scan this QR code with your authenticator app',
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['POST'], permission_classes=[IsAuthenticated], throttle_classes=[TwoFactorRateThrottle])
+    def verify_2fa(self, request):
+        """Verify and complete 2FA setup"""
+        serializer = TwoFactorVerifySerializer(data=request.data)
+
+        if serializer.is_valid():
+            user = request.user
+            code = serializer.validated_data['code']
+
+            if user.verify_otp(code):
+                # Generate backup codes
+                backup_codes = user.generate_backup_codes()
+
+                return Response({
+                    'message': '2FA enabled successfully',
+                    'backup_codes': backup_codes,
+                    'warning': 'Save these backup codes in a secure place. They will not be shown again.'
+                }, status=status.HTTP_200_OK)
+
+            return Response({
+                'error': 'Invalid verification code'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['POST'], permission_classes=[IsAuthenticated])
+    def disable_2fa(self, request):
+        """Disable 2FA"""
+        serializer = TwoFactorSetupSerializer(data=request.data, context={'request': request})
+
+        if serializer.is_valid():
+            user = request.user
+            user.disable_2fa()
+
+            return Response({
+                'message': '2FA disabled successfully'
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['POST'], permission_classes=[IsAuthenticated])
+    def regenerate_backup_codes(self, request):
+        """Regenerate backup codes"""
+        serializer = TwoFactorSetupSerializer(data=request.data, context={'request': request})
+
+        if serializer.is_valid():
+            user = request.user
+
+            if not user.two_factor_enabled:
+                return Response({
+                    'error': '2FA is not enabled'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            backup_codes = user.generate_backup_codes()
+
+            return Response({
+                'message': 'Backup codes regenerated successfully',
+                'backup_codes': backup_codes,
+                'warning': 'Save these backup codes in a secure place. They will not be shown again.'
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
     @action(detail=False, methods=['GET'])
     def me(self, request):
@@ -562,16 +673,48 @@ class AuthViewSet(viewsets.ViewSet):
     @action(
         detail=False,
         methods=['post'],
-        permission_classes=[permissions.AllowAny])
+        permission_classes=[permissions.AllowAny],
+        throttle_classes=[LoginRateThrottle])
     def login(self, request):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        user = authenticate(request, username=username, password=password)
-        if user:
+        serializer = TwoFactorLoginSerializer(data=request.data)
+    
+        if serializer.is_valid():
+            validated_data = serializer.validated_data
+        
+            # Check if this is the first step of 2FA
+            if 'requires_2fa' in validated_data and validated_data['requires_2fa']:
+                return Response({
+                    'message': '2FA verification required',
+                    'requires_2fa': True,
+                    'username': request.data.get('username')
+                }, status=status.HTTP_200_OK)
+            
+            # Full authentication successful
+            user = validated_data['user']
             login(request, user)
             token, created = Token.objects.get_or_create(user=user)
-            return Response({'token': token.key}, status=200)
-        return Response({'error': 'Invalid Credentials'}, status=400)
+        
+            # Add roles and permissions to response
+            roles = [{'id': role.id, 'name': role.name} for role in user.roles.all()]
+            permissions = list(user.get_permissions().values('id', 'name', 'category'))
+        
+            response_data = {
+                'token': token.key,
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'two_factor_enabled': user.two_factor_enabled
+                },
+                'roles': roles,
+                'permissions': permissions
+            }
+        
+            return Response(response_data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(
         detail=False,

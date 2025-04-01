@@ -14,6 +14,9 @@ from reports.models import Report
 from core.models import Order
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
+import qrcode
+import io
+import base64
 import logging
 logger = logging.getLogger(__name__)
 
@@ -427,3 +430,62 @@ class PasswordResetSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save()
         return user
+
+
+class TwoFactorSetupSerializer(serializers.Serializer):
+    """Serializer for enabling 2FA"""
+    password = serializers.CharField(write_only=True, required=True)
+
+    def validate_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Incorrect password")
+        return value
+
+class TwoFactorVerifySerializer(serializers.Serializer):
+    """Serializer for verifying 2FA setup"""
+    code = serializers.CharField(required=True, max_length=6, min_length=6)
+
+    def validate_code(self, value):
+        try:
+            int(value)
+            return value
+        except ValueError:
+            raise serializers.ValidationError("OTP code must be numeric")
+
+class TwoFactorLoginSerializer(serializers.Serializer):
+    """Serializer for 2FA login verification"""
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+    code = serializers.CharField(required=False, allow_blank=True)
+    backup_code = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, data):
+        username = data.get('username')
+        password = data.get('password')
+        code = data.get('code')
+        backup_code = data.get('backup_code')
+
+        try:
+            user = CustomUser.objects.get(username=username)
+        except CustomUser.DoesNotExist:
+            raise serializers.ValidationError("Invalid credentials")
+
+        if not user.check_password(password):
+            raise serializers.ValidationError("Invalid credentials")
+
+        # If 2FA is enabled, validate OTP or backup code
+        if user.two_factor_enabled:
+            if not code and not backup_code:
+                # Return partial validation for first step
+                return {'user': user, 'requires_2fa': True}
+
+            if code and user.verify_otp(code):
+                return {'user': user, 'requires_2fa': False}
+
+            if backup_code and user.verify_backup_code(backup_code):
+                return {'user': user, 'requires_2fa': False}
+
+            raise serializers.ValidationError("Invalid 2FA code")
+
+        return {'user': user, 'requires_2fa': False}

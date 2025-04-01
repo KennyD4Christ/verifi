@@ -11,7 +11,6 @@ router.register(r'auth', AuthViewSet, basename='auth')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('register/', UserViewSet.as_view({'post': 'register'}), name='user-register'),
     path('me/', current_user, name='current_user'),
     path('auth/refresh-permissions/', PermissionRefreshView.as_view(), name='permission-refresh'),
     path('password-reset-request/', PasswordResetRequestView.as_view(), name='password_reset_request'),

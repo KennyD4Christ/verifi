@@ -20,8 +20,6 @@ env = environ.Env(
        DB_PORT=(int, 3306),
        EMAIL_BACKEND=(str, 'django.core.mail.backends.smtp.EmailBackend'),
        EMAIL_HOST=(str, 'smtp.gmail.com'),
-       EMAIL_PORT=(int, 587),
-       EMAIL_USE_TLS=(bool, True),
        EMAIL_HOST_USER=(str, ''),
        EMAIL_HOST_PASSWORD=(str, ''),
        SITE_URL=(str, 'http://localhost:8000')
@@ -29,6 +27,10 @@ env = environ.Env(
 
 # reading .env file
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+EMAIL_PORT = env.int("EMAIL_PORT", default=465)
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=False)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=True)
 
 JWT_SECRET = env('JWT_SECRET', default=None)
 
@@ -299,4 +301,11 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.MultiPartParser',
     ),
     'DEFAULT_CONTENT_NEGOTIATION_CLASS': 'rest_framework.negotiation.DefaultContentNegotiation',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'login': '5/min',
+        'two_factor': '3/min',
+    }
 }
