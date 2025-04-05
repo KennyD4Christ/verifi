@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import { 
-  TextField, Button, Typography, Box, Container, Alert, 
+  TextField, Button, Typography, Box, Container, Alert,
   CircularProgress, Checkbox, FormControlLabel, InputAdornment, 
   IconButton, Paper, Divider
 } from '@mui/material';

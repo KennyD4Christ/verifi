@@ -3,6 +3,7 @@ import authService from '../services/authService';
 import { isTokenPresent, getAuthHeader } from '../utils/auth';
 import fetchUserPermissions from '../services/api';
 
+
 export const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
@@ -17,13 +18,16 @@ const AuthProvider = ({ children }) => {
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [requires2FA, setRequires2FA] = useState(false);
   const [tempUsername, setTempUsername] = useState('');
+  const [tempPassword, setTempPassword] = useState(''); // Added for 2FA flow
 
-  // Add the missing setToken function
+  // Set token in localStorage
   const setToken = (token, rememberMe = false) => {
     if (token) {
       localStorage.setItem('token', token);
+      console.log('Token set in localStorage');
     } else {
       localStorage.removeItem('token');
+      console.log('Token removed from localStorage');
     }
   };
 
@@ -35,9 +39,11 @@ const AuthProvider = ({ children }) => {
   // Load user permissions after authentication
   const loadUserPermissions = async () => {
     try {
+      console.log('Loading user permissions...');
       setIsLoadingPermissions(true);
       const { permissions } = await fetchUserPermissions();
       setPermissions(permissions);
+      console.log('Permissions loaded successfully');
     } catch (error) {
       console.error('Failed to load user permissions:', error);
       setPermissions([]);
@@ -64,6 +70,9 @@ const AuthProvider = ({ children }) => {
         const currentUser = await authService.getCurrentUser();
         console.log('Current user fetched:', currentUser);
         setUser(currentUser);
+
+        // Load permissions after user is fetched
+        await loadUserPermissions();
       } catch (error) {
         console.error('Failed to fetch user:', error);
         setError(error.message || 'An error occurred while fetching user data');
@@ -84,29 +93,42 @@ const AuthProvider = ({ children }) => {
 
   const login = async (username, password, rememberMe = false, code = null, backupCode = null) => {
     try {
+      console.log('Login attempt initiated with:', {
+        username,
+        passwordProvided: !!password,
+        codeProvided: !!code,
+        backupCodeProvided: !!backupCode
+      });
+
       setLoading(true);
+      setError(null); // Clear previous errors
 
-      // Call authService with 2FA credentials if available
+      // Call authService with credentials
       const response = await authService.login(username, password, code, backupCode);
+      console.log('Login response received:', response);
 
-      // If 2FA is required, update state and return early
+      // If 2FA is required (note: use requires_2fa to match backend)
       if (response.requires_2fa) {
+        console.log('2FA required, storing credentials temporarily');
         setRequires2FA(true);
         setTempUsername(username);
-        return { requires2FA: true };
+        setTempPassword(password); // Store password for later use
+        return { requires2FA: true, data: response };
       }
 
       // Normal login flow
+      console.log('Login successful, storing token and user data');
       const { token, user } = response;
       setToken(token, rememberMe);
       setUser(user);
 
-      // Load user permissions
-      await loadUserPermissions();
-
-      // Reset 2FA state variables in case they were previously set
+      // Reset 2FA state if any
       setRequires2FA(false);
       setTempUsername('');
+      setTempPassword('');
+
+      // Load user permissions
+      await loadUserPermissions();
 
       return response;
     } catch (error) {
@@ -121,21 +143,46 @@ const AuthProvider = ({ children }) => {
   // Complete 2FA verification
   const complete2FALogin = async (code, useBackupCode = false) => {
     try {
+      console.log('Completing 2FA login with:', {
+        username: tempUsername,
+        passwordStored: !!tempPassword,
+        code: useBackupCode ? null : code,
+        backupCode: useBackupCode ? code : null
+      });
+
+      // Make sure we have the required credentials
+      if (!tempUsername || !tempPassword) {
+        const errorMsg = 'Missing credentials for 2FA completion';
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      // Call login again with saved credentials and 2FA code
       const response = await authService.login(
         tempUsername,
-        null,
+        tempPassword,
         useBackupCode ? null : code,
         useBackupCode ? code : null
       );
 
+      console.log('2FA completion response:', response);
+
+      // Process successful login
       const { token, user } = response;
       setToken(token);
       setUser(user);
+
+      // Clear temporary data
       setRequires2FA(false);
       setTempUsername('');
+      setTempPassword('');
+
+      // Load user permissions
+      await loadUserPermissions();
 
       return response;
     } catch (error) {
+      console.error('2FA completion failed:', error);
       throw error;
     }
   };
@@ -145,6 +192,7 @@ const AuthProvider = ({ children }) => {
     try {
       return await authService.setup2FA(password);
     } catch (error) {
+      console.error('Setup 2FA failed:', error);
       throw error;
     }
   };
@@ -161,6 +209,7 @@ const AuthProvider = ({ children }) => {
 
       return response;
     } catch (error) {
+      console.error('Verify 2FA failed:', error);
       throw error;
     }
   };
@@ -177,6 +226,7 @@ const AuthProvider = ({ children }) => {
 
       return response;
     } catch (error) {
+      console.error('Disable 2FA failed:', error);
       throw error;
     }
   };
@@ -185,14 +235,17 @@ const AuthProvider = ({ children }) => {
     try {
       return await authService.regenerateBackupCodes(password);
     } catch (error) {
+      console.error('Regenerate backup codes failed:', error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
+      console.log('Logging out...');
       await authService.logout();
       setUser(null);
+      console.log('Logout successful');
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
@@ -204,7 +257,9 @@ const AuthProvider = ({ children }) => {
 
   // Method to check if user has a specific permission
   const hasPermission = (requiredPermission) => {
-    return permissions.includes(requiredPermission);
+    return permissions.some(permission =>
+      permission.name === requiredPermission || permission.id === requiredPermission
+    );
   };
 
   return (
