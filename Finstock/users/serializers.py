@@ -454,7 +454,6 @@ class TwoFactorVerifySerializer(serializers.Serializer):
             raise serializers.ValidationError("OTP code must be numeric")
 
 class TwoFactorLoginSerializer(serializers.Serializer):
-    """Serializer for 2FA login verification"""
     username = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
     code = serializers.CharField(required=False, allow_blank=True)
@@ -463,29 +462,44 @@ class TwoFactorLoginSerializer(serializers.Serializer):
     def validate(self, data):
         username = data.get('username')
         password = data.get('password')
-        code = data.get('code')
-        backup_code = data.get('backup_code')
+        code = data.get('code', '')  # Use empty string as default, not None
+        backup_code = data.get('backup_code', '')  # Use empty string as default
+
+        # Log for debugging (remove in production)
+        logger.debug(f"Login attempt: username={username}, code provided={bool(code)}, backup code provided={bool(backup_code)}")
 
         try:
             user = CustomUser.objects.get(username=username)
         except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("Invalid credentials")
+            # Use consistent error message to avoid username enumeration
+            raise serializers.ValidationError({"error": "Invalid credentials"})
 
         if not user.check_password(password):
-            raise serializers.ValidationError("Invalid credentials")
+            raise serializers.ValidationError({"error": "Invalid credentials"})
 
         # If 2FA is enabled, validate OTP or backup code
         if user.two_factor_enabled:
+            # First login step, no 2FA code provided yet
             if not code and not backup_code:
-                # Return partial validation for first step
+                logger.debug(f"2FA required for user {username}")
                 return {'user': user, 'requires_2fa': True}
 
-            if code and user.verify_otp(code):
-                return {'user': user, 'requires_2fa': False}
+            # Verify OTP code
+            if code:
+                logger.debug(f"Verifying OTP code for user {username}")
+                if user.verify_otp(code):
+                    return {'user': user, 'requires_2fa': False}
 
-            if backup_code and user.verify_backup_code(backup_code):
-                return {'user': user, 'requires_2fa': False}
+            # Verify backup code
+            if backup_code:
+                logger.debug(f"Verifying backup code for user {username}")
+                if user.verify_backup_code(backup_code):
+                    return {'user': user, 'requires_2fa': False}
 
-            raise serializers.ValidationError("Invalid 2FA code")
+            # If we reach here, both code and backup_code failed validation
+            logger.warning(f"Invalid 2FA code provided for user {username}")
+            raise serializers.ValidationError({"error": "Invalid 2FA code"})
 
+        # 2FA not enabled, proceed with normal login
+        logger.debug(f"Regular login successful for user {username}")
         return {'user': user, 'requires_2fa': False}

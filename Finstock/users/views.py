@@ -677,28 +677,30 @@ class AuthViewSet(viewsets.ViewSet):
         throttle_classes=[LoginRateThrottle])
     def login(self, request):
         serializer = TwoFactorLoginSerializer(data=request.data)
-    
+
         if serializer.is_valid():
             validated_data = serializer.validated_data
-        
+
             # Check if this is the first step of 2FA
             if 'requires_2fa' in validated_data and validated_data['requires_2fa']:
                 return Response({
+                    'status': 'success',
                     'message': '2FA verification required',
                     'requires_2fa': True,
                     'username': request.data.get('username')
                 }, status=status.HTTP_200_OK)
-            
+
             # Full authentication successful
             user = validated_data['user']
             login(request, user)
             token, created = Token.objects.get_or_create(user=user)
-        
+
             # Add roles and permissions to response
             roles = [{'id': role.id, 'name': role.name} for role in user.roles.all()]
             permissions = list(user.get_permissions().values('id', 'name', 'category'))
-        
+
             response_data = {
+                'status': 'success',
                 'token': token.key,
                 'user': {
                     'id': user.id,
@@ -711,10 +713,16 @@ class AuthViewSet(viewsets.ViewSet):
                 'roles': roles,
                 'permissions': permissions
             }
-        
+
             return Response(response_data, status=status.HTTP_200_OK)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validation failed
+        return Response({
+            'status': 'error',
+            'message': 'Login failed',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
 
     @action(
         detail=False,
