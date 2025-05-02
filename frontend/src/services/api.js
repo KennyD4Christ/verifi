@@ -1254,6 +1254,12 @@ export const fetchSummaryData = async (startDate, endDate) => {
       end_date: formattedEndDate
     };
 
+    // First, get the net profit data to ensure consistent revenue source
+    const netProfitResponse = await axiosInstance.get('/analytics/net-profit/', { 
+      params,
+      headers: getAuthHeader()
+    });
+    
     const [orders, products, customers, transactions] = await Promise.all([
       axiosInstance.get('/core/orders/', { params }),
       axiosInstance.get('/products/', { params }),
@@ -1261,27 +1267,11 @@ export const fetchSummaryData = async (startDate, endDate) => {
       axiosInstance.get('/transactions/transactions/', { params })
     ]);
 
-    // Improved data extraction with verbose logging
-    const orderData = Array.isArray(orders.data) ? orders.data : 
-                     (orders.data.results || []);
-
-    console.log('Raw Order Data:', orderData);
-
-    let totalRevenue = 0;
-    // Process each order individually with error handling
-    orderData.forEach((order, index) => {
-      try {
-        const orderValue = extractNumericValue(order.total_price);
-        console.log(`Processing order ${index}:`, {
-          originalPrice: order.total_price,
-          extractedValue: orderValue
-        });
-        totalRevenue += orderValue;
-      } catch (err) {
-        console.error(`Error processing order ${index}:`, err);
-      }
-    });
-
+    // Use the revenue from the net profit endpoint instead of calculating from orders
+    const totalRevenue = netProfitResponse.data.revenue;
+    
+    // Calculate other metrics as before
+    const orderData = Array.isArray(orders.data) ? orders.data : (orders.data.results || []);
     const totalOrders = orderData.length;
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
@@ -1295,18 +1285,13 @@ export const fetchSummaryData = async (startDate, endDate) => {
       totalRevenue: formatCurrency(totalRevenue),
       averageOrderValue: formatCurrency(averageOrderValue),
       totalOrders,
-      totalProducts: Array.isArray(products.data) ? products.data.length : 
-                    (products.data?.results?.length || 0),
-      totalCustomers: Array.isArray(customers.data) ? customers.data.length :
-                     (customers.data?.results?.length || 0),
-      recentTransactions: Array.isArray(transactions.data) ? 
-                         transactions.data.slice(0, 5) :
-                         (transactions.data?.results || []).slice(0, 5)
+      totalProducts: Array.isArray(products.data) ? products.data.length : (products.data?.results?.length || 0),
+      totalCustomers: Array.isArray(customers.data) ? customers.data.length : (customers.data?.results?.length || 0),
+      recentTransactions: Array.isArray(transactions.data) ? transactions.data.slice(0, 5) : (transactions.data?.results || []).slice(0, 5)
     };
 
     console.log('Final Summary Data:', summaryData);
     return summaryData;
-
   } catch (error) {
     console.error('Error in fetchSummaryData:', error);
     throw error;

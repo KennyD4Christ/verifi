@@ -142,7 +142,7 @@ const authService = {
   // Register user
   register: async (username, email, password, firstName, lastName, phoneNumber) => {
     try {
-      const response = await axiosInstance.post(`/users/register/`, {
+      const response = await axiosInstance.post('/users/users/register/', {
         username,
         email,
         password,

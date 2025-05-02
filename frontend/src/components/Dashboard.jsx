@@ -979,17 +979,8 @@ const Dashboard = () => {
           return acc;
         }
 
-        // Handle currency-formatted amounts by extracting numeric value
-        let amount = sale.amount;
-        if (typeof amount === 'string' && amount.includes('₦')) {
-          amount = extractNumericValue(amount);
-        } else {
-          amount = parseFloat(amount) || 0;
-        }
-
-        if (amount === 0) {
-          console.warn(`Invalid or zero amount in sale object: ${sale.amount}`);
-        }
+        // Always use extractNumericValue for consistent processing
+        const amount = extractNumericValue(sale.amount);
 
         const formattedDate = dateUtils.formatDateForAPI(saleDate);
 
@@ -1004,7 +995,7 @@ const Dashboard = () => {
       return Object.entries(aggregated)
         .map(([date, amount]) => ({
           date,
-          amount: Number(amount.toFixed(2))  // Maintain numeric value
+          amount: Number(amount.toFixed(2))
         }))
         .sort((a, b) => moment(a.date).valueOf() - moment(b.date).valueOf());
 
